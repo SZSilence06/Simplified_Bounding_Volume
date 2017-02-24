@@ -2,19 +2,24 @@
 #define WKY_SIMPLIFIER_H
 
 #include <string>
+#include <zjucad/matrix/matrix.h>
 
 namespace SBV {
+    using matrixr_t = zjucad::matrix<double>;
+    using matrixs_t = zjucad::matrix<size_t>;
 
+    struct Mesh{
+        matrixr_t vertices;
+        matrixs_t triangles;
+    };
 
     class Simplifier{
     public:
 
-
     private:
-        std::string input_mesh_path_;
-        std::string output_directory_;
+        std::string mOutputDirectory;
 
-
+        Mesh mSourceMesh;
     };
 }
 
