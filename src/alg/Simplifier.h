@@ -15,10 +15,10 @@ namespace SBV {
 
     class Simplifier{
     public:
+        Simplifier(const std::string& inputMeshPath, const std::string& outputDirectory, double errorBound);
 
     private:
         std::string mOutputDirectory;
-
         Mesh mSourceMesh;
     };
 }
