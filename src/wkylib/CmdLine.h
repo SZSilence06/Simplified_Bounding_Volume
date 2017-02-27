@@ -22,7 +22,7 @@ namespace WKYLIB {
         CmdLine(int argc, char** argv);
         virtual ~CmdLine();
 
-        void parse();
+        bool parse();
 
         void addParamDef(const std::string& paramName, CmdParamType paramType);
 
