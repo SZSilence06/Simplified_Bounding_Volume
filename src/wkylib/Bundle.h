@@ -41,11 +41,11 @@ namespace WKYLIB {
         bool hasKey(const std::string& key) const;
 
         KeyValueType getKeyValueType(const std::string& key) const;
-        int getInt(const std::string& key) const;
-        bool getBool(const std::string& key) const;
-        float getFloat(const std::string& key) const;
-        double getDouble(const std::string& key) const;
-        const std::string& getString(const std::string& key) const;
+        bool getInt(const std::string& key, int& value) const;
+        bool getBool(const std::string& key, bool& value) const;
+        bool getFloat(const std::string& key, float& value) const;
+        bool getDouble(const std::string& key, double& value) const;
+        bool getString(const std::string& key, std::string& value) const;
 
     private:
         void checkBeforePut(const std::string& key, KeyValueType valueType);

@@ -15,9 +15,11 @@ file(GLOB sources *.cpp)
 add_subdirectory(alg)
 add_subdirectory(wkylib)
 
-add_executable(SBV_APP ${headers} ${sources})
+add_executable(sbvgen ${headers} ${sources})
 
-target_link_libraries(SBV_APP
-    alg)
+target_link_libraries(sbvgen
+    alg
+    wkylib
+    )
 
 

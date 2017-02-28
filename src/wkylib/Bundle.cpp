@@ -97,53 +97,58 @@ namespace  WKYLIB {
         return iter->second;
     }
 
-    int Bundle::getInt(const std::string &key) const
+    bool Bundle::getInt(const std::string &key, int& value) const
     {
         auto iter = mIntValues.find(key);
         if(iter == mIntValues.end())
         {
-            throw std::runtime_error("Cannot find int when looking for key '" + key + "' in bundle.");
+            return false;
         }
-        return iter->second;
+        value = iter->second;
+        return true;
     }
 
-    bool Bundle::getBool(const std::string &key) const
+    bool Bundle::getBool(const std::string &key, bool& value) const
     {
         auto iter = mBoolValues.find(key);
         if(iter == mBoolValues.end())
         {
-            throw std::runtime_error("Cannot find bool when looking for key '" + key + "' in bundle.");
+            return false;
         }
-        return iter->second;
+        value = iter->second;
+        return true;
     }
 
-    float Bundle::getFloat(const std::string &key) const
+    bool Bundle::getFloat(const std::string &key, float& value) const
     {
         auto iter = mFloatValues.find(key);
         if(iter == mFloatValues.end())
         {
-            throw std::runtime_error("Cannot find float when looking for key '" + key + "' in bundle.");
+            return false;
         }
-        return iter->second;
+        value = iter->second;
+        return true;
     }
 
-    double Bundle::getDouble(const std::string &key) const
+    bool Bundle::getDouble(const std::string &key, double& value) const
     {
         auto iter = mDoubleValues.find(key);
         if(iter == mDoubleValues.end())
         {
-            throw std::runtime_error("Cannot find double when looking for key '" + key + "' in bundle.");
+            return false;
         }
-        return iter->second;
+        value = iter->second;
+        return true;
     }
 
-    const std::string& Bundle::getString(const std::string &key) const
+    bool Bundle::getString(const std::string &key, std::string& value) const
     {
         auto iter = mStringValues.find(key);
         if(iter == mStringValues.end())
         {
-            throw std::runtime_error("Cannot find string when looking for key '" + key + "' in bundle.");
+            return false;
         }
-        return iter->second;
+        value = iter->second;
+        return true;
     }
 }
