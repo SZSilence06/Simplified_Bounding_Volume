@@ -41,8 +41,6 @@ void displayVersion()
 
 void parseCmdLines(int argc, char**argv)
 {
-    char* cmd = nullptr;
-    char* param = nullptr;
     if(argc <= 1)
     {
         std::cout << "sbvgen version 1.00.\n"
