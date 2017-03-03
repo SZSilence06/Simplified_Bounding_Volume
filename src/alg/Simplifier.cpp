@@ -49,8 +49,8 @@ namespace SBV
 
         if(mNeedGenTempResult)
         {
-            WKYLIB::Mesh::writePoints(mInnerShell, mOutputDirectory + "/inner_shell.obj");
-            WKYLIB::Mesh::writePoints(mOuterShell, mOutputDirectory + "/outer_shell.obj");
+            WKYLIB::Mesh::writePoints(mInnerShell, mOutputDirectory + "/inner_shell.vtk");
+            WKYLIB::Mesh::writePoints(mOuterShell, mOutputDirectory + "/outer_shell.vtk");
         }
     }
 
