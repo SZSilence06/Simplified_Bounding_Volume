@@ -5,8 +5,8 @@
 #include <zjucad/matrix/matrix.h>
 
 namespace SBV {
-    using matrixr_t = zjucad::matrix<double>;
-    using matrixs_t = zjucad::matrix<size_t>;
+    using matrixr_t = zjucad::matrix::matrix<double>;
+    using matrixs_t = zjucad::matrix::matrix<size_t>;
 
     struct Mesh{
         matrixr_t vertices;
@@ -15,11 +15,44 @@ namespace SBV {
 
     class Simplifier{
     public:
-        Simplifier(const std::string& inputMeshPath, const std::string& outputDirectory, double errorBound);
+        Simplifier(Mesh& mesh);
+
+        void simplify();
+
+        void setOutputDirectory(const std::string& outputDir)
+        {
+            this->mOutputDirectory = outputDir;
+        }
+
+        void setMaxDistance(double maxDist)
+        {
+            this->mMaxDistance = maxDist;
+        }
+
+        void setSampleRadius(double sampleRadius)
+        {
+            this->mSampleRadius = sampleRadius;
+        }
+
+        void setGenTempResult(bool value)
+        {
+            this->mNeedGenTempResult = value;
+        }
+
+    private:
+        void genDefaultParams();
+        void generateShells();
+        void sample(const matrixr_t& vertices, const matrixs_t& triangles, std::vector<matrixr_t>& output_samples);
 
     private:
         std::string mOutputDirectory;
-        Mesh mSourceMesh;
+        Mesh& mSourceMesh;
+        double mMaxDistance = -1;
+        double mSampleRadius = -1;
+        bool mNeedGenTempResult = false;
+
+        matrixr_t mInnerShell;
+        matrixr_t mOuterShell;
     };
 }
 

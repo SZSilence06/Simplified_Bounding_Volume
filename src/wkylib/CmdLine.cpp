@@ -155,5 +155,6 @@ namespace WKYLIB
             mErrorArg = paramValue;
             return false;
         }
+        return true;
     }
 }

@@ -3,7 +3,7 @@
  * Tool for generating simplified bounding volumes.
  * Author : SZ_Silence06
  * Date : Feb 24, 2017
- * Usage : sbvgen -s source_mesh_path [-d [output_directory]] [-e [max_distance]] [-options]
+ * Usage : sbvgen -s source_mesh_path [-d [output_directory]] [-e [max_distance]] [-r [sample radius]] [-options]
  * Possible options :
  *                     -t      Generate temp results.
  *                     -v      Display version information.
@@ -12,11 +12,15 @@
 #include <iostream>
 #include <string.h>
 #include <string>
+#include <boost/filesystem.hpp>
+#include <jtflib/mesh/io.h>
 #include "wkylib/CmdLine.h"
+#include "alg/Simplifier.h"
 
 std::string g_inputMeshPath = "";
 std::string g_outputPath = "";
 double g_maxDistance = -1;
+double g_sampleRadius = -1;
 bool g_genTempResult = false;
 
 using namespace WKYLIB;
@@ -24,7 +28,8 @@ using namespace WKYLIB;
 void displayHelp()
 {
     std::cout << "sbvgen tool for generating simplified bounding volumes." << std::endl
-              << "Usage : sbvgen -s source_mesh_path [-d [output_directory]] [-e [max_distance]] [-options]" << std::endl
+              << "Usage : sbvgen -s source_mesh_path [-d [output_directory]] [-e [max_distance]] "
+                 "[-r [sample radius]] [-options]" << std::endl
               << "Possible options :" << std::endl
               << "                    -t      Generate temp results." << std::endl
               << "                    -v      Display version information." <<std::endl;
@@ -54,6 +59,7 @@ void parseCmdLines(int argc, char**argv)
     cmdParser.addParamDef("-s", CmdLine::CmdParamType::STRING);
     cmdParser.addParamDef("-d", CmdLine::CmdParamType::STRING);
     cmdParser.addParamDef("-e", CmdLine::CmdParamType::DOUBLE);
+    cmdParser.addParamDef("-r", CmdLine::CmdParamType::DOUBLE);
     cmdParser.addParamDef("-t", CmdLine::CmdParamType::BOOL);
     cmdParser.addParamDef("-h", CmdLine::CmdParamType::BOOL);
     cmdParser.addParamDef("-v", CmdLine::CmdParamType::BOOL);
@@ -99,7 +105,12 @@ void parseCmdLines(int argc, char**argv)
         needInputMesh = false;
     }
 
-    if(cmdParser.hasParam("-s") == false && needInputMesh)
+    if(needInputMesh == false)
+    {
+        exit(0);
+    }
+
+    if(cmdParser.hasParam("-s") == false)
     {
         std::cout << "Cannot find '-s' parameter. Did you forget to type it before inputing the mesh file path?" << std::endl
                   << "Type -h for help." << std::endl;
@@ -109,12 +120,53 @@ void parseCmdLines(int argc, char**argv)
     cmdParser.getString("-s", g_inputMeshPath);
     cmdParser.getString("-d", g_outputPath);
     cmdParser.getDouble("-e", g_maxDistance);
+    cmdParser.getDouble("-r", g_sampleRadius);
     cmdParser.getBool("-t", g_genTempResult);
+}
+
+void genDefaultParams()
+{
+    if(g_outputPath == "")
+    {
+        //no output directory, so we auto generate one.
+        size_t pos = g_inputMeshPath.find_last_of('.');
+        if(pos == std::string::npos)
+        {
+            g_outputPath = g_inputMeshPath;
+        }
+        else
+        {
+            g_outputPath = g_inputMeshPath.substr(0, pos);
+        }
+    }
+
+    if(boost::filesystem::exists(g_outputPath) == false
+            || boost::filesystem::is_directory(g_outputPath) == false)
+    {
+        //output directory don't exist, so create it
+        boost::filesystem::create_directory(g_outputPath);
+    }
 }
 
 int main(int argc, char**argv)
 {
     parseCmdLines(argc, argv);
+
+    SBV::Mesh mesh;
+    if(jtf::mesh::load_obj(g_inputMeshPath.c_str(), mesh.triangles, mesh.vertices) != 0)
+    {
+        std::cout << "Fail to load mesh: " + g_inputMeshPath << std::endl;
+        return 0;
+    }
+
+    genDefaultParams();
+
+    SBV::Simplifier simplifier(mesh);
+    simplifier.setOutputDirectory(g_outputPath);
+    simplifier.setMaxDistance(g_maxDistance);
+    simplifier.setSampleRadius(g_sampleRadius);
+    simplifier.setGenTempResult(g_genTempResult);
+    simplifier.simplify();
 
     return 0;
 }
