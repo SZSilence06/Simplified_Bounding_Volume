@@ -1,5 +1,6 @@
 #include "IO.h"
 #include <fstream>
+#include <sstream>
 
 namespace WKYLIB
 {
@@ -35,6 +36,66 @@ namespace WKYLIB
             }
 
             out.close();
+
+            return true;
+        }
+
+
+        bool readCurve2D(const std::string& file, matrixr_t& vertices, matrixs_t& lines)
+        {
+            std::ifstream in;
+
+            in.open(file);
+            if(in.fail())
+            {
+                return false;
+            }
+
+            std::vector<matrixr_t> curve;
+            std::vector<matrixs_t> seg;
+            while(in)
+            {
+                char buf[1024];
+                in.getline(buf, sizeof(buf));
+
+                std::stringstream ss;
+                ss << buf;
+                char sign;
+                ss >> sign;
+                if(sign == 'v')
+                {
+                    double a, b, c;
+                    ss >> a >> b >> c;
+
+                    matrixr_t vert(2,1);
+                    vert[0] = a;
+                    vert[1] = c;
+                    curve.push_back(vert);
+                }
+                else if(sign == 'l')
+                {
+                    int a, b;
+                    ss >> a >> b;
+
+                    matrixs_t line(2, 1);
+                    line[0] = a - 1;
+                    line[1] = b - 1;
+                    seg.push_back(line);
+                    break;
+                }
+            }
+
+            vertices.resize(2, curve.size());
+            for(int i = 0; i < curve.size(); i++)
+            {
+                vertices(colon(), i) = curve[i];
+            }
+
+            lines.resize(2, seg.size());
+            for(int i = 0; i < seg.size(); i++)
+            {
+                lines(colon(), i) = seg[i];
+            }
 
             return true;
         }

@@ -12,6 +12,11 @@ namespace SBV
         matrixr_t vertices;
         matrixs_t triangles;
     };
+
+    struct Curve{
+        matrixr_t vertices;
+        matrixs_t lines;
+    };
 }
 
 #endif

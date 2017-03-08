@@ -15,6 +15,7 @@
 #include <boost/filesystem.hpp>
 #include <jtflib/mesh/io.h>
 #include "wkylib/CmdLine.h"
+#include <wkylib/mesh/IO.h>
 #include "alg/Simplifier.h"
 
 std::string g_inputMeshPath = "";
@@ -152,8 +153,8 @@ int main(int argc, char**argv)
 {
     parseCmdLines(argc, argv);
 
-    SBV::Mesh mesh;
-    if(jtf::mesh::load_obj(g_inputMeshPath.c_str(), mesh.triangles, mesh.vertices) != 0)
+    SBV::Curve curve;
+    if(WKYLIB::Mesh::readCurve2D(g_inputMeshPath, curve.vertices, curve.lines) == false)
     {
         std::cout << "Fail to load mesh: " + g_inputMeshPath << std::endl;
         return 0;
