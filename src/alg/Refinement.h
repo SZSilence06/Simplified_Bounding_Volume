@@ -39,13 +39,19 @@ namespace SBV
         using VertexBase = CGAL::Triangulation_vertex_base_with_info_3<PointInfo, K>;
         using CellBase = CGAL::Triangulation_cell_base_with_info_3<FaceInfo, K>;
         using Tds = CGAL::Triangulation_data_structure_3<VertexBase, CellBase, CGAL::Fast_location>;
-        using Delaunay = CGAL::Delaunay_triangulation_3<K, Tds>;
+        using Delaunay = CGAL::Delaunay_triangulation_3<K, Tds, CGAL::Fast_location>;
         using Point = Delaunay::Point;
+        using Cell = Delaunay::Cell;
+        using VertexHandle = Delaunay::Vertex_handle;
 
     private:
         void init();
         void computeBoundingBox();
         void initErrors();
+        void updateErrors();
+        void updatePointInCell(const Cell& cell);
+        double computeFValue(const matrixr_t& point, const Cell& cell);
+        double getFValue(const VertexHandle& vh);
         bool isFinished();
 
     private:

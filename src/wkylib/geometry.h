@@ -43,6 +43,9 @@ namespace WKYLIB {
     //Note: If p is on the edge or vertex, this function also returns true
     bool is_inside_poly(const matrixr_t &poly,const matrixr_t &p);
 
+    //Test whether a point is inside a tetrahedron.
+    bool is_inside_tetra(const matrixr_t& point, const matrixr_t& tetra);
+
     //Compute area of a triangle;
     real_t compute_area(const matrixr_t &a, const matrixr_t &b, const matrixr_t &c);
 
@@ -59,6 +62,10 @@ namespace WKYLIB {
     int barycentric(const matrixr_t &a, const matrixr_t &b,
                     const matrixr_t &c, const matrixr_t &p,
                     matrixr_t &bary);
+
+    //Compute barycenter coordinates of the point p on tetrahedron.
+    //return 1 if p is inside the tetrahedron, and 0 instead.
+    int barycentric_tetra(const matrixr_t &point, const matrixr_t &tetra, matrixr_t &bary);
 
     //Generate a ray direction, given the coordinate x,y in screen space.
     void generate_ray_dir(const matrixr_t &eye, const matrixr_t& lookAt, const matrixr_t &up,

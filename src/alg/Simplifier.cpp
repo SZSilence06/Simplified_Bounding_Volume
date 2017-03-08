@@ -1,4 +1,5 @@
 #include "Simplifier.h"
+#include "Refinement.h"
 #include <wkylib/mesh/MeshUtil.h>
 #include <wkylib/mesh/IO.h>
 #include <jtflib/mesh/io.h>
@@ -85,6 +86,8 @@ namespace SBV
 
     void Simplifier::refine()
     {
-
+        Refinement refinement(mInnerShell, mOuterShell);
+        std::vector<size_t> refineOutput;
+        refinement.refine(refineOutput);
     }
 }

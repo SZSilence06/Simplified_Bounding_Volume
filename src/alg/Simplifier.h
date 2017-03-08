@@ -3,7 +3,6 @@
 
 #include <string>
 #include "Common.h"
-#include "Delaunay.h"
 
 namespace SBV {
     class Simplifier{
@@ -31,10 +30,6 @@ namespace SBV {
         {
             this->mNeedGenTempResult = value;
         }
-
-    private:
-        using PointInfo = Delaunay::PointInfo;
-        using PointType = Delaunay::PointType;
 
     private:
         void genDefaultParams();

@@ -221,6 +221,28 @@ namespace WKYLIB {
         return false;
     }
 
+    //Tool function used by is_inside_tetra();
+    bool same_side(const matrixr_t &v1, const matrixr_t &v2, const matrixr_t &v3,
+                                 const matrixr_t& v4, const matrixr_t& p) {
+        matrixr_t normal = cross(v2 - v1, v3 - v1);
+        double dotV4 = dot(normal, v4 - v1);
+        double dotP = dot(normal, p - v1);
+        if(fabs(dotV4) < 1e-3 )
+            dotV4 = 0;
+        if(fabs(dotP) < 1e-3)
+            dotP = 0;
+        return (dotV4 >0 && dotP >0) || (dotV4 <0 && dotP <0);
+    }
+
+    //Test whether a point is inside a tetrahedron.
+    bool is_inside_tetra(const matrixr_t& point, const matrixr_t& tetra)
+    {
+        return same_side(tetra(colon(), 0), tetra(colon(), 1), tetra(colon(), 2), tetra(colon(), 3), point) &&
+               same_side(tetra(colon(), 1), tetra(colon(), 2), tetra(colon(), 3), tetra(colon(), 0), point) &&
+               same_side(tetra(colon(), 2), tetra(colon(), 3), tetra(colon(), 0), tetra(colon(), 1), point) &&
+               same_side(tetra(colon(), 3), tetra(colon(), 0), tetra(colon(), 1), tetra(colon(), 2), point);
+    }
+
     //Compute area of a triangle
     real_t compute_area(const matrixr_t &a, const matrixr_t &b, const matrixr_t &c)
     {
@@ -272,6 +294,46 @@ namespace WKYLIB {
             bary[0] = Spbc/Sabc;
             bary[1] = Spac/Sabc;
             bary[2] = Spab/Sabc;
+            return 1;
+        }
+        return 0;
+    }
+
+    //Tool function used by barycentric_tetra()
+    float ScTP(const matrixr_t &a, const matrixr_t &b, const matrixr_t &c)
+    {
+        // computes scalar triple product
+        return dot(a, cross(b, c));
+    }
+
+    //Compute barycenter coordinates of the point p on tetrahedron.
+    //return 1 if p is inside the tetrahedron, and 0 instead.
+    int barycentric_tetra(const matrixr_t &point, const matrixr_t &tetra, matrixr_t &bary)
+    {
+        matrixr_t vap = point - tetra(colon(), 0);
+        matrixr_t vbp = point - tetra(colon(), 1);
+
+        matrixr_t vab = tetra(colon(), 1) - tetra(colon(), 0);
+        matrixr_t vac = tetra(colon(), 2) - tetra(colon(), 0);
+        matrixr_t vad = tetra(colon(), 3) - tetra(colon(), 0);
+
+        matrixr_t vbc = tetra(colon(), 2) - tetra(colon(), 1);
+        matrixr_t vbd = tetra(colon(), 3) - tetra(colon(), 1);
+        // ScTP computes the scalar triple product
+        float va6 = ScTP(vbp, vbd, vbc);
+        float vb6 = ScTP(vap, vac, vad);
+        float vc6 = ScTP(vap, vad, vab);
+        float vd6 = ScTP(vap, vab, vac);
+        float v6 = 1 / ScTP(vab, vac, vad);
+
+        bary = matrixr_t(4, 1);
+        bary[0] = va6 * v6;
+        bary[1] = vb6 * v6;
+        bary[2] = vc6 * v6;
+        bary[3] = vd6 * v6;
+
+        if(fabs(bary[0] + bary[1] + bary[2] + bary[3] - 1) < 1e-3 && bary[0] > 0 && bary[1] > 0 && bary[2] > 0)
+        {
             return 1;
         }
         return 0;
