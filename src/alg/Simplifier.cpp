@@ -15,6 +15,7 @@ namespace SBV
     void Simplifier::simplify()
     {
         generateShells();
+        refine();
     }
 
     void Simplifier::generateShells()
@@ -80,5 +81,10 @@ namespace SBV
                 }
             }
         }
+    }
+
+    void Simplifier::refine()
+    {
+
     }
 }

@@ -2,17 +2,10 @@
 #define WKY_SIMPLIFIER_H
 
 #include <string>
-#include <zjucad/matrix/matrix.h>
+#include "Common.h"
+#include "Delaunay.h"
 
 namespace SBV {
-    using matrixr_t = zjucad::matrix::matrix<double>;
-    using matrixs_t = zjucad::matrix::matrix<size_t>;
-
-    struct Mesh{
-        matrixr_t vertices;
-        matrixs_t triangles;
-    };
-
     class Simplifier{
     public:
         Simplifier(Mesh& mesh);
@@ -40,9 +33,14 @@ namespace SBV {
         }
 
     private:
+        using PointInfo = Delaunay::PointInfo;
+        using PointType = Delaunay::PointType;
+
+    private:
         void genDefaultParams();
         void generateShells();
         void sample(const matrixr_t& vertices, const matrixs_t& triangles, std::vector<matrixr_t>& output_samples);
+        void refine();
 
     private:
         std::string mOutputDirectory;
