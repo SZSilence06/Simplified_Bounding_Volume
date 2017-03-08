@@ -7,7 +7,7 @@
 namespace SBV {
     class Simplifier{
     public:
-        Simplifier(Mesh& mesh);
+        Simplifier(Curve& mesh);
 
         void simplify();
 
@@ -39,7 +39,7 @@ namespace SBV {
 
     private:
         std::string mOutputDirectory;
-        Mesh& mSourceMesh;
+        Curve& mSourceMesh;
         double mMaxDistance = -1;
         double mSampleRadius = -1;
         bool mNeedGenTempResult = false;

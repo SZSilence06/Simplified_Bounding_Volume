@@ -1,6 +1,8 @@
 #ifndef WKY_MESH_COMMON_H
 #define WKY_MESH_COMMON_H
 
+#include <wkylib/Common.h>
+
 #include <zjucad/matrix/matrix.h>
 
 namespace WKYLIB

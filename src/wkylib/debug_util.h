@@ -4,6 +4,7 @@
 #include <time.h>
 #include <string>
 #include <exception>
+#include "Common.h"
 
 namespace WKYLIB {
     class DebugTimer{

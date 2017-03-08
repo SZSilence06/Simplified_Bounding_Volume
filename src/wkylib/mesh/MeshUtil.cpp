@@ -10,9 +10,9 @@ namespace WKYLIB
         {
             matrixr_t vnSum = zeros(3, vertices.size(2));
             for(int i = 0; i < triangles.size(2); i++){
-                matrixr_t a = vertices(colon(),triangles(0,i));
-                matrixr_t b = vertices(colon(),triangles(1,i));
-                matrixr_t c = vertices(colon(),triangles(2,i));
+                const matrixr_t& a = vertices(colon(),triangles(0,i));
+                const matrixr_t& b = vertices(colon(),triangles(1,i));
+                const matrixr_t& c = vertices(colon(),triangles(2,i));
 
                 matrixr_t faceNormal(3, 1);
                 faceNormal = cross(a-b,a-c);
@@ -26,43 +26,23 @@ namespace WKYLIB
             }
         }
 
-        void computeCurveNormal2D(const matrixr_t& vertices, matrixr_t& normals)
+        void computeNormal2D(const matrixr_t& vertices, const matrixr_t& lines, matrixr_t& normals)
         {
-            if(vertices.size(2) < 3 || vertices.size(1) != 2)
+            if(vertices.size(1) != 2 || lines.size(1) != 2)
             {
-                throw std::invalid_argument("computeCurveNormal2D arg invalid.");
+                throw std::invalid_argument("You can only use 2d matrices for computeNormal2D");
             }
-
             matrixr_t vnSum = zeros(2, vertices.size(2));
-            for(int i = 0; i < vertices.size(2); i++){
-                matrixr_t a;
-                matrixr_t b;
-
-                if(i < vertices.size(2) - 1)
-                {
-                    a = vertices(colon(), i);
-                    b = vertices(colon(), i + 1);
-                }
-                else
-                {
-                    a = vertices(colon(), i);
-                    b = vertices(colon(), 0);
-                }
-
+            for(int i = 0; i < lines.size(2); i++){
+                const matrixr_t& a = vertices(colon(), lines(0,i));
+                const matrixr_t& b = vertices(colon(), lines(1,i));
                 matrixr_t ab = b - a;
-                matrixr_t faceNormal(2, 1);
-                faceNormal[0] = -ab[1];
-                faceNormal[1] = ab[0];
 
-                if(i < vertices.size(2) - 1)
-                {
-                    vnSum(colon(), i) += faceNormal;
-                    vnSum(colon(), i + 1) += faceNormal;
-                }
-                else
-                {
-                    vnSum(colon(), i) += faceNormal;
-                    vnSum(colon(), 0) += faceNormal;
+                matrixr_t faceNormal(2, 1);
+                faceNormal[0] = ab[1];
+                faceNormal[1] = -ab[0];
+                for(int j = 0; j < 2; j++){
+                    vnSum(colon(), lines(j,i)) += faceNormal;
                 }
             }
             for(int i = 0; i < vertices.size(2); i++){

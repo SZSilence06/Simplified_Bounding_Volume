@@ -57,11 +57,13 @@ namespace WKYLIB {
     real_t compute_intersection_triangle_ray(const matrixr_t &a, const matrixr_t &b, const matrixr_t &c,
                                           const matrixr_t &p, const matrixr_t &dir);
 
-    //Compute barycenter coordinates of the point p on trinangle abc.
+    //Compute barycenter coordinates of the point p on trinangle.
     //return 1 if p is inside the triangle, and 0 instead.
-    int barycentric(const matrixr_t &a, const matrixr_t &b,
-                    const matrixr_t &c, const matrixr_t &p,
-                    matrixr_t &bary);
+    int barycentric(const matrixr_t &point, const matrixr_t &triangle, matrixr_t &bary);
+
+    //Compute barycenter coordinates of the point p on 2d trinangle abc.
+    //return 1 if p is inside the triangle, and 0 instead.
+    int barycentric_2D(const matrixr_t &point, const matrixr_t &triangle, matrixr_t &bary);
 
     //Compute barycenter coordinates of the point p on tetrahedron.
     //return 1 if p is inside the tetrahedron, and 0 instead.

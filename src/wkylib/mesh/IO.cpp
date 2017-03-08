@@ -2,6 +2,8 @@
 #include <fstream>
 #include <sstream>
 
+using namespace zjucad::matrix;
+
 namespace WKYLIB
 {
     namespace Mesh
@@ -38,6 +40,23 @@ namespace WKYLIB
             out.close();
 
             return true;
+        }
+
+        bool writePoints2D(const matrixr_t &points, const std::string &file)
+        {
+            if(points.size(1) != 2)
+            {
+                throw std::invalid_argument("You can only use 2d matrices in writePoints2D().");
+            }
+
+            matrixr_t points_3D(3, points.size(2));
+            for(int i = 0; i < points.size(2); i++)
+            {
+                points_3D(0, i) = points(0, i);
+                points_3D(1, i) = 0;
+                points_3D(2, i) = points(1, i);
+            }
+            return writePoints(points_3D, file);
         }
 
 
@@ -81,7 +100,6 @@ namespace WKYLIB
                     line[0] = a - 1;
                     line[1] = b - 1;
                     seg.push_back(line);
-                    break;
                 }
             }
 
@@ -96,6 +114,35 @@ namespace WKYLIB
             {
                 lines(colon(), i) = seg[i];
             }
+
+            return true;
+        }
+
+        bool writeCurve2D(const std::string& file, const matrixr_t& vertices, const matrixs_t& lines)
+        {
+            if(vertices.size(1) != 2 || lines.size(1) != 2)
+            {
+                throw std::invalid_argument("You can only use 2d matrices in writeCurve2D().");
+            }
+
+            std::ofstream out;
+
+            out.open(file);
+            if(out.fail())
+            {
+                return false;
+            }
+
+            for(int i = 0; i < vertices.size(2); i++)
+            {
+                out << "v " << vertices(0, i) << " 0 " << vertices(1, i) << std::endl;
+            }
+            for(int i = 0; i < lines.size(2); i++)
+            {
+                out << "l " << lines(0, i) + 1 << " " << lines(1, i) + 1 << std::endl;
+            }
+
+            out.close();
 
             return true;
         }

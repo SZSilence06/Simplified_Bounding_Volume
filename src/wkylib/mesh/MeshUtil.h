@@ -7,9 +7,9 @@ namespace WKYLIB
 {
     namespace Mesh
     {
-        void computeNormal(const matrixr_t& vertices, const matrixs_t& triangles, matrixr_t& normals);
+        WKY_API void computeNormal(const matrixr_t& vertices, const matrixs_t& triangles, matrixr_t& normals);
 
-        void computeCurveNormal2D(const matrixr_t& vertices, matrixr_t& normals);
+        WKY_API void computeNormal2D(const matrixr_t& vertices, const matrixr_t& lines, matrixr_t& normals);
     }
 }
 

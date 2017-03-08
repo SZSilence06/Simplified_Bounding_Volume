@@ -1,10 +1,15 @@
 
-file(GLOB headers *.h)
-file(GLOB sources *.cpp)
+file(GLOB subheaders *.h )
+file(GLOB subsources *.cpp )
 
-#include and link geo_sim_sdk
-include($ENV{HOME}/usr/share/cmake/Modules/geo_sim_sdk.cmake)
-include_geo_sim_sdk()
-link_geo_sim_sdk()
+set(headers
+    ${headers}
+    ${subheaders}
+    PARENT_SCOPE
+    )
 
-add_library(mesh ${headers} ${sources})
+set(sources
+    ${sources}
+    ${subsources}
+    PARENT_SCOPE
+    )

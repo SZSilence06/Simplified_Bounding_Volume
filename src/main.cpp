@@ -162,7 +162,7 @@ int main(int argc, char**argv)
 
     genDefaultParams();
 
-    SBV::Simplifier simplifier(mesh);
+    SBV::Simplifier simplifier(curve);
     simplifier.setOutputDirectory(g_outputPath);
     simplifier.setMaxDistance(g_maxDistance);
     simplifier.setSampleRadius(g_sampleRadius);

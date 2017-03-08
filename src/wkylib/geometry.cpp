@@ -275,28 +275,57 @@ namespace WKYLIB {
 
     //Compute barycenter coordinates of the point p on trinangle abc.
     //return 1 if p is inside the triangle, and 0 instead.
-    int barycentric(const matrixr_t &a, const matrixr_t &b,
-                    const matrixr_t &c, const matrixr_t &p,
-                    matrixr_t &bary)
+    int barycentric(const matrixr_t &point, const matrixr_t &triangle, matrixr_t &bary)
     {
-        bary = matrixr_t(3,1);
+        if(point.size(1) != 3 || triangle.size(1) != 3)
+        {
+            throw std::invalid_argument("You can only use 3d matrices in barycentric().");
+        }
+
+        bary.resize(3, 1);
+        const matrixr_t& a = triangle(colon(), 0);
+        const matrixr_t& b = triangle(colon(), 1);
+        const matrixr_t& c = triangle(colon(), 2);
+
         matrixr_t ab = b - a;
         matrixr_t ac = c - a;
         matrixr_t bc = c - b;
-        matrixr_t ap = p - a;
-        matrixr_t bp = p - b;
-        matrixr_t cp = p - c;
+        matrixr_t ap = point - a;
+        matrixr_t bp = point - b;
+        matrixr_t cp = point - c;
         real_t Sabc = norm(cross(ab,ac));
         real_t Spab = norm(cross(ab,ap));
         real_t Spac = norm(cross(ac,ap));
         real_t Spbc = norm(cross(bc,bp));
-        if(fabs(Sabc-Spab-Spac-Spbc)<1e-10){
+        if(fabs(Sabc-Spab-Spac-Spbc)<1e-3){
             bary[0] = Spbc/Sabc;
             bary[1] = Spac/Sabc;
             bary[2] = Spab/Sabc;
             return 1;
         }
         return 0;
+    }
+
+    //Compute barycenter coordinates of the point p on 2d trinangle.
+    //return 1 if p is inside the triangle, and 0 instead.
+    int barycentric_2D(const matrixr_t &point, const matrixr_t &triangle, matrixr_t &bary)
+    {
+        if(point.size(1) != 2 || triangle.size(1) != 2)
+        {
+            throw std::invalid_argument("You can only use 2d matrices in barycentric_2D().");
+        }
+
+        const matrixr_t& a = triangle(colon(), 0);
+        const matrixr_t& b = triangle(colon(), 1);
+        const matrixr_t& c = triangle(colon(), 2);
+
+        matrixr_t triangle_3D = zeros<double>(3, 3);
+        triangle_3D(colon(0, 1), colon()) = triangle;
+
+        matrixr_t point_3D = zeros<double>(3, 1);
+        point_3D(colon(0, 1), 0) = point;
+
+        return barycentric(point_3D, triangle_3D, bary);
     }
 
     //Tool function used by barycentric_tetra()
@@ -363,7 +392,11 @@ namespace WKYLIB {
         }
         matrixr_t intersect_point = p + dist * dir / norm(dir);
         matrixr_t bary;
-        if(barycentric(a,b,c,intersect_point,bary))
+        matrixr_t triangle(3, 3);
+        triangle(colon(), 0) = a;
+        triangle(colon(), 1) = b;
+        triangle(colon(), 2) = c;
+        if(barycentric(intersect_point, triangle, bary))
         {
             return dist;
         }

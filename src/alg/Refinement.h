@@ -3,9 +3,9 @@
 
 #include "Common.h"
 #include <CGAL/Exact_predicates_inexact_constructions_kernel.h>
-#include <CGAL/Triangulation_vertex_base_with_info_3.h>
-#include <CGAL/Triangulation_cell_base_with_info_3.h>
-#include <CGAL/Delaunay_triangulation_3.h>
+#include <CGAL/Triangulation_vertex_base_with_info_2.h>
+#include <CGAL/Triangulation_face_base_with_info_2.h>
+#include <CGAL/Delaunay_triangulation_2.h>
 
 namespace SBV
 {
@@ -36,12 +36,12 @@ namespace SBV
         };
 
         using K = CGAL::Exact_predicates_inexact_constructions_kernel;
-        using VertexBase = CGAL::Triangulation_vertex_base_with_info_3<PointInfo, K>;
-        using CellBase = CGAL::Triangulation_cell_base_with_info_3<FaceInfo, K>;
-        using Tds = CGAL::Triangulation_data_structure_3<VertexBase, CellBase, CGAL::Fast_location>;
-        using Delaunay = CGAL::Delaunay_triangulation_3<K, Tds, CGAL::Fast_location>;
+        using VertexBase = CGAL::Triangulation_vertex_base_with_info_2<PointInfo, K>;
+        using CellBase = CGAL::Triangulation_face_base_with_info_2<FaceInfo, K>;
+        using Tds = CGAL::Triangulation_data_structure_2<VertexBase, CellBase>;
+        using Delaunay = CGAL::Delaunay_triangulation_2<K, Tds>;
         using Point = Delaunay::Point;
-        using Cell = Delaunay::Cell;
+        using Cell = Delaunay::Face;
         using VertexHandle = Delaunay::Vertex_handle;
 
     private:
