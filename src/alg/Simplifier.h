@@ -35,11 +35,19 @@ namespace SBV {
     public:
         using TriangulatedShell = Refinement::TriangulatedShell;
 
+        struct ZeroSet
+        {
+            matrixr_t vertices;
+            matrixs_t lines;
+        };
+
     private:
         void genDefaultParams();
         void generateShells();
         void sample(const matrixr_t& vertices, const matrixs_t& triangles, std::vector<matrixr_t>& output_samples);
         void refine();
+        void buildZeroSet();
+        size_t getZeroPointIndex(size_t firstVertex, size_t secondVertex, std::vector<std::pair<size_t, size_t> >& existingVertPairs);
 
     private:
         std::string mOutputDirectory;
@@ -52,6 +60,7 @@ namespace SBV {
         matrixr_t mOuterShell;
 
         TriangulatedShell mTriangulation;
+        ZeroSet mZeroSet;
     };
 }
 

@@ -88,9 +88,97 @@ namespace SBV
         refinement.refine();
         timer.end();
 
+        buildZeroSet();
         if(mNeedGenTempResult)
         {
             WKYLIB::Mesh::writeMesh2D(mOutputDirectory + "/refined_shell.obj", mTriangulation.vertices, mTriangulation.triangles);
+            WKYLIB::Mesh::writeCurve2D(mOutputDirectory + "/refined_zero_set.obj", mZeroSet.vertices, mZeroSet.lines);
         }
+    }
+
+    void Simplifier::buildZeroSet()
+    {
+        std::vector<std::pair<size_t, size_t> > existing_verts;
+
+        //find out the number of faces in the zero set
+        int zeroFaceCount = 0;
+        for(int i = 0; i < mTriangulation.triangles.size(2); i++)
+        {
+            size_t v0 = mTriangulation.triangles(0, i);
+            size_t v1 = mTriangulation.triangles(1, i);
+            size_t v2 = mTriangulation.triangles(2, i);
+
+            if(mTriangulation.vertFValue[v0] == mTriangulation.vertFValue[v1] &&
+                    mTriangulation.vertFValue[v0] == mTriangulation.vertFValue[v2])
+            {
+                //F value of the vertices are same, so no zero-set in this triangle
+                continue;
+            }
+            zeroFaceCount++;
+        }
+
+        //build zero face connection
+        mZeroSet.lines.resize(2, zeroFaceCount);
+
+        for(int i = 0, j = 0; i < mTriangulation.triangles.size(2); i++)
+        {
+            size_t v0 = mTriangulation.triangles(0, i);
+            size_t v1 = mTriangulation.triangles(1, i);
+            size_t v2 = mTriangulation.triangles(2, i);
+
+            if(mTriangulation.vertFValue[v0] == mTriangulation.vertFValue[v1] &&
+                    mTriangulation.vertFValue[v0] == mTriangulation.vertFValue[v2])
+            {
+                //F value of the vertices are same, so no zero-set in this triangle
+                continue;
+            }
+
+            if(mTriangulation.vertFValue[v0] == mTriangulation.vertFValue[v1])
+            {
+                mZeroSet.lines(0, j) = getZeroPointIndex(v0, v2, existing_verts);
+                mZeroSet.lines(1, j) = getZeroPointIndex(v1, v2, existing_verts);
+            }
+            else if(mTriangulation.vertFValue[v0] == mTriangulation.vertFValue[v2])
+            {
+                mZeroSet.lines(0, j) = getZeroPointIndex(v0, v1, existing_verts);
+                mZeroSet.lines(1, j) = getZeroPointIndex(v1, v2, existing_verts);
+            }
+            else if(mTriangulation.vertFValue[v1] == mTriangulation.vertFValue[v2])
+            {
+                mZeroSet.lines(0, j) = getZeroPointIndex(v0, v1, existing_verts);
+                mZeroSet.lines(1, j) = getZeroPointIndex(v0, v2, existing_verts);
+            }
+            else
+            {
+                throw std::runtime_error("cannot find valid zero point when building zero sets.");
+            }
+            j++;
+        }
+
+        //build zero point positions
+        mZeroSet.vertices.resize(2, existing_verts.size());
+        for(int i = 0; i< existing_verts.size(); i++)
+        {
+            auto& vertPair = existing_verts[i];
+            mZeroSet.vertices(colon(), i) = (mTriangulation.vertices(colon(), vertPair.first) +
+                    mTriangulation.vertices(colon(), vertPair.second)) / 2;
+        }
+    }
+
+    size_t Simplifier::getZeroPointIndex(size_t firstVertex, size_t secondVertex,
+                                         std::vector<std::pair<size_t, size_t> > &existingVertPairs)
+    {
+        for(int i = 0; i < existingVertPairs.size(); i++)
+        {
+            auto& vertPair = existingVertPairs[i];
+            if((vertPair.first == firstVertex && vertPair.second == secondVertex)
+                    || (vertPair.first == secondVertex && vertPair.second == firstVertex))
+            {
+                return i;
+            }
+        }
+
+        existingVertPairs.push_back(std::make_pair(firstVertex, secondVertex));
+        return existingVertPairs.size() - 1;
     }
 }
