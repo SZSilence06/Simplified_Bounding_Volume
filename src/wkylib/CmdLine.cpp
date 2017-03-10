@@ -2,6 +2,7 @@
 #include "Bundle.h"
 #include <string.h>
 #include <cerrno>
+#include <iostream>
 
 namespace WKYLIB
 {
@@ -86,9 +87,9 @@ namespace WKYLIB
             {
             case CmdParamType::INT:
             {
-                char **endptr;
-                int value = std::strtol(paramValue, endptr, 10);
-                if(checkParseValid(paramValue, endptr) == false)
+                char *endptr = nullptr;
+                int value = std::strtol(paramValue, &endptr, 10);
+                if(checkParseValid(paramValue, &endptr) == false)
                 {
                     return false;
                 }
@@ -97,9 +98,9 @@ namespace WKYLIB
             }
             case CmdParamType::FLOAT:
             {
-                char **endptr;
-                float value = std::strtof(paramValue, endptr);
-                if(checkParseValid(paramValue, endptr) == false)
+                char *endptr = nullptr;
+                float value = std::strtof(paramValue, &endptr);
+                if(checkParseValid(paramValue, &endptr) == false)
                 {
                     return false;
                 }
@@ -108,9 +109,9 @@ namespace WKYLIB
             }
             case CmdParamType::DOUBLE:
             {
-                char **endptr;
-                double value = std::strtod(paramValue, endptr);
-                if(checkParseValid(paramValue, endptr) == false)
+                char *endptr = nullptr;
+                double value = std::strtod(paramValue, &endptr);
+                if(checkParseValid(paramValue, &endptr) == false)
                 {
                     return false;
                 }

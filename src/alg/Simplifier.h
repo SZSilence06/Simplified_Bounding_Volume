@@ -3,6 +3,7 @@
 
 #include <string>
 #include "Common.h"
+#include "Refinement.h"
 
 namespace SBV {
     class Simplifier{
@@ -31,6 +32,9 @@ namespace SBV {
             this->mNeedGenTempResult = value;
         }
 
+    public:
+        using TriangulatedShell = Refinement::TriangulatedShell;
+
     private:
         void genDefaultParams();
         void generateShells();
@@ -46,6 +50,8 @@ namespace SBV {
 
         matrixr_t mInnerShell;
         matrixr_t mOuterShell;
+
+        TriangulatedShell mTriangulation;
     };
 }
 

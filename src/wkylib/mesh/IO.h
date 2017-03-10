@@ -9,19 +9,19 @@ namespace WKYLIB
     {
         /**
          * @brief write points to a vtk format file.
-         * @param points : points to write.
          * @param file : output file path.
+         * @param points : points to write. 
          * @return true if succeeded, and false otherwise.
          */
-        WKY_API bool writePoints(const matrixr_t& points, const std::string& file);
+        WKY_API bool writePoints(const std::string& file, const matrixr_t& points);
 
         /**
          * @brief write 2d points to a vtk format file, with y coordinate set to 0, and z coordinate as y coordinate.
-         * @param points : points to write.
          * @param file : output file path.
+         * @param points : points to write.
          * @return true if succeeded, and false otherwise.
          */
-        WKY_API bool writePoints2D(const matrixr_t& points, const std::string& file);
+        WKY_API bool writePoints2D(const std::string& file, const matrixr_t& points);
 
         /**
          * @brief read 2d curve from a obj format file, with y coordinate ignored, and z coordinate as y coordinate.
@@ -40,6 +40,15 @@ namespace WKYLIB
          * @return true if succeeded, and false otherwise.
          */
         WKY_API bool writeCurve2D(const std::string& file, const matrixr_t& vertices, const matrixs_t& lines);
+
+        /**
+         * @brief write 2D triangle mesh to a obj format file, with y coordinate set to 0, and z coordinate as y coordinate.
+         * @param file : output file path.
+         * @param vertices : vertices to output.
+         * @param triangles : triangles to output.
+         * @return true if succeeded, and false otherwise.
+         */
+        WKY_API bool writeMesh2D(const std::string& file, const matrixr_t& vertices, const matrixs_t& triangles);
     }
 }
 

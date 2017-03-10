@@ -12,27 +12,47 @@ namespace SBV
     class Refinement
     {
     public:
-        Refinement(const matrixr_t& innerShell, const matrixr_t& outerShell);
+        struct TriangulatedShell
+        {
+            matrixr_t vertices;
+            matrixs_t triangles;
+            std::vector<double> vertFValue;
+        };
 
-        bool refine(std::vector<size_t>& output_refinement);
+    public:
+        Refinement(const matrixr_t& innerShell, const matrixr_t& outerShell, TriangulatedShell &output);
+
+        bool refine();
 
     private:
         enum PointType
         {
             POINT_BOUNDING_BOX,
             POINT_INNER,
-            POINT_OUTER
+            POINT_OUTER,
+            POINT_UNKNOWN
         };
 
         struct PointInfo
         {
-            PointType pointType;
-            size_t index;    //index in the original shell samples.
+            PointType pointType = POINT_UNKNOWN;
+            size_t index = -1;    //index in the original shell samples.
+            size_t indexInDelaunay = -1;    //index in the delaunay triangulation
+
+            PointInfo() {}
+            PointInfo(PointType pointType, size_t index) : pointType(pointType), index(index) {}
+            bool operator == (const PointInfo& info) const
+            {
+                return this->pointType == info.pointType
+                        && this->index == info.index;
+            }
         };
 
         struct FaceInfo
         {
             std::vector<PointInfo> points;   //points inside the cell.
+            PointInfo maxErrorPoint;
+            PointInfo v0, v1, v2;         //vertices of the face, used for judging whether the face is new
         };
 
         using K = CGAL::Exact_predicates_inexact_constructions_kernel;
@@ -49,17 +69,23 @@ namespace SBV
         void computeBoundingBox();
         void initErrors();
         void updateErrors();
-        void updatePointInCell(const Cell& cell);
+        void updatePointInCell(Cell& cell);
         double computeFValue(const matrixr_t& point, const Cell& cell);
         double getFValue(const VertexHandle& vh);
+        double getError(const PointInfo& point);
+        void getPointMatrix(const PointInfo& point, matrixr_t& pointMatrix);
         bool isFinished();
+        bool isNewCell(const Cell& cell);
 
     private:
         const matrixr_t& mInnerShell;
         const matrixr_t& mOuterShell;
+        TriangulatedShell& mOutput;
 
         std::vector<double> mInnerError;    //error for samples on inner shell
         std::vector<double> mOuterError;    //error for samples on outer shell
+
+        PointInfo mNextInsertPoint;         //next point to insert(with maximum error)
 
         Delaunay mDelaunay;
     };

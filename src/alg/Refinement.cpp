@@ -4,15 +4,17 @@
 
 namespace SBV
 {
-    Refinement::Refinement(const matrixr_t &innerShell, const matrixr_t &outerShell)
+    Refinement::Refinement(const matrixr_t &innerShell, const matrixr_t &outerShell, TriangulatedShell &output)
         : mInnerShell(innerShell),
-          mOuterShell(outerShell)
+          mOuterShell(outerShell),
+          mOutput(output)
     {
         init();
     }
 
     void Refinement::init()
     {
+        mOutput.vertFValue.clear();
         computeBoundingBox();
         initErrors();
         updateErrors();
@@ -71,14 +73,33 @@ namespace SBV
 
     void Refinement::updateErrors()
     {
+        double maxError = -std::numeric_limits<double>::max();
         for(auto iter = mDelaunay.finite_faces_begin(); iter != mDelaunay.finite_faces_end(); ++iter)
         {
             updatePointInCell(*iter);
+            double maxErrorInCell = getError(iter->info().maxErrorPoint);
+            if(maxError < maxErrorInCell)
+            {
+                maxError = maxErrorInCell;
+                mNextInsertPoint = iter->info().maxErrorPoint;
+            }
         }
     }
 
-    void Refinement::updatePointInCell(const Cell& cell)
+    void Refinement::updatePointInCell(Cell& cell)
     {
+        FaceInfo& info = cell.info();
+        if(isNewCell(cell) == false)
+        {
+            return;
+        }
+
+        info.v0 = cell.vertex(0)->info();
+        info.v1 = cell.vertex(1)->info();
+        info.v2 = cell.vertex(2)->info();
+
+        double maxError = -std::numeric_limits<double>::max();
+        PointInfo maxErrorPoint;
         for(int i = 0; i < mInnerShell.size(2); i++)
         {
             double f = computeFValue(mInnerShell(colon(), i), cell);
@@ -87,7 +108,14 @@ namespace SBV
                 //the point is outside the tetrahedron
                 continue;
             }
+            double error = fabs(f + 1);
+            if(maxError < error)
+            {
+                maxError = error;
+                maxErrorPoint = PointInfo(POINT_INNER, i);
+            }
             mInnerError[i] = fabs(f + 1);
+            info.points.push_back(PointInfo(POINT_INNER, i));
         }
 
         for(int i = 0; i < mOuterShell.size(2); i++)
@@ -98,8 +126,17 @@ namespace SBV
                 //the point is outside the tetrahedron
                 continue;
             }
+            double error = fabs(f - 1);
+            if(maxError < error)
+            {
+                maxError = error;
+                maxErrorPoint = PointInfo(POINT_OUTER, i);
+            }
             mOuterError[i] = fabs(f - 1);
+            info.points.push_back(PointInfo(POINT_OUTER, i));
         }
+
+        info.maxErrorPoint = maxErrorPoint;
     }
 
     double Refinement::computeFValue(const matrixr_t &point, const Cell &cell)
@@ -128,7 +165,10 @@ namespace SBV
             double f1 = getFValue(vh1);
             double f2 = getFValue(vh2);
 
-            return f0 * bary[0] + f1 * bary[1] + f2 * bary[2];
+            double ans = f0 * bary[0] + f1 * bary[1] + f2 * bary[2];
+            assert(ans < 1 || fabs(ans-1) < 1e-3);
+            assert(ans > -1 || fabs(ans+1) < 1e-3);
+            return ans;
         }
 
         //the point is outside the tetrahedron, so returns an error
@@ -148,12 +188,88 @@ namespace SBV
         }
     }
 
-    bool Refinement::refine(std::vector<size_t> &output_refinement)
+    double Refinement::getError(const PointInfo &point)
     {
+        switch(point.pointType)
+        {
+        case PointType::POINT_INNER:
+            return mInnerError[point.index];
+        case PointType::POINT_OUTER:
+            return mOuterError[point.index];
+        default:
+            //this should not be run, otherwise there exists logic error
+            throw std::logic_error("In getError(), pointType should be POINT_INNER or POINT_OUTER");
+        }
+    }
 
+    void Refinement::getPointMatrix(const PointInfo &point, matrixr_t &pointMatrix)
+    {
+        switch(point.pointType)
+        {
+        case PointType::POINT_INNER:
+            pointMatrix = mInnerShell(colon(), point.index);
+            break;
+        case PointType::POINT_OUTER:
+            pointMatrix = mOuterShell(colon(), point.index);
+            break;
+        default:
+            //this should not be runned, otherwise there exists logic error
+            throw std::logic_error("In getPointMatrix(), pointType should be POINT_INNER or POINT_OUTER");
+        }
+    }
+
+    bool Refinement::refine()
+    {
+        int iterCount = 0;
         while(!isFinished())
         {
+            iterCount++;
+            std::cout << "Iteration " << iterCount << " ..." << std::endl;
 
+            matrixr_t point;
+            getPointMatrix(mNextInsertPoint, point);
+            mDelaunay.insert(Point(point[0], point[1]))->info() = mNextInsertPoint;
+            updateErrors();
+        }
+
+        std::cout << "Finished refinement after " << iterCount << " iterations." << std::endl;
+
+        //organize output data
+        mOutput.vertices.resize(2, mDelaunay.number_of_vertices());
+        mOutput.triangles.resize(3, mDelaunay.number_of_faces());
+        mOutput.vertFValue.reserve(mDelaunay.number_of_vertices());
+        int i = 0;
+        for(auto iter = mDelaunay.finite_vertices_begin(); iter != mDelaunay.finite_vertices_end(); ++iter, ++i)
+        {
+            mOutput.vertices(0, i) = iter->point()[0];
+            mOutput.vertices(1, i) = iter->point()[1];
+
+            PointInfo& info = iter->info();
+            iter->info().indexInDelaunay = i;
+            switch(info.pointType)
+            {
+            case PointType::POINT_INNER:
+                mOutput.vertFValue.push_back(-1);
+                break;
+            case PointType::POINT_OUTER:
+            case PointType::POINT_BOUNDING_BOX:
+                mOutput.vertFValue.push_back(1);
+                break;
+            default:
+                //this should not be runned, otherwise there exists logic error
+                throw std::logic_error("output delaunay exists unknown points.");
+            }
+        }
+        i = 0;
+        for(auto iter = mDelaunay.finite_faces_begin(); iter != mDelaunay.finite_faces_end(); ++iter, ++i)
+        {
+            const PointInfo& info0 = iter->vertex(0)->info();
+            const PointInfo& info1 = iter->vertex(1)->info();
+            const PointInfo& info2 = iter->vertex(2)->info();
+
+            mOutput.triangles(0, i) = info0.indexInDelaunay;
+            mOutput.triangles(1, i) = info1.indexInDelaunay;
+            mOutput.triangles(2, i) = info2.indexInDelaunay;
         }
 
         return true;
@@ -178,5 +294,17 @@ namespace SBV
         }
 
         return true;
+    }
+
+    bool Refinement::isNewCell(const Cell &cell)
+    {
+        const FaceInfo& info = cell.info();
+        const PointInfo& p0 = cell.vertex(0)->info();
+        const PointInfo& p1 = cell.vertex(1)->info();
+        const PointInfo& p2 = cell.vertex(2)->info();
+
+        return !((p0 == info.v0 || p0 == info.v1 || p0 == info.v2)
+                &&(p1 == info.v0 || p1 == info.v1 || p1 == info.v2)
+                &&(p2 == info.v0 || p2 == info.v1 || p2 == info.v2));
     }
 }

@@ -297,10 +297,10 @@ namespace WKYLIB {
         real_t Spab = norm(cross(ab,ap));
         real_t Spac = norm(cross(ac,ap));
         real_t Spbc = norm(cross(bc,bp));
-        if(fabs(Sabc-Spab-Spac-Spbc)<1e-3){
-            bary[0] = Spbc/Sabc;
-            bary[1] = Spac/Sabc;
-            bary[2] = Spab/Sabc;
+        bary[0] = Spbc/Sabc;
+        bary[1] = Spac/Sabc;
+        bary[2] = Spab/Sabc;
+        if(fabs(1 - bary[0] - bary[1] - bary[2])<1e-3){
             return 1;
         }
         return 0;

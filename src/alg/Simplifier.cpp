@@ -2,6 +2,7 @@
 #include "Refinement.h"
 #include <wkylib/mesh/MeshUtil.h>
 #include <wkylib/mesh/IO.h>
+#include <wkylib/debug_util.h>
 #include <jtflib/mesh/io.h>
 
 using namespace zjucad::matrix;
@@ -16,7 +17,9 @@ namespace SBV
     void Simplifier::simplify()
     {
         generateShells();
-        //refine();
+
+        std::cout << "Start refinement..." << std::endl;
+        refine();
     }
 
     void Simplifier::generateShells()
@@ -51,8 +54,8 @@ namespace SBV
 
         if(mNeedGenTempResult)
         {
-            WKYLIB::Mesh::writePoints2D(mInnerShell, mOutputDirectory + "/inner_shell.vtk");
-            WKYLIB::Mesh::writePoints2D(mOuterShell, mOutputDirectory + "/outer_shell.vtk");
+            WKYLIB::Mesh::writePoints2D(mOutputDirectory + "/inner_shell.vtk", mInnerShell);
+            WKYLIB::Mesh::writePoints2D(mOutputDirectory + "/outer_shell.vtk", mOuterShell);
         }
     }
 
@@ -79,8 +82,15 @@ namespace SBV
 
     void Simplifier::refine()
     {
-        Refinement refinement(mInnerShell, mOuterShell);
-        std::vector<size_t> refineOutput;
-        refinement.refine(refineOutput);
+        WKYLIB::DebugTimer timer("refinement");
+        timer.start();
+        Refinement refinement(mInnerShell, mOuterShell, mTriangulation);
+        refinement.refine();
+        timer.end();
+
+        if(mNeedGenTempResult)
+        {
+            WKYLIB::Mesh::writeMesh2D(mOutputDirectory + "/refined_shell.obj", mTriangulation.vertices, mTriangulation.triangles);
+        }
     }
 }
