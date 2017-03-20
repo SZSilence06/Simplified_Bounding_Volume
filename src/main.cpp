@@ -3,7 +3,7 @@
  * Tool for generating simplified bounding volumes.
  * Author : SZ_Silence06
  * Date : Feb 24, 2017
- * Usage : sbvgen -s source_mesh_path [-d [output_directory]] [-e [max_distance]] [-r [sample radius]] [-options]
+ * Usage : sbvgen -s source_mesh_path [-d [output_directory]] [-e [max_distance]] [-r [sample radius]] [-a alpha_param_value] [-options]
  * Possible options :
  *                     -t      Generate temp results.
  *                     -v      Display version information.
@@ -23,6 +23,7 @@ std::string g_outputPath = "";
 double g_maxDistance = -1;
 double g_sampleRadius = -1;
 bool g_genTempResult = false;
+double g_alpha = std::numeric_limits<double>::max();
 
 using namespace WKYLIB;
 
@@ -61,6 +62,7 @@ void parseCmdLines(int argc, char**argv)
     cmdParser.addParamDef("-d", CmdLine::CmdParamType::STRING);
     cmdParser.addParamDef("-e", CmdLine::CmdParamType::DOUBLE);
     cmdParser.addParamDef("-r", CmdLine::CmdParamType::DOUBLE);
+    cmdParser.addParamDef("-a", CmdLine::CmdParamType::DOUBLE);
     cmdParser.addParamDef("-t", CmdLine::CmdParamType::BOOL);
     cmdParser.addParamDef("-h", CmdLine::CmdParamType::BOOL);
     cmdParser.addParamDef("-v", CmdLine::CmdParamType::BOOL);
@@ -122,6 +124,7 @@ void parseCmdLines(int argc, char**argv)
     cmdParser.getString("-d", g_outputPath);
     cmdParser.getDouble("-e", g_maxDistance);
     cmdParser.getDouble("-r", g_sampleRadius);
+    cmdParser.getDouble("-a", g_alpha);
     cmdParser.getBool("-t", g_genTempResult);
 }
 
@@ -147,6 +150,11 @@ void genDefaultParams()
         //output directory don't exist, so create it
         boost::filesystem::create_directory(g_outputPath);
     }
+
+    if(g_alpha == std::numeric_limits<double>::max())
+    {
+        g_alpha = 0.2;
+    }
 }
 
 int main(int argc, char**argv)
@@ -166,6 +174,7 @@ int main(int argc, char**argv)
     simplifier.setOutputDirectory(g_outputPath);
     simplifier.setMaxDistance(g_maxDistance);
     simplifier.setSampleRadius(g_sampleRadius);
+    simplifier.setAlpha(g_alpha);
     simplifier.setGenTempResult(g_genTempResult);
     simplifier.simplify();
 

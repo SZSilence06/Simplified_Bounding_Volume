@@ -2,6 +2,7 @@
 #define WKY_REFINEMENT_H
 
 #include "Common.h"
+#include "TriangulatedShell.h"
 #include <CGAL/Exact_predicates_inexact_constructions_kernel.h>
 #include <CGAL/Triangulation_vertex_base_with_info_2.h>
 #include <CGAL/Triangulation_face_base_with_info_2.h>
@@ -10,29 +11,13 @@
 namespace SBV
 {
     class Refinement
-    {
+    {      
     public:
-        struct TriangulatedShell
-        {
-            matrixr_t vertices;
-            matrixs_t triangles;
-            std::vector<double> vertFValue;
-        };
-
-    public:
-        Refinement(const matrixr_t& innerShell, const matrixr_t& outerShell, TriangulatedShell &output);
+        Refinement(const matrixr_t& innerShell, const matrixr_t& outerShell, TriangulatedShell &output, double alpha, double sampleRadius);
 
         bool refine();
 
     private:
-        enum PointType
-        {
-            POINT_BOUNDING_BOX,
-            POINT_INNER,
-            POINT_OUTER,
-            POINT_UNKNOWN
-        };
-
         struct PointInfo
         {
             PointType pointType = POINT_UNKNOWN;
@@ -76,11 +61,14 @@ namespace SBV
         void getPointMatrix(const PointInfo& point, matrixr_t& pointMatrix);
         bool isFinished();
         bool isNewCell(const Cell& cell);
+        double computeHeight(const Cell& cell);
 
     private:
         const matrixr_t& mInnerShell;
         const matrixr_t& mOuterShell;
         TriangulatedShell& mOutput;
+        double mAlpha = 0.2;
+        double mSampleRadius;
 
         std::vector<double> mInnerError;    //error for samples on inner shell
         std::vector<double> mOuterError;    //error for samples on outer shell

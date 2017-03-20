@@ -1,5 +1,6 @@
 #include "Simplifier.h"
 #include "Refinement.h"
+#include "BoundaryCollapse.h"
 #include <wkylib/mesh/MeshUtil.h>
 #include <wkylib/mesh/IO.h>
 #include <wkylib/debug_util.h>
@@ -20,6 +21,9 @@ namespace SBV
 
         std::cout << "Start refinement..." << std::endl;
         refine();
+
+        std::cout << "Start Boundary collapse..." << std::endl;
+        collapseBoundary();
     }
 
     void Simplifier::generateShells()
@@ -84,7 +88,7 @@ namespace SBV
     {
         WKYLIB::DebugTimer timer("refinement");
         timer.start();
-        Refinement refinement(mInnerShell, mOuterShell, mTriangulation);
+        Refinement refinement(mInnerShell, mOuterShell, mTriangulation, mAlpha, mSampleRadius);
         refinement.refine();
         timer.end();
 
@@ -93,6 +97,19 @@ namespace SBV
         {
             WKYLIB::Mesh::writeMesh2D(mOutputDirectory + "/refined_shell.obj", mTriangulation.vertices, mTriangulation.triangles);
             WKYLIB::Mesh::writeCurve2D(mOutputDirectory + "/refined_zero_set.obj", mZeroSet.vertices, mZeroSet.lines);
+        }
+    }
+
+    void Simplifier::collapseBoundary()
+    {
+        BoundaryCollapse collapser(mTriangulation, mInnerShell, mOuterShell);
+        collapser.collapse();
+
+        buildZeroSet();
+        if(mNeedGenTempResult)
+        {
+            WKYLIB::Mesh::writeMesh2D(mOutputDirectory + "/boundary_collapsed_shell.obj", mTriangulation.vertices, mTriangulation.triangles);
+            WKYLIB::Mesh::writeCurve2D(mOutputDirectory + "/boundary_collapsed_zero_set.obj", mZeroSet.vertices, mZeroSet.lines);
         }
     }
 
@@ -108,12 +125,13 @@ namespace SBV
             size_t v1 = mTriangulation.triangles(1, i);
             size_t v2 = mTriangulation.triangles(2, i);
 
-            if(mTriangulation.vertFValue[v0] == mTriangulation.vertFValue[v1] &&
-                    mTriangulation.vertFValue[v0] == mTriangulation.vertFValue[v2])
+            if(mTriangulation.getSign(v0) == mTriangulation.getSign(v1) &&
+                    mTriangulation.getSign(v0) == mTriangulation.getSign(v2))
             {
-                //F value of the vertices are same, so no zero-set in this triangle
+                //F value sign of the vertices are same, so no zero-set in this triangle
                 continue;
             }
+
             zeroFaceCount++;
         }
 
@@ -126,24 +144,24 @@ namespace SBV
             size_t v1 = mTriangulation.triangles(1, i);
             size_t v2 = mTriangulation.triangles(2, i);
 
-            if(mTriangulation.vertFValue[v0] == mTriangulation.vertFValue[v1] &&
-                    mTriangulation.vertFValue[v0] == mTriangulation.vertFValue[v2])
+            if(mTriangulation.getSign(v0) == mTriangulation.getSign(v1) &&
+                    mTriangulation.getSign(v0) == mTriangulation.getSign(v2))
             {
-                //F value of the vertices are same, so no zero-set in this triangle
+                //F value sign of the vertices are same, so no zero-set in this triangle
                 continue;
             }
 
-            if(mTriangulation.vertFValue[v0] == mTriangulation.vertFValue[v1])
+            if(mTriangulation.getSign(v0) == mTriangulation.getSign(v1))
             {
                 mZeroSet.lines(0, j) = getZeroPointIndex(v0, v2, existing_verts);
                 mZeroSet.lines(1, j) = getZeroPointIndex(v1, v2, existing_verts);
             }
-            else if(mTriangulation.vertFValue[v0] == mTriangulation.vertFValue[v2])
+            else if(mTriangulation.getSign(v0) == mTriangulation.getSign(v2))
             {
                 mZeroSet.lines(0, j) = getZeroPointIndex(v0, v1, existing_verts);
                 mZeroSet.lines(1, j) = getZeroPointIndex(v1, v2, existing_verts);
             }
-            else if(mTriangulation.vertFValue[v1] == mTriangulation.vertFValue[v2])
+            else if(mTriangulation.getSign(v1) == mTriangulation.getSign(v2))
             {
                 mZeroSet.lines(0, j) = getZeroPointIndex(v0, v1, existing_verts);
                 mZeroSet.lines(1, j) = getZeroPointIndex(v0, v2, existing_verts);

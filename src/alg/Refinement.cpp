@@ -4,17 +4,20 @@
 
 namespace SBV
 {
-    Refinement::Refinement(const matrixr_t &innerShell, const matrixr_t &outerShell, TriangulatedShell &output)
+    Refinement::Refinement(const matrixr_t &innerShell, const matrixr_t &outerShell, TriangulatedShell &output,
+                           double alpha, double sampleRadius)
         : mInnerShell(innerShell),
           mOuterShell(outerShell),
-          mOutput(output)
+          mOutput(output),
+          mAlpha(alpha),
+          mSampleRadius(sampleRadius)
     {
         init();
     }
 
     void Refinement::init()
     {
-        mOutput.vertFValue.clear();
+        mOutput.vertType.clear();
         computeBoundingBox();
         initErrors();
         updateErrors();
@@ -166,8 +169,8 @@ namespace SBV
             double f2 = getFValue(vh2);
 
             double ans = f0 * bary[0] + f1 * bary[1] + f2 * bary[2];
-            assert(ans < 1 || fabs(ans-1) < 1e-3);
-            assert(ans > -1 || fabs(ans+1) < 1e-3);
+            //assert(ans < 1 || fabs(ans-1) < 1e-3);
+            //assert(ans > -1 || fabs(ans+1) < 1e-3);
             return ans;
         }
 
@@ -181,10 +184,13 @@ namespace SBV
         switch(info.pointType)
         {
         case PointType::POINT_BOUNDING_BOX:
+            return 2;
         case PointType::POINT_OUTER:
             return 1;
         case PointType::POINT_INNER:
             return -1;
+        default:
+            throw std::runtime_error("Unidentified pointType in getFValue().");
         }
     }
 
@@ -221,7 +227,7 @@ namespace SBV
     bool Refinement::refine()
     {
         int iterCount = 0;
-        while(!isFinished())
+        while(!isFinished() && iterCount <= (mInnerShell.size(2) + mOuterShell.size(2)))
         {
             iterCount++;
             std::cout << "Iteration " << iterCount << " ..." << std::endl;
@@ -237,7 +243,7 @@ namespace SBV
         //organize output data
         mOutput.vertices.resize(2, mDelaunay.number_of_vertices());
         mOutput.triangles.resize(3, mDelaunay.number_of_faces());
-        mOutput.vertFValue.reserve(mDelaunay.number_of_vertices());
+        mOutput.vertType.reserve(mDelaunay.number_of_vertices());
         int i = 0;
         for(auto iter = mDelaunay.finite_vertices_begin(); iter != mDelaunay.finite_vertices_end(); ++iter, ++i)
         {
@@ -246,19 +252,7 @@ namespace SBV
 
             PointInfo& info = iter->info();
             iter->info().indexInDelaunay = i;
-            switch(info.pointType)
-            {
-            case PointType::POINT_INNER:
-                mOutput.vertFValue.push_back(-1);
-                break;
-            case PointType::POINT_OUTER:
-            case PointType::POINT_BOUNDING_BOX:
-                mOutput.vertFValue.push_back(1);
-                break;
-            default:
-                //this should not be runned, otherwise there exists logic error
-                throw std::logic_error("output delaunay exists unknown points.");
-            }
+            mOutput.vertType.push_back(info.pointType);
         }
         i = 0;
         for(auto iter = mDelaunay.finite_faces_begin(); iter != mDelaunay.finite_faces_end(); ++iter, ++i)
@@ -277,9 +271,10 @@ namespace SBV
 
     bool Refinement::isFinished()
     {
+        //check for condition 1.
         for(int i = 0; i < mInnerError.size(); i++)
         {
-            if(mInnerError[i] > 0.8)
+            if(mInnerError[i] > 1 - mAlpha)
             {
                 return false;
             }
@@ -287,11 +282,32 @@ namespace SBV
 
         for(int i = 0; i < mOuterError.size(); i++)
         {
-            if(mOuterError[i] > 0.8)
+            if(mOuterError[i] > 1 - mAlpha)
             {
                 return false;
             }
         }
+
+        /*
+        //check for condition 2 and 3.
+        for(auto iter = mDelaunay.finite_faces_begin(); iter != mDelaunay.finite_faces_end(); ++iter)
+        {
+            const Cell& cell = *iter;
+            const VertexHandle& vh0 = cell.vertex(0);
+            const VertexHandle& vh1 = cell.vertex(1);
+            const VertexHandle& vh2 = cell.vertex(2);
+
+            if(getFValue(vh0) == getFValue(vh1) && getFValue(vh0) == getFValue(vh2))
+            {
+                continue;
+            }
+
+            //condition 2
+            if(computeHeight(cell) < 2 * mSampleRadius / mAlpha)
+            {
+                return false;
+            }
+        }*/
 
         return true;
     }
@@ -306,5 +322,59 @@ namespace SBV
         return !((p0 == info.v0 || p0 == info.v1 || p0 == info.v2)
                 &&(p1 == info.v0 || p1 == info.v1 || p1 == info.v2)
                 &&(p2 == info.v0 || p2 == info.v1 || p2 == info.v2));
+    }
+
+    double Refinement::computeHeight(const Cell &cell)
+    {
+        const VertexHandle& vh0 = cell.vertex(0);
+        const VertexHandle& vh1 = cell.vertex(1);
+        const VertexHandle& vh2 = cell.vertex(2);
+        const Point& p0 = vh0->point();
+        const Point& p1 = vh1->point();
+        const Point& p2 = vh2->point();
+
+        matrixr_t a(3, 1), b(3, 1), c(3, 1);
+
+        if(getFValue(vh0) == getFValue(vh1))
+        {
+            a[0] = p2[0];
+            a[1] = p2[1];
+            a[2] = 1;
+            b[0] = p0[0];
+            b[1] = p0[1];
+            b[2] = 1;
+            c[0] = p1[0];
+            c[1] = p1[1];
+            c[2] = 1;
+        }
+        else if(getFValue(vh0) == getFValue(vh2))
+        {
+            a[0] = p1[0];
+            a[1] = p1[1];
+            a[2] = 1;
+            b[0] = p0[0];
+            b[1] = p0[1];
+            b[2] = 1;
+            c[0] = p2[0];
+            c[1] = p2[1];
+            c[2] = 1;
+        }
+        else if(getFValue(vh1) == getFValue(vh2))
+        {
+            a[0] = p0[0];
+            a[1] = p0[1];
+            a[2] = 1;
+            b[0] = p1[0];
+            b[1] = p1[1];
+            b[2] = 1;
+            c[0] = p2[0];
+            c[1] = p2[1];
+            c[2] = 1;
+        }
+
+        //compute height from a to bc.
+        matrixr_t ba = a - b;
+        matrixr_t bc = c - b;
+        return norm(cross(ba, bc)) / norm(bc);
     }
 }

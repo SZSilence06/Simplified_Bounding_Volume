@@ -27,14 +27,17 @@ namespace SBV {
             this->mSampleRadius = sampleRadius;
         }
 
+        void setAlpha(double alpha)
+        {
+            this->mAlpha = alpha;
+        }
+
         void setGenTempResult(bool value)
         {
             this->mNeedGenTempResult = value;
         }
 
     public:
-        using TriangulatedShell = Refinement::TriangulatedShell;
-
         struct ZeroSet
         {
             matrixr_t vertices;
@@ -47,6 +50,7 @@ namespace SBV {
         void sample(const matrixr_t& vertices, const matrixs_t& triangles, std::vector<matrixr_t>& output_samples);
         void refine();
         void buildZeroSet();
+        void collapseBoundary();
         size_t getZeroPointIndex(size_t firstVertex, size_t secondVertex, std::vector<std::pair<size_t, size_t> >& existingVertPairs);
 
     private:
@@ -54,6 +58,7 @@ namespace SBV {
         Curve& mSourceMesh;
         double mMaxDistance = -1;
         double mSampleRadius = -1;
+        double mAlpha = 0.2;
         bool mNeedGenTempResult = false;
 
         matrixr_t mInnerShell;
