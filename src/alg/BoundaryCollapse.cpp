@@ -166,7 +166,7 @@ namespace SBV
     {
         int numCollapsed = 0;
         int i = 0;
-        while(!mQueue.empty() && numCollapsed < 100)
+        while(!mQueue.empty())
         {
             i++;
             std::shared_ptr<EdgeInfo> edgeInfo = mQueue.top();

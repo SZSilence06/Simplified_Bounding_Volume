@@ -84,6 +84,8 @@ namespace SBV
 
             sum += (a[1] - a[0]) * (b[1] + b[0]);
         }
+
+        return sum > 0;
     }
 
     void KernelRegion::construct()
