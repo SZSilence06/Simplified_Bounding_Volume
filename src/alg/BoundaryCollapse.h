@@ -27,7 +27,7 @@ namespace SBV
         {
             bool operator()(std::shared_ptr<EdgeInfo> edge1, std::shared_ptr<EdgeInfo> edge2)
             {
-                return edge1->error < edge2->error;
+                return edge1->error > edge2->error;
             }
         };
 

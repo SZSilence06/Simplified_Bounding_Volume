@@ -50,6 +50,11 @@ namespace SBV
             }
         }
 
+        xMin *= 1.1;
+        xMax *= 1.1;
+        yMin *= 1.1;
+        yMax *= 1.1;
+
         PointInfo info;
         info.pointType = PointType::POINT_BOUNDING_BOX;
 

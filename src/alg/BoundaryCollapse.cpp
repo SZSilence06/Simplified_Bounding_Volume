@@ -165,8 +165,10 @@ namespace SBV
     void BoundaryCollapse::collapse()
     {
         int numCollapsed = 0;
-        while(!mQueue.empty() && numCollapsed < 4)
+        int i = 0;
+        while(!mQueue.empty() && numCollapsed < 100)
         {
+            i++;
             std::shared_ptr<EdgeInfo> edgeInfo = mQueue.top();
             mQueue.pop();
             if(edgeInfo->isUpdated)
@@ -319,6 +321,20 @@ namespace SBV
             }
             mNeighbours[vertCollapsedTo].insert(vert);
         }
+
+        std::set<size_t>& nfCollapsedTo = mNeighbourFaces[vertCollapsedTo];
+        for(size_t face : mNeighbourFaces[vertCollapsed])
+        {
+            auto iter = nfCollapsedTo.find(face);
+            if(iter != nfCollapsedTo.end())
+            {
+                nfCollapsedTo.erase(iter);
+            }
+            else
+            {
+                nfCollapsedTo.insert(face);
+            }
+        }
     }
 
     void BoundaryCollapse::updateEdgeInfo(size_t vertCollapsed, size_t vertCollapsedTo)
@@ -361,7 +377,7 @@ namespace SBV
         buildOneRingArea(firstVert, secondVert, lines);
 
         KernelRegion kernel(mTriangulation.vertices, lines);
-        if(kernel.contains(collapseTo))
+        if(kernel.contains(collapseTo) == false)
         {
             return false;
         }
@@ -372,8 +388,8 @@ namespace SBV
     bool BoundaryCollapse::testLinkCondition(size_t firstVert, size_t secondVert)
     {
         //we mark A as firstVert, B as secondVert in this function
-        std::set<size_t> neighbourA;
-        std::set<size_t> neighbourB;
+        const std::set<size_t>& neighbourA = mNeighbours[firstVert];
+        const std::set<size_t>& neighbourB = mNeighbours[secondVert];
 
         std::set<size_t> linkAB;
 
@@ -441,6 +457,7 @@ namespace SBV
         {
             lines(0, i) = edge.first;
             lines(1, i) = edge.second;
+            i++;
         }
     }
 

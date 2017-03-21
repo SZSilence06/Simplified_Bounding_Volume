@@ -118,7 +118,7 @@ namespace SBV
         homo[1] = point[1];
         homo[2] = 1;
         matrixr_t result = A * homo;
-        for(int i = 0; i < result.size(2); i++)
+        for(int i = 0; i < result.size(); i++)
         {
             if(result[i] > 0)
             {
