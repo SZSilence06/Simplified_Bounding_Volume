@@ -1,4 +1,5 @@
 #include "KernelRegion.h"
+#include <wkylib/geometry.h>
 
 using namespace zjucad::matrix;
 
@@ -6,13 +7,16 @@ namespace SBV
 {
     KernelRegion::KernelRegion(const matrixr_t &points, const matrixs_t &lines, const matrixr_t& innerShell,
                                const matrixr_t& outerShell, const std::set<size_t>& innerSample,
-                               const std::set<size_t>& outerSample)
+                               const std::set<size_t>& outerSample, const TriangulatedShell& triangulation,
+                               PointType collapsedPointType)
         : mPoints(points),
           mLines(lines),
           mInnerShell(innerShell),
           mOuterShell(outerShell),
           mInnerSamples(innerSample),
-          mOuterSamples(outerSample)
+          mOuterSamples(outerSample),
+          mTriangulation(triangulation),
+          mPointType(collapsedPointType)
     {
         buildAdjacency();
         buildPolygonSequence();
@@ -136,6 +140,59 @@ namespace SBV
                 return false;
             }
         }
+        if(isInvalidRegion(point))
+        {
+            return false;
+        }
         return true;
+    }
+
+    bool KernelRegion::isInvalidRegion(const matrixr_t &point)
+    {
+        for(int i = 0; i < mLines.size(2); i++)
+        {
+            matrixr_t triangle(2, 3);
+            triangle(colon(), 0) = mPoints(colon(), mLines(0, i));
+            triangle(colon(), 1) = mPoints(colon(), mLines(1, i));
+            triangle(colon(), 2) = point;
+
+            for(size_t sample : mInnerSamples)
+            {
+                matrixr_t bary;
+                if(WKYLIB::barycentric_2D(mInnerShell(colon(), sample), triangle, bary))
+                {
+                    //the point is inside the tetrahedron
+                    double f0 = mTriangulation.getFValue(mLines(0, i));
+                    double f1 = mTriangulation.getFValue(mLines(1, i));
+                    double f2 = mTriangulation.getFValue(mPointType);
+
+                    double f = f0 * bary[0] + f1 * bary[1] + f2 * bary[2];
+                    if(f > 0)
+                    {
+                        return true;
+                    }
+                }
+            }
+
+            for(size_t sample : mOuterSamples)
+            {
+                matrixr_t bary;
+                if(WKYLIB::barycentric_2D(mOuterShell(colon(), sample), triangle, bary))
+                {
+                    //the point is inside the tetrahedron
+                    double f0 = mTriangulation.getFValue(mLines(0, i));
+                    double f1 = mTriangulation.getFValue(mLines(1, i));
+                    double f2 = mTriangulation.getFValue(mPointType);
+
+                    double f = f0 * bary[0] + f1 * bary[1] + f2 * bary[2];
+                    if(f < 0)
+                    {
+                        return true;
+                    }
+                }
+            }
+        }
+
+        return false;
     }
 }

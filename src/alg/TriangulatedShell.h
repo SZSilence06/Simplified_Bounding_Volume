@@ -19,9 +19,9 @@ namespace SBV
         matrixs_t triangles;
         std::vector<PointType> vertType;
 
-        double getFValue(size_t vert)
+        double getFValue(PointType pointType) const
         {
-            switch(vertType[vert])
+            switch(pointType)
             {
             case POINT_BOUNDING_BOX:
                 return 2;
@@ -34,7 +34,12 @@ namespace SBV
             }
         }
 
-        double getSign(size_t vert)
+        double getFValue(size_t vert) const
+        {
+            return getFValue(vertType[vert]);
+        }
+
+        double getSign(size_t vert) const
         {
             double value = getFValue(vert);
             if(value > 0)

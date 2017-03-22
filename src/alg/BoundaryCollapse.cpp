@@ -167,7 +167,7 @@ namespace SBV
     {
         int numCollapsed = 0;
         int i = 0;
-        while(!mQueue.empty() && numCollapsed < 50)
+        while(!mQueue.empty())
         {
             i++;
             std::shared_ptr<EdgeInfo> edgeInfo = mQueue.top();
@@ -397,7 +397,8 @@ namespace SBV
         std::set<size_t> outerSample;
         buildOneRingArea(firstVert, secondVert, lines, innerSample, outerSample);
 
-        KernelRegion kernel(mTriangulation.vertices, lines, mInnerShell, mOuterShell, innerSample, outerSample);
+        KernelRegion kernel(mTriangulation.vertices, lines, mInnerShell, mOuterShell, innerSample, outerSample, mTriangulation,
+                            mTriangulation.vertType[firstVert]);
         if(kernel.contains(collapseTo) == false)
         {
             return false;

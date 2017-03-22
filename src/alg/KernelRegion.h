@@ -4,6 +4,7 @@
 #include "Common.h"
 #include <map>
 #include <set>
+#include "TriangulatedShell.h"
 
 namespace SBV
 {
@@ -11,7 +12,8 @@ namespace SBV
     {
     public:
         KernelRegion(const matrixr_t& points, const matrixs_t& lines, const matrixr_t& innerShell, const matrixr_t& outerShell,
-                     const std::set<size_t>& innerSample, const std::set<size_t>& outerSample);
+                     const std::set<size_t>& innerSample, const std::set<size_t>& outerSample, const TriangulatedShell& triangulation,
+                     PointType collapsedPointType);
 
         bool contains(const matrixr_t& point);
 
@@ -20,6 +22,7 @@ namespace SBV
         void buildPolygonSequence();
         bool isClockwise();
         void construct();
+        bool isInvalidRegion(const matrixr_t& point);
 
     private:
         const matrixr_t& mPoints;
@@ -28,6 +31,8 @@ namespace SBV
         const matrixr_t& mOuterShell;
         const std::set<size_t>& mInnerSamples;
         const std::set<size_t>& mOuterSamples;
+        const TriangulatedShell& mTriangulation;
+        PointType mPointType;
         bool mClockwise;
 
         std::map<size_t, std::vector<size_t> > mAdjacency;
