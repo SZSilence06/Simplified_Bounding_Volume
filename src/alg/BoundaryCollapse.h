@@ -48,8 +48,10 @@ namespace SBV
         void organizeOutput();
         size_t getCollapsedVert(size_t vert);
         bool testLinkCondition(size_t firstVert, size_t secondVert);
-        void buildOneRingArea(size_t firstVert, size_t secondVert, matrixs_t& lines);
+        void buildOneRingArea(size_t firstVert, size_t secondVert, matrixs_t& lines,
+                              std::set<size_t>& innerSample, std::set<size_t>& outerSample);
         void findBoundaryEdge(size_t firstVert, size_t secondVert, std::vector<std::pair<size_t, size_t>>& boundaryEdges);
+        void findShellSamples(size_t vert, std::set<size_t>& innerSample, std::set<size_t>& outerSample);
 
     private:
         TriangulatedShell& mTriangulation;

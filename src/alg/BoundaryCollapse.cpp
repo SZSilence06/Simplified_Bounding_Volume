@@ -1,5 +1,6 @@
 #include "BoundaryCollapse.h"
 #include "KernelRegion.h"
+#include <wkylib/geometry.h>
 
 using namespace zjucad::matrix;
 
@@ -166,7 +167,7 @@ namespace SBV
     {
         int numCollapsed = 0;
         int i = 0;
-        while(!mQueue.empty())
+        while(!mQueue.empty() && numCollapsed < 50)
         {
             i++;
             std::shared_ptr<EdgeInfo> edgeInfo = mQueue.top();
@@ -190,6 +191,7 @@ namespace SBV
 
             collapseEdge(edgeInfo->firstVert, edgeInfo->secondVert, mTriangulation.vertices(colon(), edgeInfo->secondVert));
             numCollapsed++;
+            std::cout << "Iteration " << numCollapsed << " ..." << std::endl;
         }
 
         organizeOutput();
@@ -255,15 +257,28 @@ namespace SBV
         for(int i = 0; i < mTriangulation.triangles.size(2); i++)
         {
             bool isDuplicated = false;
-            matrixs_t triangle(3, 1);
-            triangle[0] = finalIndex[mTriangulation.triangles(0, i)];
-            triangle[1] = finalIndex[mTriangulation.triangles(1, i)];
-            triangle[2] = finalIndex[mTriangulation.triangles(2, i)];
+            std::set<size_t> triangle;
+
+            size_t a = finalIndex[mTriangulation.triangles(0, i)];
+            size_t b = finalIndex[mTriangulation.triangles(1, i)];
+            size_t c = finalIndex[mTriangulation.triangles(2, i)];
+
+            if(a == b || a == c || b == c)
+            {
+                //the face is collapsed
+                continue;
+            }
+
+            triangle.insert(a);
+            triangle.insert(b);
+            triangle.insert(c);
             for(int j = 0; j < newTriangleVector.size(); j++)
             {
-                if(newTriangleVector[j][0] == triangle[0] &&
-                        newTriangleVector[j][1] == triangle[1] &&
-                        newTriangleVector[j][2] == triangle[2]  )
+                std::set<size_t> oldTriangle;
+                oldTriangle.insert(newTriangleVector[j][0]);
+                oldTriangle.insert(newTriangleVector[j][1]);
+                oldTriangle.insert(newTriangleVector[j][2]);
+                if(triangle == oldTriangle)
                 {
                     isDuplicated = true;
                     break;
@@ -271,7 +286,11 @@ namespace SBV
             }
             if(isDuplicated == false)
             {
-                newTriangleVector.push_back(triangle);
+                matrixs_t tri(3, 1);
+                tri[0] = a;
+                tri[1] = b;
+                tri[2] = c;
+                newTriangleVector.push_back(tri);
             }
         }
 
@@ -374,9 +393,11 @@ namespace SBV
         }
 
         matrixs_t lines;
-        buildOneRingArea(firstVert, secondVert, lines);
+        std::set<size_t> innerSample;
+        std::set<size_t> outerSample;
+        buildOneRingArea(firstVert, secondVert, lines, innerSample, outerSample);
 
-        KernelRegion kernel(mTriangulation.vertices, lines);
+        KernelRegion kernel(mTriangulation.vertices, lines, mInnerShell, mOuterShell, innerSample, outerSample);
         if(kernel.contains(collapseTo) == false)
         {
             return false;
@@ -445,11 +466,14 @@ namespace SBV
         return true;
     }
 
-    void BoundaryCollapse::buildOneRingArea(size_t firstVert, size_t secondVert, matrixs_t &lines)
+    void BoundaryCollapse::buildOneRingArea(size_t firstVert, size_t secondVert, matrixs_t& lines,
+                                            std::set<size_t>& innerSample, std::set<size_t>& outerSample)
     {
         std::vector<std::pair<size_t, size_t> > boundaryEdges;
         findBoundaryEdge(firstVert, secondVert, boundaryEdges);
         findBoundaryEdge(secondVert, firstVert, boundaryEdges);
+        findShellSamples(firstVert, innerSample, outerSample);
+        findShellSamples(secondVert, innerSample, outerSample);
 
         lines.resize(2, boundaryEdges.size());
         int i = 0;
@@ -491,6 +515,67 @@ namespace SBV
             else
             {
                 boundaryEdges.push_back(std::make_pair(a, b));
+            }
+        }
+    }
+
+    void BoundaryCollapse::findShellSamples(size_t vert, std::set<size_t> &innerSample, std::set<size_t> &outerSample)
+    {
+        for(int i = 0; i < mInnerShell.size(2); i++)
+        {
+            const matrixr_t& point = mInnerShell(colon(), i);
+
+            for(size_t face : mNeighbourFaces[vert])
+            {
+                size_t a = getCollapsedVert(mTriangulation.triangles(0, face));
+                size_t b = getCollapsedVert(mTriangulation.triangles(1, face));
+                size_t c = getCollapsedVert(mTriangulation.triangles(2, face));
+
+                if(a == b || a == c || b == c)
+                {
+                    //the face is collapsed
+                    continue;
+                }
+
+                matrixr_t triangle(2, 3);
+                triangle(colon(), 0) = mTriangulation.vertices(colon(), a);
+                triangle(colon(), 1) = mTriangulation.vertices(colon(), b);
+                triangle(colon(), 2) = mTriangulation.vertices(colon(), c);
+                matrixr_t bary;
+                if(WKYLIB::barycentric_2D(point, triangle, bary))
+                {
+                    innerSample.insert(i);
+                    break;
+                }
+            }
+        }
+
+        for(int i = 0; i < mOuterShell.size(2); i++)
+        {
+            const matrixr_t& point = mOuterShell(colon(), i);
+
+            for(size_t face : mNeighbourFaces[vert])
+            {
+                size_t a = getCollapsedVert(mTriangulation.triangles(0, face));
+                size_t b = getCollapsedVert(mTriangulation.triangles(1, face));
+                size_t c = getCollapsedVert(mTriangulation.triangles(2, face));
+
+                if(a == b || a == c || b == c)
+                {
+                    //the face is collapsed
+                    continue;
+                }
+
+                matrixr_t triangle(2, 3);
+                triangle(colon(), 0) = mTriangulation.vertices(colon(), a);
+                triangle(colon(), 1) = mTriangulation.vertices(colon(), b);
+                triangle(colon(), 2) = mTriangulation.vertices(colon(), c);
+                matrixr_t bary;
+                if(WKYLIB::barycentric_2D(point, triangle, bary))
+                {
+                    outerSample.insert(i);
+                    break;
+                }
             }
         }
     }

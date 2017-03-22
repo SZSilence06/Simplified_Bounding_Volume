@@ -4,9 +4,15 @@ using namespace zjucad::matrix;
 
 namespace SBV
 {
-    KernelRegion::KernelRegion(const matrixr_t &points, const matrixs_t &lines)
+    KernelRegion::KernelRegion(const matrixr_t &points, const matrixs_t &lines, const matrixr_t& innerShell,
+                               const matrixr_t& outerShell, const std::set<size_t>& innerSample,
+                               const std::set<size_t>& outerSample)
         : mPoints(points),
-          mLines(lines)
+          mLines(lines),
+          mInnerShell(innerShell),
+          mOuterShell(outerShell),
+          mInnerSamples(innerSample),
+          mOuterSamples(outerSample)
     {
         buildAdjacency();
         buildPolygonSequence();
@@ -18,6 +24,7 @@ namespace SBV
 
     void KernelRegion::buildAdjacency()
     {
+        //build adjacency list of the vertices.
         for(int i = 0; i < mLines.size(2); i++)
         {
             size_t a = mLines(0, i);
@@ -51,6 +58,7 @@ namespace SBV
 
     void KernelRegion::buildPolygonSequence()
     {
+        //transform the polygon vertices into a sequence according to their order in the polygion.
         size_t start = mAdjacency.begin()->first;
         size_t prev = start;
         size_t next = mAdjacency.find(start)->second[0];
@@ -75,6 +83,7 @@ namespace SBV
 
     bool KernelRegion::isClockwise()
     {
+        //judging whether the polygon is clockwise or counter-clockwise.
         double sum = 0;
 
         for(int i = 0; i < mPolygon.size() - 1; i++)
