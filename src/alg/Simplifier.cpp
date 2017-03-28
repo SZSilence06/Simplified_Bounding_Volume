@@ -24,6 +24,9 @@ namespace SBV
 
         std::cout << "Start Boundary collapse..." << std::endl;
         collapseBoundary();
+
+        std::cout << "Start mutual tessellation..." << std::endl;
+        mutualTessellate();
     }
 
     void Simplifier::generateShells()
@@ -92,111 +95,41 @@ namespace SBV
         refinement.refine();
         timer.end();
 
-        buildZeroSet();
+        mTriangulation.buildZeroSet();
         if(mNeedGenTempResult)
         {
             WKYLIB::Mesh::writeMesh2D(mOutputDirectory + "/refined_shell.obj", mTriangulation.vertices, mTriangulation.triangles);
-            WKYLIB::Mesh::writeCurve2D(mOutputDirectory + "/refined_zero_set.obj", mZeroSet.vertices, mZeroSet.lines);
+            WKYLIB::Mesh::writeCurve2D(mOutputDirectory + "/refined_zero_set.obj", mTriangulation.getZeroSet().vertices,
+                                       mTriangulation.getZeroSet().lines);
         }
     }
 
     void Simplifier::collapseBoundary()
     {
+        WKYLIB::DebugTimer timer("Boundary Collapse");
+        timer.start();
         BoundaryCollapse collapser(mTriangulation, mInnerShell, mOuterShell);
         collapser.collapse();
+        timer.end();
 
-        buildZeroSet();
+         mTriangulation.buildZeroSet();
         if(mNeedGenTempResult)
         {
             WKYLIB::Mesh::writeMesh2D(mOutputDirectory + "/boundary_collapsed_shell.obj", mTriangulation.vertices, mTriangulation.triangles);
-            WKYLIB::Mesh::writeCurve2D(mOutputDirectory + "/boundary_collapsed_zero_set.obj", mZeroSet.vertices, mZeroSet.lines);
+            WKYLIB::Mesh::writeCurve2D(mOutputDirectory + "/boundary_collapsed_zero_set.obj", mTriangulation.getZeroSet().vertices,
+                                       mTriangulation.getZeroSet().lines);
         }
     }
 
-    void Simplifier::buildZeroSet()
+    void Simplifier::mutualTessellate()
     {
-        std::vector<std::pair<size_t, size_t> > existing_verts;
-
-        //find out the number of faces in the zero set
-        int zeroFaceCount = 0;
-        for(int i = 0; i < mTriangulation.triangles.size(2); i++)
+        WKYLIB::DebugTimer timer("Mutual Tesselation");
+        timer.start();
+        mTriangulation.mutualTessellate();
+        timer.end();
+        if(mNeedGenTempResult)
         {
-            size_t v0 = mTriangulation.triangles(0, i);
-            size_t v1 = mTriangulation.triangles(1, i);
-            size_t v2 = mTriangulation.triangles(2, i);
-
-            if(mTriangulation.getSign(v0) == mTriangulation.getSign(v1) &&
-                    mTriangulation.getSign(v0) == mTriangulation.getSign(v2))
-            {
-                //F value sign of the vertices are same, so no zero-set in this triangle
-                continue;
-            }
-
-            zeroFaceCount++;
+            WKYLIB::Mesh::writeMesh2D(mOutputDirectory + "/mutual_tesellation.obj", mTriangulation.vertices, mTriangulation.triangles);
         }
-
-        //build zero face connection
-        mZeroSet.lines.resize(2, zeroFaceCount);
-
-        for(int i = 0, j = 0; i < mTriangulation.triangles.size(2); i++)
-        {
-            size_t v0 = mTriangulation.triangles(0, i);
-            size_t v1 = mTriangulation.triangles(1, i);
-            size_t v2 = mTriangulation.triangles(2, i);
-
-            if(mTriangulation.getSign(v0) == mTriangulation.getSign(v1) &&
-                    mTriangulation.getSign(v0) == mTriangulation.getSign(v2))
-            {
-                //F value sign of the vertices are same, so no zero-set in this triangle
-                continue;
-            }
-
-            if(mTriangulation.getSign(v0) == mTriangulation.getSign(v1))
-            {
-                mZeroSet.lines(0, j) = getZeroPointIndex(v0, v2, existing_verts);
-                mZeroSet.lines(1, j) = getZeroPointIndex(v1, v2, existing_verts);
-            }
-            else if(mTriangulation.getSign(v0) == mTriangulation.getSign(v2))
-            {
-                mZeroSet.lines(0, j) = getZeroPointIndex(v0, v1, existing_verts);
-                mZeroSet.lines(1, j) = getZeroPointIndex(v1, v2, existing_verts);
-            }
-            else if(mTriangulation.getSign(v1) == mTriangulation.getSign(v2))
-            {
-                mZeroSet.lines(0, j) = getZeroPointIndex(v0, v1, existing_verts);
-                mZeroSet.lines(1, j) = getZeroPointIndex(v0, v2, existing_verts);
-            }
-            else
-            {
-                throw std::runtime_error("cannot find valid zero point when building zero sets.");
-            }
-            j++;
-        }
-
-        //build zero point positions
-        mZeroSet.vertices.resize(2, existing_verts.size());
-        for(int i = 0; i< existing_verts.size(); i++)
-        {
-            auto& vertPair = existing_verts[i];
-            mZeroSet.vertices(colon(), i) = (mTriangulation.vertices(colon(), vertPair.first) +
-                    mTriangulation.vertices(colon(), vertPair.second)) / 2;
-        }
-    }
-
-    size_t Simplifier::getZeroPointIndex(size_t firstVertex, size_t secondVertex,
-                                         std::vector<std::pair<size_t, size_t> > &existingVertPairs)
-    {
-        for(int i = 0; i < existingVertPairs.size(); i++)
-        {
-            auto& vertPair = existingVertPairs[i];
-            if((vertPair.first == firstVertex && vertPair.second == secondVertex)
-                    || (vertPair.first == secondVertex && vertPair.second == firstVertex))
-            {
-                return i;
-            }
-        }
-
-        existingVertPairs.push_back(std::make_pair(firstVertex, secondVertex));
-        return existingVertPairs.size() - 1;
     }
 }

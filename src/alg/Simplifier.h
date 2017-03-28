@@ -49,9 +49,8 @@ namespace SBV {
         void generateShells();
         void sample(const matrixr_t& vertices, const matrixs_t& triangles, std::vector<matrixr_t>& output_samples);
         void refine();
-        void buildZeroSet();
         void collapseBoundary();
-        size_t getZeroPointIndex(size_t firstVertex, size_t secondVertex, std::vector<std::pair<size_t, size_t> >& existingVertPairs);
+        void mutualTessellate();
 
     private:
         std::string mOutputDirectory;

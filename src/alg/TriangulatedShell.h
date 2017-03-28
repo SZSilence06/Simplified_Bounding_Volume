@@ -13,45 +13,35 @@ namespace SBV
         POINT_UNKNOWN
     };
 
-    struct TriangulatedShell
+    class TriangulatedShell
     {
+    public:
         matrixr_t vertices;
         matrixs_t triangles;
         std::vector<PointType> vertType;
 
-        double getFValue(PointType pointType) const
+    private:
+        struct ZeroSet
         {
-            switch(pointType)
-            {
-            case POINT_BOUNDING_BOX:
-                return 2;
-            case POINT_OUTER:
-                return 1;
-            case POINT_INNER:
-                return -1;
-            default:
-                throw std::runtime_error("not on refined shell");
-            }
-        }
+            matrixr_t vertices;
+            matrixs_t lines;
+            std::vector<std::pair<size_t, size_t> >  vertPairs;   //recording the corresponding vert pairs of the zero set vertices
+            std::vector<size_t> lineFaces;                        //recording the corresponding faces of the zero set lines
+        };
 
-        double getFValue(size_t vert) const
-        {
-            return getFValue(vertType[vert]);
-        }
+        ZeroSet mZeroSet;
 
-        double getSign(size_t vert) const
-        {
-            double value = getFValue(vert);
-            if(value > 0)
-            {
-                return 1;
-            }
-            else if(value == 0)
-            {
-                return 0;
-            }
-            return -1;
-        }
+        size_t getZeroPointIndex(size_t firstVertex, size_t secondVertex);
+
+    public:
+        double getFValue(PointType pointType) const;
+        double getFValue(size_t vert) const;
+        double getSign(size_t vert) const;
+
+        inline const ZeroSet& getZeroSet() const { return mZeroSet; }
+
+        void buildZeroSet();
+        void mutualTessellate();
     };
 }
 
