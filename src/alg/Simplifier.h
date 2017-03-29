@@ -51,6 +51,7 @@ namespace SBV {
         void refine();
         void collapseBoundary();
         void mutualTessellate();
+        void collapseZeroSet();
 
     private:
         std::string mOutputDirectory;

@@ -14,6 +14,8 @@ namespace SBV
             return 1;
         case POINT_INNER:
             return -1;
+        case POINT_ZERO:
+            return 0;
         default:
             throw std::runtime_error("not on refined shell");
         }
@@ -41,6 +43,11 @@ namespace SBV
     void TriangulatedShell::buildZeroSet()
     {
         //find out the number of faces in the zero set
+        if(hasZeroSet)
+        {
+           buildZeroSetExisting();
+           return;
+        }
         mZeroSet.vertPairs.clear();
         mZeroSet.lineFaces.clear();
         int zeroFaceCount = 0;
@@ -106,6 +113,76 @@ namespace SBV
         }
     }
 
+    void TriangulatedShell::buildZeroSetExisting()
+    {
+        mZeroSet.lineFaces.clear();
+
+        std::vector<matrixr_t> zeroVerts;
+        for(int i = 0; i < vertices.size(2); i++)
+        {
+            if(vertType[i] == POINT_ZERO)
+            {
+                zeroVerts.push_back(vertices(colon(), i));
+            }
+        }
+
+        //organize zero vertices
+        matrixr_t newVerts(2, zeroVerts.size());
+        for(int i = 0; i < zeroVerts.size(); i++)
+        {
+            newVerts(colon(), i) = zeroVerts[i];
+        }
+        mZeroSet.vertices = newVerts;
+
+        //find out zero faces count
+        std::set<ZeroFace > zeroFaces;
+        for(int i = 0, j = 0; i < triangles.size(2); i++)
+        {
+            size_t v0 = triangles(0, i);
+            size_t v1 = triangles(1, i);
+            size_t v2 = triangles(2, i);
+
+            if(getSign(v0) == getSign(v1) && getSign(v0) == 0)
+            {
+                tryAddZeroFace(i, v0, v1, zeroFaces);
+            }
+            else if(getSign(v0) == getSign(v2) && getSign(v0) == 0)
+            {
+                tryAddZeroFace(i, v0, v2, zeroFaces);
+            }
+            else if(getSign(v1) == getSign(v2) && getSign(v1) == 0)
+            {
+                tryAddZeroFace(i, v1, v2, zeroFaces);
+            }
+        }
+
+        //organize zero faces
+        int i = 0;
+        mZeroSet.lines.resize(2, zeroFaces.size());
+        for(const ZeroFace& face : zeroFaces)
+        {
+            int j = 0;
+            for(const size_t& vert : face.verts)
+            {
+                mZeroSet.lines(j, i) = vert;
+                j++;
+            }
+            mZeroSet.lineFaces.push_back(face.tetra);
+            i++;
+        }
+    }
+
+    void TriangulatedShell::tryAddZeroFace(size_t currentTetra, size_t zeroVert1, size_t zeroVert2,
+                                           std::set<ZeroFace>& zeroFaces)
+    {
+        int zeroIndexDelta = vertices.size(2) - mZeroSet.vertices.size(2);
+        ZeroFace face;
+        face.verts.insert(zeroVert1 - zeroIndexDelta);
+        face.verts.insert(zeroVert2 - zeroIndexDelta);
+        face.tetra = currentTetra;
+        zeroFaces.insert(face);
+    }
+
     size_t TriangulatedShell::getZeroPointIndex(size_t firstVertex, size_t secondVertex)
     {
         for(int i = 0; i < mZeroSet.vertPairs.size(); i++)
@@ -124,6 +201,7 @@ namespace SBV
 
     void TriangulatedShell::mutualTessellate()
     {
+        hasZeroSet = true;
         std::vector<matrixs_t> newTriangles;
         for(int i = 0; i < triangles.size(2); i++)
         {
@@ -205,6 +283,12 @@ namespace SBV
         for(int i = 0; i < newTriangles.size(); i++)
         {
             triangles(colon(), i) = newTriangles[i];
+        }
+
+        //update vertType
+        for(int i = 0; i < mZeroSet.vertices.size(2); i++)
+        {
+            vertType.push_back(POINT_ZERO);
         }
     }
 }

@@ -1,6 +1,6 @@
 #include "Simplifier.h"
 #include "Refinement.h"
-#include "BoundaryCollapse.h"
+#include "EdgeCollapse.h"
 #include <wkylib/mesh/MeshUtil.h>
 #include <wkylib/mesh/IO.h>
 #include <wkylib/debug_util.h>
@@ -27,6 +27,9 @@ namespace SBV
 
         std::cout << "Start mutual tessellation..." << std::endl;
         mutualTessellate();
+
+        std::cout << "Start zero set collapse..." << std::endl;
+        collapseZeroSet();
     }
 
     void Simplifier::generateShells()
@@ -108,11 +111,11 @@ namespace SBV
     {
         WKYLIB::DebugTimer timer("Boundary Collapse");
         timer.start();
-        BoundaryCollapse collapser(mTriangulation, mInnerShell, mOuterShell);
+        EdgeCollapse collapser(mTriangulation, mInnerShell, mOuterShell, EdgeCollapse::BOUNDARY);
         collapser.collapse();
         timer.end();
 
-         mTriangulation.buildZeroSet();
+        mTriangulation.buildZeroSet();
         if(mNeedGenTempResult)
         {
             WKYLIB::Mesh::writeMesh2D(mOutputDirectory + "/boundary_collapsed_shell.obj", mTriangulation.vertices, mTriangulation.triangles);
@@ -127,9 +130,27 @@ namespace SBV
         timer.start();
         mTriangulation.mutualTessellate();
         timer.end();
+
         if(mNeedGenTempResult)
         {
             WKYLIB::Mesh::writeMesh2D(mOutputDirectory + "/mutual_tesellation.obj", mTriangulation.vertices, mTriangulation.triangles);
+        }
+    }
+
+    void Simplifier::collapseZeroSet()
+    {
+        WKYLIB::DebugTimer timer("Zero Set Collapse");
+        timer.start();
+        EdgeCollapse collapser(mTriangulation, mInnerShell, mOuterShell, EdgeCollapse::ZERO_SET);
+        collapser.collapse();
+        timer.end();
+
+        mTriangulation.buildZeroSet();
+        if(mNeedGenTempResult)
+        {
+            WKYLIB::Mesh::writeMesh2D(mOutputDirectory + "/zero_set_collapsed_shell.obj", mTriangulation.vertices, mTriangulation.triangles);
+            WKYLIB::Mesh::writeCurve2D(mOutputDirectory + "/zero_set_collapsed_zero_set.obj", mTriangulation.getZeroSet().vertices,
+                                       mTriangulation.getZeroSet().lines);
         }
     }
 }

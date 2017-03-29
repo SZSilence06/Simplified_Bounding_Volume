@@ -2,6 +2,7 @@
 #define WKY_TRIANGULATED_SHELL_H
 
 #include "Common.h"
+#include <set>
 
 namespace SBV
 {
@@ -10,17 +11,13 @@ namespace SBV
         POINT_BOUNDING_BOX,
         POINT_INNER,
         POINT_OUTER,
+        POINT_ZERO,
         POINT_UNKNOWN
     };
 
     class TriangulatedShell
     {
     public:
-        matrixr_t vertices;
-        matrixs_t triangles;
-        std::vector<PointType> vertType;
-
-    private:
         struct ZeroSet
         {
             matrixr_t vertices;
@@ -29,9 +26,10 @@ namespace SBV
             std::vector<size_t> lineFaces;                        //recording the corresponding faces of the zero set lines
         };
 
-        ZeroSet mZeroSet;
-
-        size_t getZeroPointIndex(size_t firstVertex, size_t secondVertex);
+    public:
+        matrixr_t vertices;
+        matrixs_t triangles;
+        std::vector<PointType> vertType;
 
     public:
         double getFValue(PointType pointType) const;
@@ -42,6 +40,22 @@ namespace SBV
 
         void buildZeroSet();
         void mutualTessellate();
+
+    private:
+        struct ZeroFace{
+            std::set<size_t> verts;
+            size_t tetra;
+
+            bool operator <(const ZeroFace& face) const { return this->verts < face.verts; }
+        };
+
+        size_t getZeroPointIndex(size_t firstVertex, size_t secondVertex);
+        void buildZeroSetExisting();
+        void tryAddZeroFace(size_t currentTetra, size_t zeroVert1, size_t zeroVert2, std::set<ZeroFace>& zeroFaces);
+
+    private:
+        ZeroSet mZeroSet;
+        bool hasZeroSet = false;
     };
 }
 

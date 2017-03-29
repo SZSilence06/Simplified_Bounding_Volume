@@ -1,4 +1,4 @@
-#include "BoundaryCollapse.h"
+#include "EdgeCollapse.h"
 #include "KernelRegion.h"
 #include <wkylib/geometry.h>
 
@@ -6,10 +6,11 @@ using namespace zjucad::matrix;
 
 namespace SBV
 {
-    BoundaryCollapse::BoundaryCollapse(TriangulatedShell &triangulation, const matrixr_t &innerShell, const matrixr_t &outerShell)
+    EdgeCollapse::EdgeCollapse(TriangulatedShell &triangulation, const matrixr_t &innerShell, const matrixr_t &outerShell, Type type)
         : mTriangulation(triangulation),
           mInnerShell(innerShell),
-          mOuterShell(outerShell)
+          mOuterShell(outerShell),
+          mType(type)
     {
         buildEdgeInfo();
 
@@ -20,31 +21,12 @@ namespace SBV
         }
     }
 
-    void BoundaryCollapse::buildEdgeInfo()
+    void EdgeCollapse::buildEdgeInfo()
     {
-        mCollapseableNeighbours.reserve(mTriangulation.vertices.size(2));
-        for(int i = 0; i < mTriangulation.vertices.size(2); i++)
-        {
-            mCollapseableNeighbours.push_back(std::set<size_t>());
-        }
-
-        mNeighbours.reserve(mTriangulation.vertices.size(2));
-        for(int i = 0; i < mTriangulation.vertices.size(2); i++)
-        {
-            mNeighbours.push_back(std::set<size_t>());
-        }
-
-        mNeighbourFaces.reserve(mTriangulation.vertices.size(2));
-        for(int i = 0; i < mTriangulation.vertices.size(2); i++)
-        {
-            mNeighbourFaces.push_back(std::set<size_t>());
-        }
-
-        mRelatedEdgeInfo.reserve(mTriangulation.vertices.size(2));
-        for(int i = 0; i < mTriangulation.vertices.size(2); i++)
-        {
-            mRelatedEdgeInfo.push_back(std::vector<std::shared_ptr<EdgeInfo> >());
-        }
+        mCollapseableNeighbours.resize(mTriangulation.vertices.size(2));
+        mNeighbours.resize(mTriangulation.vertices.size(2));
+        mNeighbourFaces.resize(mTriangulation.vertices.size(2));
+        mRelatedEdgeInfo.resize(mTriangulation.vertices.size(2));
 
         //build vertices neighbour info
         for(int i = 0; i < mTriangulation.triangles.size(2); i++)
@@ -91,7 +73,7 @@ namespace SBV
         }
     }
 
-    void BoundaryCollapse::insertEdges(size_t vert)
+    void EdgeCollapse::insertEdges(size_t vert)
     {
         //iterate over all neighbour vertices
         for(const size_t& neighbourVert : mCollapseableNeighbours[vert])
@@ -105,23 +87,38 @@ namespace SBV
         }
     }
 
-    void BoundaryCollapse::addNeighbour(size_t firstVert, size_t secondVert)
+    void EdgeCollapse::addNeighbour(size_t firstVert, size_t secondVert)
     {
         mNeighbours[firstVert].insert(secondVert);
         mNeighbours[secondVert].insert(firstVert);
     }
 
-    void BoundaryCollapse::tryAddCollapseableNeighbour(size_t firstVert, size_t secondVert)
+    void EdgeCollapse::tryAddCollapseableNeighbour(size_t firstVert, size_t secondVert)
     {
-        if(mTriangulation.vertType[firstVert] == mTriangulation.vertType[secondVert]
-                && mTriangulation.vertType[firstVert] != POINT_BOUNDING_BOX)
+        if(isCollapseable(firstVert, secondVert))
         {
             mCollapseableNeighbours[firstVert].insert(secondVert);
             mCollapseableNeighbours[secondVert].insert(firstVert);
         }
     }
 
-    void BoundaryCollapse::buildMatrices()
+    bool EdgeCollapse::isCollapseable(size_t firstVert, size_t secondVert)
+    {
+        switch(mType)
+        {
+        case BOUNDARY:
+            return mTriangulation.vertType[firstVert] == mTriangulation.vertType[secondVert]
+                    && mTriangulation.vertType[firstVert] != POINT_BOUNDING_BOX
+                    && mTriangulation.vertType[firstVert] != POINT_ZERO;
+        case ZERO_SET:
+            return mTriangulation.vertType[firstVert] == mTriangulation.vertType[secondVert]
+                    && mTriangulation.vertType[firstVert] == POINT_ZERO;
+        default:
+            throw std::logic_error("not implemented.");
+        }
+    }
+
+    void EdgeCollapse::buildMatrices()
     {
         //initialize error matrices to zero
         for(int i = 0; i < mTriangulation.vertices.size(2); i++)
@@ -154,7 +151,7 @@ namespace SBV
         }
     }
 
-    double BoundaryCollapse::computeError(size_t vert, const matrixr_t &point)
+    double EdgeCollapse::computeError(size_t vert, const matrixr_t &point)
     {
         Eigen::Vector3d p;
         p[0] = point[0];
@@ -163,7 +160,7 @@ namespace SBV
         return p.transpose() * mQ[vert] * p;
     }
 
-    void BoundaryCollapse::collapse()
+    void EdgeCollapse::collapse()
     {
         int numCollapsed = 0;
         int i = 0;
@@ -197,7 +194,7 @@ namespace SBV
         organizeOutput();
     }
 
-    void BoundaryCollapse::organizeOutput()
+    void EdgeCollapse::organizeOutput()
     {
         std::vector<int> finalIndex;   //recording the final vert index of the original vertices
         finalIndex.reserve(mTriangulation.vertices.size(2));
@@ -251,6 +248,7 @@ namespace SBV
         {
             mTriangulation.vertType[finalIndex[i]] = mTriangulation.vertType[i];
         }
+        mTriangulation.vertType.erase(mTriangulation.vertType.begin() + newVertCount, mTriangulation.vertType.end());
 
         //organize new triangles, remove duplicate
         std::vector<matrixs_t> newTriangleVector;
@@ -304,12 +302,12 @@ namespace SBV
         mTriangulation.triangles = newTriangles;
     }
 
-    void BoundaryCollapse::collapseEdge(size_t firstVert, size_t secondVert, const matrixr_t &collapseTo)
+    void EdgeCollapse::collapseEdge(size_t firstVert, size_t secondVert, const matrixr_t &collapseTo)
     {
         updateEdgeInfo(firstVert, secondVert);
     }
 
-    void BoundaryCollapse::mergeNeighbours(size_t vertCollapsed, size_t vertCollapsedTo)
+    void EdgeCollapse::mergeNeighbours(size_t vertCollapsed, size_t vertCollapsedTo)
     {
         for(size_t vert : mCollapseableNeighbours[vertCollapsed])
         {
@@ -356,7 +354,7 @@ namespace SBV
         }
     }
 
-    void BoundaryCollapse::updateEdgeInfo(size_t vertCollapsed, size_t vertCollapsedTo)
+    void EdgeCollapse::updateEdgeInfo(size_t vertCollapsed, size_t vertCollapsedTo)
     {
         mCollapseTo[vertCollapsed] = vertCollapsedTo;
         mQ[vertCollapsedTo] += mQ[vertCollapsed];
@@ -376,7 +374,7 @@ namespace SBV
         insertEdges(vertCollapsedTo);
     }
 
-    size_t BoundaryCollapse::getCollapsedVert(size_t vert)
+    size_t EdgeCollapse::getCollapsedVert(size_t vert)
     {
         while(mCollapseTo[vert] != vert)
         {
@@ -385,7 +383,7 @@ namespace SBV
         return vert;
     }
 
-    bool BoundaryCollapse::isValidCollapse(size_t firstVert, size_t secondVert, const matrixr_t &collapseTo)
+    bool EdgeCollapse::isValidCollapse(size_t firstVert, size_t secondVert, const matrixr_t &collapseTo)
     {
         if(testLinkCondition(firstVert, secondVert) == false)
         {
@@ -407,7 +405,7 @@ namespace SBV
         return true;
     }
 
-    bool BoundaryCollapse::testLinkCondition(size_t firstVert, size_t secondVert)
+    bool EdgeCollapse::testLinkCondition(size_t firstVert, size_t secondVert)
     {
         //we mark A as firstVert, B as secondVert in this function
         const std::set<size_t>& neighbourA = mNeighbours[firstVert];
@@ -467,7 +465,7 @@ namespace SBV
         return true;
     }
 
-    void BoundaryCollapse::buildOneRingArea(size_t firstVert, size_t secondVert, matrixs_t& lines,
+    void EdgeCollapse::buildOneRingArea(size_t firstVert, size_t secondVert, matrixs_t& lines,
                                             std::set<size_t>& innerSample, std::set<size_t>& outerSample)
     {
         std::vector<std::pair<size_t, size_t> > boundaryEdges;
@@ -486,7 +484,7 @@ namespace SBV
         }
     }
 
-    void BoundaryCollapse::findBoundaryEdge(size_t firstVert, size_t secondVert, std::vector<std::pair<size_t, size_t> >& boundaryEdges)
+    void EdgeCollapse::findBoundaryEdge(size_t firstVert, size_t secondVert, std::vector<std::pair<size_t, size_t> >& boundaryEdges)
     {
         for(size_t face : mNeighbourFaces[firstVert])
         {
@@ -520,7 +518,7 @@ namespace SBV
         }
     }
 
-    void BoundaryCollapse::findShellSamples(size_t vert, std::set<size_t> &innerSample, std::set<size_t> &outerSample)
+    void EdgeCollapse::findShellSamples(size_t vert, std::set<size_t> &innerSample, std::set<size_t> &outerSample)
     {
         for(int i = 0; i < mInnerShell.size(2); i++)
         {

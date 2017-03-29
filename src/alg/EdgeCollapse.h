@@ -1,5 +1,5 @@
-#ifndef WKY_BOUNDARY_COLLAPSE_H
-#define WKY_BOUNDARY_COLLAPSE_H
+#ifndef WKY_EDGE_COLLAPSE_H
+#define WKY_EDGE_COLLAPSE_H
 
 #include "Refinement.h"
 #include <queue>
@@ -7,10 +7,16 @@
 
 namespace SBV
 {
-    class BoundaryCollapse
+    class EdgeCollapse
     {
     public:
-        BoundaryCollapse(TriangulatedShell& triangulation, const matrixr_t& innerShell, const matrixr_t& outerShell);
+        enum Type{
+            BOUNDARY,
+            ZERO_SET
+        };
+
+    public:
+        EdgeCollapse(TriangulatedShell& triangulation, const matrixr_t& innerShell, const matrixr_t& outerShell, Type type);
 
         void collapse();
 
@@ -40,6 +46,7 @@ namespace SBV
         void addNeighbour(size_t firstVert, size_t secondVert);
         void tryAddCollapseableNeighbour(size_t firstVert, size_t secondVert);
         double computeError(size_t vert, const matrixr_t& point);
+        bool isCollapseable(size_t firstVert, size_t secondVert);
         bool isValidCollapse(size_t firstVert, size_t secondVert, const matrixr_t &collapseTo);
         void collapseEdge(size_t firstVert, size_t secondVert, const matrixr_t &collapseTo);
         void updateEdgeInfo(size_t vertCollapsed, size_t vertCollapsedTo);
@@ -57,6 +64,7 @@ namespace SBV
         TriangulatedShell& mTriangulation;
         const matrixr_t& mInnerShell;
         const matrixr_t& mOuterShell;
+        Type mType;
 
         std::vector<Eigen::Matrix3d> mQ;
         std::vector<std::set<size_t> > mNeighbours;   //store the neighbour vertices for each vertex
