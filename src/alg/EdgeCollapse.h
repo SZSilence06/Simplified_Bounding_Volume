@@ -1,9 +1,10 @@
 #ifndef WKY_EDGE_COLLAPSE_H
 #define WKY_EDGE_COLLAPSE_H
 
-#include "Refinement.h"
 #include <queue>
 #include <eigen3/Eigen/Dense>
+#include "TriangulatedShell.h"
+#include "Shell.h"
 
 namespace SBV
 {
@@ -16,7 +17,7 @@ namespace SBV
         };
 
     public:
-        EdgeCollapse(TriangulatedShell& triangulation, const matrixr_t& innerShell, const matrixr_t& outerShell, Type type);
+        EdgeCollapse(TriangulatedShell& triangulation, const Shell& shell, Type type);
 
         void collapse();
 
@@ -62,8 +63,7 @@ namespace SBV
 
     private:
         TriangulatedShell& mTriangulation;
-        const matrixr_t& mInnerShell;
-        const matrixr_t& mOuterShell;
+        const Shell& mShell;
         Type mType;
 
         std::vector<Eigen::Matrix3d> mQ;

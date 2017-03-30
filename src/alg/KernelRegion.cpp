@@ -5,14 +5,12 @@ using namespace zjucad::matrix;
 
 namespace SBV
 {
-    KernelRegion::KernelRegion(const matrixr_t &points, const matrixs_t &lines, const matrixr_t& innerShell,
-                               const matrixr_t& outerShell, const std::set<size_t>& innerSample,
-                               const std::set<size_t>& outerSample, const TriangulatedShell& triangulation,
-                               PointType collapsedPointType)
+    KernelRegion::KernelRegion(const matrixr_t &points, const matrixs_t &lines, const Shell& shell,
+                               const std::set<size_t>& innerSample, const std::set<size_t>& outerSample,
+                               const TriangulatedShell& triangulation, PointType collapsedPointType)
         : mPoints(points),
           mLines(lines),
-          mInnerShell(innerShell),
-          mOuterShell(outerShell),
+          mShell(shell),
           mInnerSamples(innerSample),
           mOuterSamples(outerSample),
           mTriangulation(triangulation),
@@ -159,7 +157,7 @@ namespace SBV
             for(size_t sample : mInnerSamples)
             {
                 matrixr_t bary;
-                if(WKYLIB::barycentric_2D(mInnerShell(colon(), sample), triangle, bary))
+                if(WKYLIB::barycentric_2D(mShell.mInnerShell(colon(), sample), triangle, bary))
                 {
                     //the point is inside the tetrahedron
                     double f0 = mTriangulation.getFValue(mLines(0, i));
@@ -177,7 +175,7 @@ namespace SBV
             for(size_t sample : mOuterSamples)
             {
                 matrixr_t bary;
-                if(WKYLIB::barycentric_2D(mOuterShell(colon(), sample), triangle, bary))
+                if(WKYLIB::barycentric_2D(mShell.mOuterShell(colon(), sample), triangle, bary))
                 {
                     //the point is inside the tetrahedron
                     double f0 = mTriangulation.getFValue(mLines(0, i));

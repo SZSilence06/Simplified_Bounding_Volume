@@ -6,10 +6,9 @@ using namespace zjucad::matrix;
 
 namespace SBV
 {
-    EdgeCollapse::EdgeCollapse(TriangulatedShell &triangulation, const matrixr_t &innerShell, const matrixr_t &outerShell, Type type)
+    EdgeCollapse::EdgeCollapse(TriangulatedShell &triangulation, const Shell& shell, Type type)
         : mTriangulation(triangulation),
-          mInnerShell(innerShell),
-          mOuterShell(outerShell),
+          mShell(shell),
           mType(type)
     {
         buildEdgeInfo();
@@ -395,7 +394,7 @@ namespace SBV
         std::set<size_t> outerSample;
         buildOneRingArea(firstVert, secondVert, lines, innerSample, outerSample);
 
-        KernelRegion kernel(mTriangulation.vertices, lines, mInnerShell, mOuterShell, innerSample, outerSample, mTriangulation,
+        KernelRegion kernel(mTriangulation.vertices, lines, mShell, innerSample, outerSample, mTriangulation,
                             mTriangulation.vertType[firstVert]);
         if(kernel.contains(collapseTo) == false)
         {
@@ -520,9 +519,9 @@ namespace SBV
 
     void EdgeCollapse::findShellSamples(size_t vert, std::set<size_t> &innerSample, std::set<size_t> &outerSample)
     {
-        for(int i = 0; i < mInnerShell.size(2); i++)
+        for(int i = 0; i < mShell.mInnerShell.size(2); i++)
         {
-            const matrixr_t& point = mInnerShell(colon(), i);
+            const matrixr_t& point = mShell.mInnerShell(colon(), i);
 
             for(size_t face : mNeighbourFaces[vert])
             {
@@ -549,9 +548,9 @@ namespace SBV
             }
         }
 
-        for(int i = 0; i < mOuterShell.size(2); i++)
+        for(int i = 0; i < mShell.mOuterShell.size(2); i++)
         {
-            const matrixr_t& point = mOuterShell(colon(), i);
+            const matrixr_t& point = mShell.mOuterShell(colon(), i);
 
             for(size_t face : mNeighbourFaces[vert])
             {

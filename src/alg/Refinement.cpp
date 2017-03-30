@@ -4,10 +4,9 @@
 
 namespace SBV
 {
-    Refinement::Refinement(const matrixr_t &innerShell, const matrixr_t &outerShell, TriangulatedShell &output,
+    Refinement::Refinement(const Shell& shell, TriangulatedShell &output,
                            double alpha, double sampleRadius)
-        : mInnerShell(innerShell),
-          mOuterShell(outerShell),
+        : mShell(shell),
           mOutput(output),
           mAlpha(alpha),
           mSampleRadius(sampleRadius)
@@ -30,23 +29,23 @@ namespace SBV
         double yMax = std::numeric_limits<double>::min();
         double yMin = std::numeric_limits<double>::max();
 
-        for(int i = 0; i < mOuterShell.size(2); i++)
+        for(int i = 0; i < mShell.mOuterShell.size(2); i++)
         {
-            if(xMax < mOuterShell(0, i))
+            if(xMax < mShell.mOuterShell(0, i))
             {
-                xMax = mOuterShell(0, i);
+                xMax = mShell.mOuterShell(0, i);
             }
-            if(xMin > mOuterShell(0, i))
+            if(xMin > mShell.mOuterShell(0, i))
             {
-                xMin = mOuterShell(0, i);
+                xMin = mShell.mOuterShell(0, i);
             }
-            if(yMax < mOuterShell(1, i))
+            if(yMax < mShell.mOuterShell(1, i))
             {
-                yMax = mOuterShell(1, i);
+                yMax = mShell.mOuterShell(1, i);
             }
-            if(yMin > mOuterShell(1, i))
+            if(yMin > mShell.mOuterShell(1, i))
             {
-                yMin = mOuterShell(1, i);
+                yMin = mShell.mOuterShell(1, i);
             }
         }
 
@@ -66,17 +65,8 @@ namespace SBV
 
     void Refinement::initErrors()
     {
-        mInnerError.reserve(mInnerShell.size(2));
-        for(int i = 0; i < mInnerShell.size(2); i++)
-        {
-            mInnerError.push_back(0);
-        }
-
-        mOuterError.reserve(mOuterShell.size(2));
-        for(int i = 0; i < mOuterShell.size(2); i++)
-        {
-            mOuterError.push_back(0);
-        }
+        mInnerError.resize(mShell.mInnerShell.size(2), 0);
+        mOuterError.resize(mShell.mOuterShell.size(2), 0);
     }
 
     void Refinement::updateErrors()
@@ -108,9 +98,9 @@ namespace SBV
 
         double maxError = -std::numeric_limits<double>::max();
         PointInfo maxErrorPoint;
-        for(int i = 0; i < mInnerShell.size(2); i++)
+        for(int i = 0; i < mShell.mInnerShell.size(2); i++)
         {
-            double f = computeFValue(mInnerShell(colon(), i), cell);
+            double f = computeFValue(mShell.mInnerShell(colon(), i), cell);
             if(f == std::numeric_limits<double>::max())
             {
                 //the point is outside the tetrahedron
@@ -126,9 +116,9 @@ namespace SBV
             info.points.push_back(PointInfo(POINT_INNER, i));
         }
 
-        for(int i = 0; i < mOuterShell.size(2); i++)
+        for(int i = 0; i < mShell.mOuterShell.size(2); i++)
         {
-            double f = computeFValue(mOuterShell(colon(), i), cell);
+            double f = computeFValue(mShell.mOuterShell(colon(), i), cell);
             if(f == std::numeric_limits<double>::max())
             {
                 //the point is outside the tetrahedron
@@ -218,10 +208,10 @@ namespace SBV
         switch(point.pointType)
         {
         case PointType::POINT_INNER:
-            pointMatrix = mInnerShell(colon(), point.index);
+            pointMatrix = mShell.mInnerShell(colon(), point.index);
             break;
         case PointType::POINT_OUTER:
-            pointMatrix = mOuterShell(colon(), point.index);
+            pointMatrix = mShell.mOuterShell(colon(), point.index);
             break;
         default:
             //this should not be runned, otherwise there exists logic error
@@ -232,7 +222,7 @@ namespace SBV
     bool Refinement::refine()
     {
         int iterCount = 0;
-        while(!isFinished() && iterCount <= (mInnerShell.size(2) + mOuterShell.size(2)))
+        while(!isFinished() && iterCount <= (mShell.mInnerShell.size(2) + mShell.mOuterShell.size(2)))
         {
             iterCount++;
             std::cout << "Iteration " << iterCount << " ..." << std::endl;

@@ -49,23 +49,25 @@ namespace SBV
         std::vector<matrixr_t> sampled_shell;
 
         sample(shell, mSourceMesh.lines, sampled_shell);
-        mOuterShell.resize(2, sampled_shell.size());
-        for(int i = 0; i < mOuterShell.size(2); i++)
+        mShell.mOuterShell.resize(2, sampled_shell.size());
+        for(int i = 0; i < mShell.mOuterShell.size(2); i++)
         {
-            mOuterShell(colon(), i) = sampled_shell[i];
+            mShell.mOuterShell(colon(), i) = sampled_shell[i];
         }
 
         sample(mSourceMesh.vertices, mSourceMesh.lines, sampled_shell);
-        mInnerShell.resize(2, sampled_shell.size());
-        for(int i = 0; i < mInnerShell.size(2); i++)
+        mShell.mInnerShell.resize(2, sampled_shell.size());
+        for(int i = 0; i < mShell.mInnerShell.size(2); i++)
         {
-            mInnerShell(colon(), i) = sampled_shell[i];
+            mShell.mInnerShell(colon(), i) = sampled_shell[i];
         }
+
+        mShell.buildKdTree();
 
         if(mNeedGenTempResult)
         {
-            WKYLIB::Mesh::writePoints2D(mOutputDirectory + "/inner_shell.vtk", mInnerShell);
-            WKYLIB::Mesh::writePoints2D(mOutputDirectory + "/outer_shell.vtk", mOuterShell);
+            WKYLIB::Mesh::writePoints2D(mOutputDirectory + "/inner_shell.vtk", mShell.mInnerShell);
+            WKYLIB::Mesh::writePoints2D(mOutputDirectory + "/outer_shell.vtk", mShell.mOuterShell);
         }
     }
 
@@ -94,7 +96,7 @@ namespace SBV
     {
         WKYLIB::DebugTimer timer("refinement");
         timer.start();
-        Refinement refinement(mInnerShell, mOuterShell, mTriangulation, mAlpha, mSampleRadius);
+        Refinement refinement(mShell, mTriangulation, mAlpha, mSampleRadius);
         refinement.refine();
         timer.end();
 
@@ -111,7 +113,7 @@ namespace SBV
     {
         WKYLIB::DebugTimer timer("Boundary Collapse");
         timer.start();
-        EdgeCollapse collapser(mTriangulation, mInnerShell, mOuterShell, EdgeCollapse::BOUNDARY);
+        EdgeCollapse collapser(mTriangulation, mShell, EdgeCollapse::BOUNDARY);
         collapser.collapse();
         timer.end();
 
@@ -141,7 +143,7 @@ namespace SBV
     {
         WKYLIB::DebugTimer timer("Zero Set Collapse");
         timer.start();
-        EdgeCollapse collapser(mTriangulation, mInnerShell, mOuterShell, EdgeCollapse::ZERO_SET);
+        EdgeCollapse collapser(mTriangulation, mShell, EdgeCollapse::ZERO_SET);
         collapser.collapse();
         timer.end();
 

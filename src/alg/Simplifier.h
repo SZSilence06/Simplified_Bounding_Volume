@@ -4,6 +4,7 @@
 #include <string>
 #include "Common.h"
 #include "Refinement.h"
+#include "Shell.h"
 
 namespace SBV {
     class Simplifier{
@@ -61,8 +62,7 @@ namespace SBV {
         double mAlpha = 0.2;
         bool mNeedGenTempResult = false;
 
-        matrixr_t mInnerShell;
-        matrixr_t mOuterShell;
+        Shell mShell;
 
         TriangulatedShell mTriangulation;
         ZeroSet mZeroSet;

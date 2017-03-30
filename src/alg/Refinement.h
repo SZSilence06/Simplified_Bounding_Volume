@@ -3,6 +3,7 @@
 
 #include "Common.h"
 #include "TriangulatedShell.h"
+#include "Shell.h"
 #include <CGAL/Exact_predicates_inexact_constructions_kernel.h>
 #include <CGAL/Triangulation_vertex_base_with_info_2.h>
 #include <CGAL/Triangulation_face_base_with_info_2.h>
@@ -13,7 +14,7 @@ namespace SBV
     class Refinement
     {      
     public:
-        Refinement(const matrixr_t& innerShell, const matrixr_t& outerShell, TriangulatedShell &output, double alpha, double sampleRadius);
+        Refinement(const Shell& shell, TriangulatedShell &output, double alpha, double sampleRadius);
 
         bool refine();
 
@@ -64,8 +65,7 @@ namespace SBV
         double computeHeight(const Cell& cell);
 
     private:
-        const matrixr_t& mInnerShell;
-        const matrixr_t& mOuterShell;
+        const Shell& mShell;
         TriangulatedShell& mOutput;
         double mAlpha = 0.2;
         double mSampleRadius;

@@ -15,6 +15,7 @@ file(GLOB headers *.h)
 file(GLOB sources *.cpp)
 
 add_subdirectory(mesh)
+add_subdirectory(Geometry)
 
 add_library(wkylib ${headers} ${sources})
 
