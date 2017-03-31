@@ -1,6 +1,7 @@
 #include "EdgeCollapse.h"
 #include "KernelRegion.h"
 #include <wkylib/geometry.h>
+#include <iostream>
 
 using namespace zjucad::matrix;
 

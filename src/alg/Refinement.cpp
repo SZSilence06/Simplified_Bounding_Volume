@@ -176,17 +176,7 @@ namespace SBV
     double Refinement::getFValue(const VertexHandle& vh)
     {
         const PointInfo& info = vh->info();
-        switch(info.pointType)
-        {
-        case PointType::POINT_BOUNDING_BOX:
-            return 2;
-        case PointType::POINT_OUTER:
-            return 1;
-        case PointType::POINT_INNER:
-            return -1;
-        default:
-            throw std::runtime_error("Unidentified pointType in getFValue().");
-        }
+        return mOutput.getFValue(info.pointType);
     }
 
     double Refinement::getError(const PointInfo &point)
@@ -283,7 +273,6 @@ namespace SBV
             }
         }
 
-        /*
         //check for condition 2 and 3.
         for(auto iter = mDelaunay.finite_faces_begin(); iter != mDelaunay.finite_faces_end(); ++iter)
         {
@@ -297,12 +286,18 @@ namespace SBV
                 continue;
             }
 
+            /*
             //condition 2
             if(computeHeight(cell) < 2 * mSampleRadius / mAlpha)
             {
                 return false;
+            }*/
+
+            if(checkCondition3(cell) == false)
+            {
+                return false;
             }
-        }*/
+        }
 
         return true;
     }
@@ -371,5 +366,98 @@ namespace SBV
         matrixr_t ba = a - b;
         matrixr_t bc = c - b;
         return norm(cross(ba, bc)) / norm(bc);
+    }
+
+    bool Refinement::checkCondition3(const Cell &cell)
+    {
+        const VertexHandle& vh0 = cell.vertex(0);
+        const VertexHandle& vh1 = cell.vertex(1);
+        const VertexHandle& vh2 = cell.vertex(2);
+        const Point& p0 = vh0->point();
+        const Point& p1 = vh1->point();
+        const Point& p2 = vh2->point();
+
+        matrixr_t a(2, 1), b(2, 1), c(2, 1);
+        a[0] = p0[0];
+        a[1] = p0[1];
+        b[0] = p1[0];
+        b[1] = p1[1];
+        c[0] = p2[0];
+        c[1] = p2[1];
+
+        matrixr_t center = (a + b + c) / 3.0;
+        constexpr double k = sqrt(0.7);
+        matrixr_t newA = k * a + (1 - k) * center;
+        matrixr_t newB = k * b + (1 - k) * center;
+        matrixr_t newC = k * c + (1 - k) * center;
+
+        const KdTreeWrap& innerTree = mShell.getInnerTree();
+        matrixr_t nearA, nearB, nearC;
+        innerTree.getNearestPoint(newA, nearA);
+        innerTree.getNearestPoint(newB, nearB);
+        innerTree.getNearestPoint(newC, nearC);
+        if(checkClassification(cell, nearA, false) == false)
+        {
+            return false;
+        }
+        if(checkClassification(cell, nearB, false) == false)
+        {
+            return false;
+        }
+        if(checkClassification(cell, nearC, false) == false)
+        {
+            return false;
+        }
+
+        const KdTreeWrap& outerTree = mShell.getOuterTree();
+        outerTree.getNearestPoint(newA, nearA);
+        outerTree.getNearestPoint(newB, nearB);
+        outerTree.getNearestPoint(newC, nearC);
+        if(checkClassification(cell, nearA, true) == false)
+        {
+            return false;
+        }
+        if(checkClassification(cell, nearB, true) == false)
+        {
+            return false;
+        }
+        if(checkClassification(cell, nearC, true) == false)
+        {
+            return false;
+        }
+
+        return true;
+    }
+
+    bool Refinement::checkClassification(const Cell &cell, const matrixr_t &point, bool isOuter)
+    {
+        const VertexHandle& vh0 = cell.vertex(0);
+        const VertexHandle& vh1 = cell.vertex(1);
+        const VertexHandle& vh2 = cell.vertex(2);
+        const Point& p0 = vh0->point();
+        const Point& p1 = vh1->point();
+        const Point& p2 = vh2->point();
+
+        matrixr_t triangle(2, 3);
+        triangle(0, 0) = p0[0];
+        triangle(1, 0) = p0[1];
+        triangle(0, 1) = p1[0];
+        triangle(1, 1) = p1[1];
+        triangle(0, 2) = p2[0];
+        triangle(1, 2) = p2[1];
+
+        matrixr_t bary;
+        WKYLIB::barycentric_2D(point, triangle, bary);
+        double fvalue = getFValue(vh0) * bary[0] + getFValue(vh1) * bary[1] + getFValue(vh2) * bary[2];
+        bool result;
+        if(isOuter)
+        {
+            result = fvalue > mAlpha;
+        }
+        else
+        {
+            result = fvalue < -mAlpha;
+        }
+        return result;
     }
 }

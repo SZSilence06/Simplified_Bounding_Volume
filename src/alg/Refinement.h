@@ -62,6 +62,8 @@ namespace SBV
         void getPointMatrix(const PointInfo& point, matrixr_t& pointMatrix);
         bool isFinished();
         bool isNewCell(const Cell& cell);
+        bool checkCondition3(const Cell& cell);
+        bool checkClassification(const Cell& cell, const matrixr_t& point, bool isOuter);
         double computeHeight(const Cell& cell);
 
     private:

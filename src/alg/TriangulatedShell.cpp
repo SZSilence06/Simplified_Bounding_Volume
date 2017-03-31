@@ -9,7 +9,7 @@ namespace SBV
         switch(pointType)
         {
         case POINT_BOUNDING_BOX:
-            return 2;
+            return 1;
         case POINT_OUTER:
             return 1;
         case POINT_INNER:

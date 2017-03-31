@@ -287,23 +287,20 @@ namespace WKYLIB {
         const matrixr_t& b = triangle(colon(), 1);
         const matrixr_t& c = triangle(colon(), 2);
 
-        matrixr_t ab = b - a;
-        matrixr_t ac = c - a;
-        matrixr_t bc = c - b;
-        matrixr_t ap = point - a;
-        matrixr_t bp = point - b;
-        matrixr_t cp = point - c;
-        real_t Sabc = norm(cross(ab,ac));
-        real_t Spab = norm(cross(ab,ap));
-        real_t Spac = norm(cross(ac,ap));
-        real_t Spbc = norm(cross(bc,bp));
-        bary[0] = Spbc/Sabc;
-        bary[1] = Spac/Sabc;
-        bary[2] = Spab/Sabc;
-        if(fabs(1 - bary[0] - bary[1] - bary[2])<1e-3){
-            return 1;
-        }
-        return 0;
+        const matrixr_t u = b - a;
+        const matrixr_t v = c - a;
+        const matrixr_t w = point - a;
+        const matrixr_t vw = cross(v, w);
+        const matrixr_t vu = cross(v, u);
+        const matrixr_t uw = cross(u, w);
+        const double denom = 1.0 / norm(vu);
+        bary[1] = dot(vu, vw) >= 0 ? norm(vw) * denom : -norm(vw) * denom;
+        bary[2] = dot(uw, vu) <= 0 ? norm(uw) * denom : -norm(uw) * denom;
+        bary[0] = 1 - bary[1] - bary[2];
+        bool result = (bary[0] > 0 || fabs(bary[0]) < 1e-6)
+                && (bary[1] >0 || fabs(bary[1]) < 1e-6)
+                && (bary[2] > 0 || fabs(bary[2]) < 1e-6);
+        return result;
     }
 
     //Compute barycenter coordinates of the point p on 2d trinangle.
