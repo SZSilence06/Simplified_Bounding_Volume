@@ -13,8 +13,8 @@ namespace SBV
     {
     public:
         KernelRegion(const matrixr_t& points, const matrixs_t& lines, const Shell& shell,
-                     const std::set<size_t>& innerSample, const std::set<size_t>& outerSample, const TriangulatedShell& triangulation,
-                     PointType collapsedPointType);
+                     const std::set<size_t>& innerSample, const std::set<size_t>& outerSample,
+                     const TriangulatedShell& triangulation, PointType collapsedPointType);
 
         bool contains(const matrixr_t& point);
 
@@ -23,6 +23,7 @@ namespace SBV
         void buildPolygonSequence();
         bool isClockwise();
         void construct();
+        void findShellSamples();
         bool isInvalidRegion(const matrixr_t& point);
 
     private:

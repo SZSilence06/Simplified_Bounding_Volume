@@ -34,13 +34,18 @@ namespace SBV
     };
 
     using KdTreeType = KDTree::KDTree<2, KdTreeNode>;
+    using Region = KdTreeType::_Region_;
 
     class KdTreeWrap
     {
     public:
         void build(const matrixr_t& points);
 
-        void getNearestPoint(const matrixr_t& point, matrixr_t& nearest) const;
+        size_t getNearestPoint(const matrixr_t& point) const;
+
+        void getPointsInPolygon(const matrixr_t& polygon, matrixs_t& points) const;
+
+        void getPointsInRange(double xmin, double xmax, double ymin, double ymax, matrixs_t& points) const;
 
     private:
         KdTreeType mTree;

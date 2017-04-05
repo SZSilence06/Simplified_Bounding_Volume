@@ -17,7 +17,7 @@ namespace SBV
         };
 
     public:
-        EdgeCollapse(TriangulatedShell& triangulation, const Shell& shell, Type type);
+        EdgeCollapse(TriangulatedShell& triangulation, const Shell& shell, Type type, bool isHalfEdge);
 
         void collapse();
 
@@ -26,7 +26,8 @@ namespace SBV
         {
             size_t firstVert;          //the vert to collapse
             size_t secondVert;         //the vert to collapse to
-            double error;         //error for collapsing firstVert to secondVert
+            matrixr_t position;        //the position to collapse to
+            double error;         //error for collapsing the edge
             bool isUpdated = false;         // indicating whether this info is out-dated(need to be discarded)
         };
 
@@ -60,11 +61,13 @@ namespace SBV
                               std::set<size_t>& innerSample, std::set<size_t>& outerSample);
         void findBoundaryEdge(size_t firstVert, size_t secondVert, std::vector<std::pair<size_t, size_t>>& boundaryEdges);
         void findShellSamples(size_t vert, std::set<size_t>& innerSample, std::set<size_t>& outerSample);
+        void findCollapsePos(size_t vert, size_t vertCollapseTo, matrixr_t& position, double& out_error);
 
     private:
         TriangulatedShell& mTriangulation;
         const Shell& mShell;
         Type mType;
+        bool mIsHalfEdge = true;
 
         std::vector<Eigen::Matrix3d> mQ;
         std::vector<std::set<size_t> > mNeighbours;   //store the neighbour vertices for each vertex

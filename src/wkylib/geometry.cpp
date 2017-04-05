@@ -148,12 +148,6 @@ namespace WKYLIB {
     //return 3: inside the seg;
     int is_on_seg(const matrixr_t &a,const matrixr_t &b,const matrixr_t p)
     {
-        std::vector<real_t> testa,testb,testp;
-        for(int i=0;i<2;i++){
-            testa.push_back(a[i]);
-            testb.push_back(b[i]);
-            testp.push_back(p[i]);
-        }
         matrixr_t ab = b - a;
         matrixr_t ap = p - a;
         matrixr_t bp = p - b;
@@ -163,14 +157,15 @@ namespace WKYLIB {
         if(norm(bp) == 0){
             return 2;
         }
-        real_t cos_theta = dot(ab,ap) / (norm(ab)*norm(ap));
-        real_t cos_theta2 = dot(ab,bp) / (norm(ab)*norm(bp));
-        real_t theta = acos(fabs(cos_theta));
-        real_t theta2 = acos(fabs(cos_theta2));
-        if(fabs(theta) > 0.01 && fabs(theta2) > 0.01){
-            return 0;
-        }
         real_t t = ap[0] / ab[0];
+        for(int i = 1; i < ap.size(); i++)
+        {
+            double temp = ap[i] / ab[i];
+            if(EQUAL(t, temp) == false)
+            {
+                return 0;
+            }
+        }
         if(ZERO(t)){
             return 1;
         }

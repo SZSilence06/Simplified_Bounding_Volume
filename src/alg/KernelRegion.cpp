@@ -22,6 +22,7 @@ namespace SBV
         mClockwise = isClockwise();
 
         construct();
+        //findShellSamples();
     }
 
     void KernelRegion::buildAdjacency()
@@ -122,6 +123,31 @@ namespace SBV
                 A(i, 2) = ab[1] * a[0] - ab[0] * a[1];
             }
         }
+    }
+
+    void KernelRegion::findShellSamples()
+    {
+        /*mInnerSamples.clear();
+        mOuterSamples.clear();
+
+        matrixr_t polygon(2, mLines.size(2));
+        for(int i = 0; i < mLines.size(2); i++)
+        {
+            polygon(colon(), i) = mPoints(colon(), mPolygon[i]);
+        }
+
+        matrixs_t points;
+        mShell.getInnerTree().getPointsInPolygon(polygon, points);
+        for(int i = 0; i < points.size(2); i++)
+        {
+            mInnerSamples.insert(points[i]);
+        }
+
+        mShell.getOuterTree().getPointsInPolygon(polygon, points);
+        for(int i = 0; i < points.size(2); i++)
+        {
+            mOuterSamples.insert(points[i]);
+        }*/
     }
 
     bool KernelRegion::contains(const matrixr_t &point)

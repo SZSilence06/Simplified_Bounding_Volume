@@ -111,19 +111,33 @@ namespace SBV
 
     void Simplifier::collapseBoundary()
     {
-        WKYLIB::DebugTimer timer("Boundary Collapse");
+        WKYLIB::DebugTimer timer("Boundary Collapse(Half Edge)");
         timer.start();
-        EdgeCollapse collapser(mTriangulation, mShell, EdgeCollapse::BOUNDARY);
-        collapser.collapse();
+        EdgeCollapse collapserHalfEdge(mTriangulation, mShell, EdgeCollapse::BOUNDARY, true);
+        collapserHalfEdge.collapse();
         timer.end();
 
         mTriangulation.buildZeroSet();
         if(mNeedGenTempResult)
         {
-            WKYLIB::Mesh::writeMesh2D(mOutputDirectory + "/boundary_collapsed_shell.obj", mTriangulation.vertices, mTriangulation.triangles);
-            WKYLIB::Mesh::writeCurve2D(mOutputDirectory + "/boundary_collapsed_zero_set.obj", mTriangulation.getZeroSet().vertices,
+            WKYLIB::Mesh::writeMesh2D(mOutputDirectory + "/boundary_collapsed_shell(half_edge).obj", mTriangulation.vertices, mTriangulation.triangles);
+            WKYLIB::Mesh::writeCurve2D(mOutputDirectory + "/boundary_collapsed_zero_set(half_edge).obj", mTriangulation.getZeroSet().vertices,
                                        mTriangulation.getZeroSet().lines);
         }
+
+        /*WKYLIB::DebugTimer timer2("Boundary Collapse(General)");
+        timer2.start();
+        EdgeCollapse collapserGeneral(mTriangulation, mShell, EdgeCollapse::BOUNDARY, false);
+        collapserGeneral.collapse();
+        timer2.end();
+
+        mTriangulation.buildZeroSet();
+        if(mNeedGenTempResult)
+        {
+            WKYLIB::Mesh::writeMesh2D(mOutputDirectory + "/boundary_collapsed_shell(general).obj", mTriangulation.vertices, mTriangulation.triangles);
+            WKYLIB::Mesh::writeCurve2D(mOutputDirectory + "/boundary_collapsed_zero_set(general).obj", mTriangulation.getZeroSet().vertices,
+                                       mTriangulation.getZeroSet().lines);
+        }*/
     }
 
     void Simplifier::mutualTessellate()
@@ -143,7 +157,7 @@ namespace SBV
     {
         WKYLIB::DebugTimer timer("Zero Set Collapse");
         timer.start();
-        EdgeCollapse collapser(mTriangulation, mShell, EdgeCollapse::ZERO_SET);
+        EdgeCollapse collapser(mTriangulation, mShell, EdgeCollapse::ZERO_SET, true);
         collapser.collapse();
         timer.end();
 

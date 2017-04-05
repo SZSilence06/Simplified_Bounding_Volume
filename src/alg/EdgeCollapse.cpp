@@ -7,18 +7,19 @@ using namespace zjucad::matrix;
 
 namespace SBV
 {
-    EdgeCollapse::EdgeCollapse(TriangulatedShell &triangulation, const Shell& shell, Type type)
+    EdgeCollapse::EdgeCollapse(TriangulatedShell &triangulation, const Shell& shell, Type type, bool isHalfEdge)
         : mTriangulation(triangulation),
           mShell(shell),
-          mType(type)
+          mType(type),
+          mIsHalfEdge(isHalfEdge)
     {
-        buildEdgeInfo();
-
         mCollapseTo.reserve(triangulation.vertices.size(2));
         for(int i = 0; i < triangulation.vertices.size(2); i++)
         {
             mCollapseTo.push_back(i);
         }
+
+        buildEdgeInfo();
     }
 
     void EdgeCollapse::buildEdgeInfo()
@@ -78,12 +79,25 @@ namespace SBV
         //iterate over all neighbour vertices
         for(const size_t& neighbourVert : mCollapseableNeighbours[vert])
         {
-            std::shared_ptr<EdgeInfo> edgeInfo(new EdgeInfo());
-            edgeInfo->firstVert = vert;
-            edgeInfo->secondVert = neighbourVert;
-            edgeInfo->error = computeError(vert, mTriangulation.vertices(colon(), neighbourVert));
-            mQueue.push(edgeInfo);
-            mRelatedEdgeInfo[vert].push_back(edgeInfo);
+            if(mIsHalfEdge)
+            {
+                std::shared_ptr<EdgeInfo> edgeInfo(new EdgeInfo());
+                edgeInfo->firstVert = vert;
+                edgeInfo->secondVert = neighbourVert;
+                edgeInfo->position = mTriangulation.vertices(colon(), neighbourVert);
+                edgeInfo->error = computeError(vert, edgeInfo->position) + computeError(neighbourVert, edgeInfo->position);
+                mQueue.push(edgeInfo);
+                mRelatedEdgeInfo[vert].push_back(edgeInfo);
+            }
+            else
+            {
+                std::shared_ptr<EdgeInfo> edgeInfo(new EdgeInfo());
+                edgeInfo->firstVert = vert;
+                edgeInfo->secondVert = neighbourVert;
+                findCollapsePos(vert, neighbourVert, edgeInfo->position, edgeInfo->error);
+                mQueue.push(edgeInfo);
+                mRelatedEdgeInfo[vert].push_back(edgeInfo);
+            }
         }
     }
 
@@ -186,7 +200,7 @@ namespace SBV
                 continue;
             }
 
-            collapseEdge(edgeInfo->firstVert, edgeInfo->secondVert, mTriangulation.vertices(colon(), edgeInfo->secondVert));
+            collapseEdge(edgeInfo->firstVert, edgeInfo->secondVert, edgeInfo->position);
             numCollapsed++;
             std::cout << "Iteration " << numCollapsed << " ..." << std::endl;
         }
@@ -304,11 +318,13 @@ namespace SBV
 
     void EdgeCollapse::collapseEdge(size_t firstVert, size_t secondVert, const matrixr_t &collapseTo)
     {
+        mTriangulation.vertices(colon(), secondVert) = collapseTo;
         updateEdgeInfo(firstVert, secondVert);
     }
 
     void EdgeCollapse::mergeNeighbours(size_t vertCollapsed, size_t vertCollapsedTo)
     {
+        //merge collapseable neighbours
         for(size_t vert : mCollapseableNeighbours[vertCollapsed])
         {
             if(vert == vertCollapsedTo)
@@ -324,6 +340,7 @@ namespace SBV
             mCollapseableNeighbours[vertCollapsedTo].insert(vert);
         }
 
+        //merge neighbours
         for(size_t vert : mNeighbours[vertCollapsed])
         {
             if(vert == vertCollapsedTo)
@@ -339,6 +356,7 @@ namespace SBV
             mNeighbours[vertCollapsedTo].insert(vert);
         }
 
+        //merge neighbour faces
         std::set<size_t>& nfCollapsedTo = mNeighbourFaces[vertCollapsedTo];
         for(size_t face : mNeighbourFaces[vertCollapsed])
         {
@@ -395,8 +413,8 @@ namespace SBV
         std::set<size_t> outerSample;
         buildOneRingArea(firstVert, secondVert, lines, innerSample, outerSample);
 
-        KernelRegion kernel(mTriangulation.vertices, lines, mShell, innerSample, outerSample, mTriangulation,
-                            mTriangulation.vertType[firstVert]);
+        KernelRegion kernel(mTriangulation.vertices, lines, mShell, innerSample, outerSample,
+                            mTriangulation, mTriangulation.vertType[firstVert]);
         if(kernel.contains(collapseTo) == false)
         {
             return false;
@@ -520,9 +538,51 @@ namespace SBV
 
     void EdgeCollapse::findShellSamples(size_t vert, std::set<size_t> &innerSample, std::set<size_t> &outerSample)
     {
-        for(int i = 0; i < mShell.mInnerShell.size(2); i++)
+        double xmin = std::numeric_limits<double>::max();
+        double xmax = std::numeric_limits<double>::min();
+        double ymin = std::numeric_limits<double>::max();
+        double ymax = std::numeric_limits<double>::min();
+
+        for(size_t face : mNeighbourFaces[vert])
         {
-            const matrixr_t& point = mShell.mInnerShell(colon(), i);
+            size_t a = getCollapsedVert(mTriangulation.triangles(0, face));
+            size_t b = getCollapsedVert(mTriangulation.triangles(1, face));
+            size_t c = getCollapsedVert(mTriangulation.triangles(2, face));
+
+            if(a == b || a == c || b == c)
+            {
+                //the face is collapsed
+                continue;
+            }
+
+            for(int i = 0; i < 3; i++)
+            {
+                const matrixr_t& vert = mTriangulation.vertices(colon(), getCollapsedVert(mTriangulation.triangles(i, face)));
+                if(vert[0] > xmax)
+                {
+                    xmax = vert[0];
+                }
+                if(vert[0] < xmin)
+                {
+                    xmin = vert[0];
+                }
+                if(vert[1] > ymax)
+                {
+                    ymax = vert[1];
+                }
+                if(vert[1] < ymin)
+                {
+                    ymin = vert[1];
+                }
+            }
+        }
+
+        matrixs_t sampleInner;
+        mShell.getInnerTree().getPointsInRange(xmin, xmax, ymin, ymax, sampleInner);
+
+        for(int i = 0; i < sampleInner.size(); i++)
+        {
+            const matrixr_t& point = mShell.mInnerShell(colon(), sampleInner[i]);
 
             for(size_t face : mNeighbourFaces[vert])
             {
@@ -543,15 +603,18 @@ namespace SBV
                 matrixr_t bary;
                 if(WKYLIB::barycentric_2D(point, triangle, bary))
                 {
-                    innerSample.insert(i);
+                    innerSample.insert(sampleInner[i]);
                     break;
                 }
             }
         }
 
-        for(int i = 0; i < mShell.mOuterShell.size(2); i++)
+        matrixs_t sampleOuter;
+        mShell.getOuterTree().getPointsInRange(xmin, xmax, ymin, ymax, sampleOuter);
+
+        for(int i = 0; i < sampleOuter.size(); i++)
         {
-            const matrixr_t& point = mShell.mOuterShell(colon(), i);
+            const matrixr_t& point = mShell.mOuterShell(colon(), sampleOuter[i]);
 
             for(size_t face : mNeighbourFaces[vert])
             {
@@ -572,10 +635,58 @@ namespace SBV
                 matrixr_t bary;
                 if(WKYLIB::barycentric_2D(point, triangle, bary))
                 {
-                    outerSample.insert(i);
+                    outerSample.insert(sampleOuter[i]);
                     break;
                 }
             }
+        }
+    }
+
+    void EdgeCollapse::findCollapsePos(size_t vert, size_t vertCollapseTo, matrixr_t &position, double& out_error)
+    {
+        matrixs_t lines;
+        std::set<size_t> innerSample;
+        std::set<size_t> outerSample;
+        buildOneRingArea(vert, vertCollapseTo, lines, innerSample, outerSample);
+
+        KernelRegion kernel(mTriangulation.vertices, lines, mShell, innerSample, outerSample,
+                                 mTriangulation, mTriangulation.vertType[vert]);
+        out_error = std::numeric_limits<double>::max();
+        if(mTriangulation.vertType[vert] == POINT_INNER)
+        {
+            for(size_t sample : innerSample)
+            {
+                const matrixr_t samplePoint = mShell.mInnerShell(colon(), sample);
+                if(kernel.contains(samplePoint))
+                {
+                    double error = computeError(vert, samplePoint) + computeError(vertCollapseTo, samplePoint);
+                    if(error < out_error)
+                    {
+                        out_error = error;
+                        position = samplePoint;
+                    }
+                }
+            }
+        }
+        else if(mTriangulation.vertType[vert] == POINT_OUTER)
+        {
+            for(size_t sample : outerSample)
+            {
+                const matrixr_t samplePoint = mShell.mOuterShell(colon(), sample);
+                if(kernel.contains(samplePoint))
+                {
+                    double error = computeError(vert, samplePoint) + computeError(vertCollapseTo, samplePoint);
+                    if(error < out_error)
+                    {
+                        out_error = error;
+                        position = samplePoint;
+                    }
+                }
+            }
+        }
+        else
+        {
+            throw std::logic_error("this should not be run");
         }
     }
 }

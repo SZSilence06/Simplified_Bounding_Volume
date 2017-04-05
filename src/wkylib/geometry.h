@@ -10,7 +10,7 @@ typedef matrix<real_t> matrixr_t;
 typedef matrix<size_t> matrixs_t;
 
 namespace WKYLIB {
-    #define ZERO(x) (fabs(x)<1e-4)
+    #define ZERO(x) (fabs(x)<1e-6)
     #define EQUAL(a,b) (ZERO(a-b))
     const float PI = 3.1415926;
 

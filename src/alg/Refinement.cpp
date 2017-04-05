@@ -392,36 +392,36 @@ namespace SBV
         matrixr_t newC = k * c + (1 - k) * center;
 
         const KdTreeWrap& innerTree = mShell.getInnerTree();
-        matrixr_t nearA, nearB, nearC;
-        innerTree.getNearestPoint(newA, nearA);
-        innerTree.getNearestPoint(newB, nearB);
-        innerTree.getNearestPoint(newC, nearC);
-        if(checkClassification(cell, nearA, false) == false)
+        size_t nearA, nearB, nearC;
+        nearA = innerTree.getNearestPoint(newA);
+        nearB = innerTree.getNearestPoint(newB);
+        nearC = innerTree.getNearestPoint(newC);
+        if(checkClassification(cell, mShell.mInnerShell(colon(), nearA), false) == false)
         {
             return false;
         }
-        if(checkClassification(cell, nearB, false) == false)
+        if(checkClassification(cell, mShell.mInnerShell(colon(), nearB), false) == false)
         {
             return false;
         }
-        if(checkClassification(cell, nearC, false) == false)
+        if(checkClassification(cell, mShell.mInnerShell(colon(), nearC), false) == false)
         {
             return false;
         }
 
         const KdTreeWrap& outerTree = mShell.getOuterTree();
-        outerTree.getNearestPoint(newA, nearA);
-        outerTree.getNearestPoint(newB, nearB);
-        outerTree.getNearestPoint(newC, nearC);
-        if(checkClassification(cell, nearA, true) == false)
+        nearA = outerTree.getNearestPoint(newA);
+        nearB = outerTree.getNearestPoint(newB);
+        nearC = outerTree.getNearestPoint(newC);
+        if(checkClassification(cell, mShell.mOuterShell(colon(), nearA), true) == false)
         {
             return false;
         }
-        if(checkClassification(cell, nearB, true) == false)
+        if(checkClassification(cell, mShell.mOuterShell(colon(), nearB), true) == false)
         {
             return false;
         }
-        if(checkClassification(cell, nearC, true) == false)
+        if(checkClassification(cell, mShell.mOuterShell(colon(), nearC), true) == false)
         {
             return false;
         }
