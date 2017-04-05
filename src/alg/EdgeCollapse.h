@@ -61,7 +61,7 @@ namespace SBV
                               std::set<size_t>& innerSample, std::set<size_t>& outerSample);
         void findBoundaryEdge(size_t firstVert, size_t secondVert, std::vector<std::pair<size_t, size_t>>& boundaryEdges);
         void findShellSamples(size_t vert, std::set<size_t>& innerSample, std::set<size_t>& outerSample);
-        void findCollapsePos(size_t vert, size_t vertCollapseTo, matrixr_t& position, double& out_error);
+        bool findCollapsePos(size_t vert, size_t vertCollapseTo, matrixr_t& position, double& out_error);
 
     private:
         TriangulatedShell& mTriangulation;

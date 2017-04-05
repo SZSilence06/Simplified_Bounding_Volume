@@ -94,9 +94,12 @@ namespace SBV
                 std::shared_ptr<EdgeInfo> edgeInfo(new EdgeInfo());
                 edgeInfo->firstVert = vert;
                 edgeInfo->secondVert = neighbourVert;
-                findCollapsePos(vert, neighbourVert, edgeInfo->position, edgeInfo->error);
-                mQueue.push(edgeInfo);
-                mRelatedEdgeInfo[vert].push_back(edgeInfo);
+                bool found = findCollapsePos(vert, neighbourVert, edgeInfo->position, edgeInfo->error);
+                if(found)
+                {
+                    mQueue.push(edgeInfo);
+                    mRelatedEdgeInfo[vert].push_back(edgeInfo);
+                }
             }
         }
     }
@@ -642,11 +645,12 @@ namespace SBV
         }
     }
 
-    void EdgeCollapse::findCollapsePos(size_t vert, size_t vertCollapseTo, matrixr_t &position, double& out_error)
+    bool EdgeCollapse::findCollapsePos(size_t vert, size_t vertCollapseTo, matrixr_t &position, double& out_error)
     {
         matrixs_t lines;
         std::set<size_t> innerSample;
         std::set<size_t> outerSample;
+        bool found = false;
         buildOneRingArea(vert, vertCollapseTo, lines, innerSample, outerSample);
 
         KernelRegion kernel(mTriangulation.vertices, lines, mShell, innerSample, outerSample,
@@ -662,6 +666,7 @@ namespace SBV
                     double error = computeError(vert, samplePoint) + computeError(vertCollapseTo, samplePoint);
                     if(error < out_error)
                     {
+                        found = true;
                         out_error = error;
                         position = samplePoint;
                     }
@@ -678,6 +683,7 @@ namespace SBV
                     double error = computeError(vert, samplePoint) + computeError(vertCollapseTo, samplePoint);
                     if(error < out_error)
                     {
+                        found = true;
                         out_error = error;
                         position = samplePoint;
                     }
@@ -688,5 +694,6 @@ namespace SBV
         {
             throw std::logic_error("this should not be run");
         }
+        return found;
     }
 }

@@ -125,7 +125,7 @@ namespace SBV
                                        mTriangulation.getZeroSet().lines);
         }
 
-        /*WKYLIB::DebugTimer timer2("Boundary Collapse(General)");
+        WKYLIB::DebugTimer timer2("Boundary Collapse(General)");
         timer2.start();
         EdgeCollapse collapserGeneral(mTriangulation, mShell, EdgeCollapse::BOUNDARY, false);
         collapserGeneral.collapse();
@@ -137,7 +137,7 @@ namespace SBV
             WKYLIB::Mesh::writeMesh2D(mOutputDirectory + "/boundary_collapsed_shell(general).obj", mTriangulation.vertices, mTriangulation.triangles);
             WKYLIB::Mesh::writeCurve2D(mOutputDirectory + "/boundary_collapsed_zero_set(general).obj", mTriangulation.getZeroSet().vertices,
                                        mTriangulation.getZeroSet().lines);
-        }*/
+        }
     }
 
     void Simplifier::mutualTessellate()
