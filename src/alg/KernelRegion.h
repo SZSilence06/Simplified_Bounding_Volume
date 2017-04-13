@@ -16,7 +16,8 @@ namespace SBV
                      const std::set<size_t>& innerSample, const std::set<size_t>& outerSample,
                      const TriangulatedShell& triangulation, PointType collapsedPointType);
 
-        bool contains(const matrixr_t& point);
+        bool contains(const matrixr_t& point) const;
+        bool isInvalidRegion(const matrixr_t& point) const;
 
     private:                      
         void buildAdjacency();
@@ -24,7 +25,6 @@ namespace SBV
         bool isClockwise();
         void construct();
         void findShellSamples();
-        bool isInvalidRegion(const matrixr_t& point);
 
     private:
         const matrixr_t& mPoints;

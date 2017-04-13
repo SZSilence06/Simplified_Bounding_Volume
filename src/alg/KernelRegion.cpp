@@ -150,7 +150,7 @@ namespace SBV
         }*/
     }
 
-    bool KernelRegion::contains(const matrixr_t &point)
+    bool KernelRegion::contains(const matrixr_t &point) const
     {
         matrixr_t homo(3, 1);
         homo[0] = point[0];
@@ -171,7 +171,7 @@ namespace SBV
         return true;
     }
 
-    bool KernelRegion::isInvalidRegion(const matrixr_t &point)
+    bool KernelRegion::isInvalidRegion(const matrixr_t &point) const
     {
         for(int i = 0; i < mLines.size(2); i++)
         {

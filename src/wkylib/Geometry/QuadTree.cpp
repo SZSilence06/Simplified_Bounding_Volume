@@ -107,5 +107,138 @@ namespace WKYLIB
         {
 
         }
+
+        QuadTree::QuadTreeNode::~QuadTreeNode()
+        {
+            if(lb)
+                delete lb;
+            if(lt)
+                delete lt;
+            if(rb)
+                delete rb;
+            if(rt)
+                delete rt;
+        }
+
+        /////////////////////////////////////////////
+        QuadTreeIterator::QuadTreeIterator(const QuadTree &tree)
+            : mTree(tree)
+        {
+            mNode = tree.mRoot;
+        }
+
+        bool QuadTreeIterator::next(matrixr_t& point)
+        {
+            if(mNode == nullptr)
+            {
+                return false;
+            }
+            if(mNode->type == QuadTree::QuadTreeNode::NODE_LEAF)
+            {
+                point = mNode->point;
+                mNode = getNextLeafNode(mNode);
+                return true;
+            }
+            mNode = getNextLeafNode(mNode);
+            if(mNode)
+            {
+                point = mNode->point;
+                mNode = getNextLeafNode(mNode);
+                return true;
+            }
+            return false;
+        }
+
+
+        QuadTreeIterator::ParentState QuadTreeIterator::getParentState(QuadTreeNode *node)
+        {
+            QuadTreeNode* parent = node->parent;
+            if(parent == nullptr)
+            {
+                return NODE_NULL;
+            }
+            if(parent->lb == node)
+            {
+                return NODE_LB;
+            }
+            if(parent->lt = node)
+            {
+                return NODE_LT;
+            }
+            if(parent->rb == node)
+            {
+                return NODE_RB;
+            }
+            return NODE_RT;
+        }
+
+        QuadTree::QuadTreeNode* QuadTreeIterator::getNextNode(QuadTreeNode *node)
+        {
+            //search children
+            if(node->type == QuadTree::QuadTreeNode::NODE_POINTER)
+            {
+                if(node->lb->type != QuadTree::QuadTreeNode::NODE_EMPTY)
+                {
+                    return node->lb;
+                }
+                if(node->lt->type != QuadTree::QuadTreeNode::NODE_EMPTY)
+                {
+                    return node->lt;
+                }
+                if(node->rb->type != QuadTree::QuadTreeNode::NODE_EMPTY)
+                {
+                    return node->rb;
+                }
+                if(node->rt->type != QuadTree::QuadTreeNode::NODE_EMPTY)
+                {
+                    return node->rt;
+                }
+            }
+
+            //back trace
+            QuadTreeNode* parent = node->parent;
+            while(parent)
+            {
+                switch(getParentState(node))
+                {
+                case NODE_LB:
+                    if(parent->lt && parent->lt->type != QuadTree::QuadTreeNode::NODE_EMPTY)
+                    {
+                        return parent->lt;
+                    }
+                case NODE_LT:
+                    if(parent->rb && parent->rb->type != QuadTree::QuadTreeNode::NODE_EMPTY)
+                    {
+                        return parent->rb;
+                    }
+                case NODE_RB:
+                    if(parent->rt && parent->rt->type != QuadTree::QuadTreeNode::NODE_EMPTY)
+                    {
+                        return parent->rt;
+                    }
+                default:
+                    break;
+                }
+                node = parent;
+                parent = parent->parent;
+            }
+
+            //not found
+            return nullptr;
+        }
+
+        QuadTree::QuadTreeNode* QuadTreeIterator::getNextLeafNode(QuadTreeNode *node)
+        {
+            if(node)
+            {
+                QuadTreeNode* nextNode = getNextNode(node);
+                while(nextNode && nextNode->type != QuadTree::QuadTreeNode::NODE_LEAF)
+                {
+                    nextNode = getNextNode(node);
+                }
+                return nextNode;
+            }
+            return nullptr;
+        }
     }
 }

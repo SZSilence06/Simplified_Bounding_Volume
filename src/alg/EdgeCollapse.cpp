@@ -656,43 +656,51 @@ namespace SBV
         KernelRegion kernel(mTriangulation.vertices, lines, mShell, innerSample, outerSample,
                                  mTriangulation, mTriangulation.vertType[vert]);
         out_error = std::numeric_limits<double>::max();
-        if(mTriangulation.vertType[vert] == POINT_INNER)
+
+        if(mType == BOUNDARY)
         {
-            for(size_t sample : innerSample)
+            if(mTriangulation.vertType[vert] == POINT_INNER)
             {
-                const matrixr_t samplePoint = mShell.mInnerShell(colon(), sample);
-                if(kernel.contains(samplePoint))
+                for(size_t sample : innerSample)
                 {
-                    double error = computeError(vert, samplePoint) + computeError(vertCollapseTo, samplePoint);
-                    if(error < out_error)
+                    const matrixr_t samplePoint = mShell.mInnerShell(colon(), sample);
+                    if(kernel.contains(samplePoint))
                     {
-                        found = true;
-                        out_error = error;
-                        position = samplePoint;
+                        double error = computeError(vert, samplePoint) + computeError(vertCollapseTo, samplePoint);
+                        if(error < out_error)
+                        {
+                            found = true;
+                            out_error = error;
+                            position = samplePoint;
+                        }
                     }
                 }
             }
-        }
-        else if(mTriangulation.vertType[vert] == POINT_OUTER)
-        {
-            for(size_t sample : outerSample)
+            else if(mTriangulation.vertType[vert] == POINT_OUTER)
             {
-                const matrixr_t samplePoint = mShell.mOuterShell(colon(), sample);
-                if(kernel.contains(samplePoint))
+                for(size_t sample : outerSample)
                 {
-                    double error = computeError(vert, samplePoint) + computeError(vertCollapseTo, samplePoint);
-                    if(error < out_error)
+                    const matrixr_t samplePoint = mShell.mOuterShell(colon(), sample);
+                    if(kernel.contains(samplePoint))
                     {
-                        found = true;
-                        out_error = error;
-                        position = samplePoint;
+                        double error = computeError(vert, samplePoint) + computeError(vertCollapseTo, samplePoint);
+                        if(error < out_error)
+                        {
+                            found = true;
+                            out_error = error;
+                            position = samplePoint;
+                        }
                     }
                 }
             }
+            else
+            {
+                throw std::logic_error("this should not be run");
+            }
         }
-        else
+        else if(mType == ZERO_SET)
         {
-            throw std::logic_error("this should not be run");
+
         }
         return found;
     }
