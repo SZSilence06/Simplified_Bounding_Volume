@@ -2,6 +2,7 @@
 #define WKY_EDGE_COLLAPSE_H
 
 #include <queue>
+#include <mutex>
 #include <eigen3/Eigen/Dense>
 #include "TriangulatedShell.h"
 #include "Shell.h"
@@ -78,6 +79,8 @@ namespace SBV
         //for half edge collapse
         std::vector<size_t> mCollapseTo;    //record what vertex the vertices has collapsed to.
         std::vector<std::vector<std::shared_ptr<EdgeInfo> > > mRelatedEdgeInfo;    //recording the edge infos related to the vertices
+
+        std::mutex mtx;
 
     };
 }

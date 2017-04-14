@@ -3,6 +3,7 @@
 #include "SamplingQuadTree.h"
 #include <wkylib/geometry.h>
 #include <iostream>
+#include <omp.h>
 
 using namespace zjucad::matrix;
 
@@ -64,6 +65,7 @@ namespace SBV
         buildMatrices();
 
         //build edge infos
+#pragma omp parallel for schedule(dynamic, 1)
         for(int i = 0; i < mTriangulation.vertices.size(2); i++)
         {
             if(mTriangulation.vertType[i] == POINT_BOUNDING_BOX)
@@ -88,8 +90,11 @@ namespace SBV
                 edgeInfo->secondVert = neighbourVert;
                 edgeInfo->position = mTriangulation.vertices(colon(), neighbourVert);
                 edgeInfo->error = computeError(vert, edgeInfo->position) + computeError(neighbourVert, edgeInfo->position);
+
+                mtx.lock();
                 mQueue.push(edgeInfo);
                 mRelatedEdgeInfo[vert].push_back(edgeInfo);
+                mtx.unlock();
             }
             else
             {

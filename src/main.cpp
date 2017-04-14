@@ -14,8 +14,9 @@
 #include <string>
 #include <boost/filesystem.hpp>
 #include <jtflib/mesh/io.h>
-#include "wkylib/CmdLine.h"
+#include <wkylib/CmdLine.h>
 #include <wkylib/mesh/IO.h>
+#include <wkylib/debug_util.h>
 #include "alg/Simplifier.h"
 
 std::string g_inputMeshPath = "";
@@ -176,7 +177,11 @@ int main(int argc, char**argv)
     simplifier.setSampleRadius(g_sampleRadius);
     simplifier.setAlpha(g_alpha);
     simplifier.setGenTempResult(g_genTempResult);
+
+    DebugTimer timer("Simplification");
+    timer.start();
     simplifier.simplify();
+    timer.end();
 
     return 0;
 }
