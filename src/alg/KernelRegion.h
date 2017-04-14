@@ -40,6 +40,8 @@ namespace SBV
         std::vector<size_t> mPolygon;   //recording the polygon verts, in a cycled sequence.
 
         matrixr_t A;
+
+        friend class SamplingQuadTree;
     };
 }
 

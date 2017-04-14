@@ -70,12 +70,12 @@ namespace  WKYLIB
         class QuadTreeIterator
         {
         public:
-            bool next(matrixr_t& point);
-
-        private:
             QuadTreeIterator(const QuadTree& tree);
             ~QuadTreeIterator() = default;
 
+            bool next(matrixr_t& point);
+
+        private:
             enum ParentState
             {
                 NODE_LB,

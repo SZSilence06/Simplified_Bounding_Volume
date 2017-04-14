@@ -17,7 +17,7 @@ namespace SBV
         };
 
     public:
-        EdgeCollapse(TriangulatedShell& triangulation, const Shell& shell, Type type, bool isHalfEdge);
+        EdgeCollapse(TriangulatedShell& triangulation, const Shell& shell, Type type, bool isHalfEdge, double sampleRadius);
 
         void collapse();
 
@@ -68,6 +68,7 @@ namespace SBV
         const Shell& mShell;
         Type mType;
         bool mIsHalfEdge = true;
+        double mSampleRadius;
 
         std::vector<Eigen::Matrix3d> mQ;
         std::vector<std::set<size_t> > mNeighbours;   //store the neighbour vertices for each vertex

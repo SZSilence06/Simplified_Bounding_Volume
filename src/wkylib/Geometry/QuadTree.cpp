@@ -17,7 +17,7 @@ namespace WKYLIB
               mYMax(yMax),
               mMaxDepth(maxDepth)
         {
-
+            mRoot = new QuadTreeNode();
         }
 
         QuadTree::~QuadTree()
@@ -62,7 +62,11 @@ namespace WKYLIB
 
         void QuadTree::split(QuadTreeNode *node)
         {
-            assert(node->type == QuadTreeNode::NODE_LEAF);
+            //assert(node->type == QuadTreeNode::NODE_LEAF);
+            if(node->type == QuadTreeNode::NODE_POINTER)
+            {
+                throw std::logic_error("the node cannot be splitted.");
+            }
 
             double xMid = (node->xMin + node->xMax) / 2;
             double yMid = (node->yMin + node->yMax) / 2;
@@ -73,7 +77,10 @@ namespace WKYLIB
             node->rb = new QuadTreeNode(xMid, node->xMax, yMid, node->yMax, node);
             node->type = QuadTreeNode::NODE_POINTER;
 
-            insertToNode(node->point, node);
+            if(node->type == QuadTreeNode::NODE_LEAF)
+            {
+                insertToNode(node->point, node);
+            }
         }
 
         QuadTree::QuadTreeNode* QuadTree::getNodeForInsert(const matrixr_t &point, QuadTreeNode *parent)

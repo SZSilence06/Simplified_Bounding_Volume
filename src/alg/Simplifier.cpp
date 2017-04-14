@@ -113,7 +113,7 @@ namespace SBV
     {
         WKYLIB::DebugTimer timer("Boundary Collapse(Half Edge)");
         timer.start();
-        EdgeCollapse collapserHalfEdge(mTriangulation, mShell, EdgeCollapse::BOUNDARY, true);
+        EdgeCollapse collapserHalfEdge(mTriangulation, mShell, EdgeCollapse::BOUNDARY, true, mSampleRadius);
         collapserHalfEdge.collapse();
         timer.end();
 
@@ -127,7 +127,7 @@ namespace SBV
 
         WKYLIB::DebugTimer timer2("Boundary Collapse(General)");
         timer2.start();
-        EdgeCollapse collapserGeneral(mTriangulation, mShell, EdgeCollapse::BOUNDARY, false);
+        EdgeCollapse collapserGeneral(mTriangulation, mShell, EdgeCollapse::BOUNDARY, false, mSampleRadius);
         collapserGeneral.collapse();
         timer2.end();
 
@@ -155,10 +155,10 @@ namespace SBV
 
     void Simplifier::collapseZeroSet()
     {
-        WKYLIB::DebugTimer timer("Zero Set Collapse");
+        WKYLIB::DebugTimer timer("Zero Set Collapse(Half Edge)");
         timer.start();
-        EdgeCollapse collapser(mTriangulation, mShell, EdgeCollapse::ZERO_SET, true);
-        collapser.collapse();
+        EdgeCollapse collapserHalfEdge(mTriangulation, mShell, EdgeCollapse::ZERO_SET, true, mSampleRadius);
+        collapserHalfEdge.collapse();
         timer.end();
 
         mTriangulation.buildZeroSet();
@@ -166,6 +166,20 @@ namespace SBV
         {
             WKYLIB::Mesh::writeMesh2D(mOutputDirectory + "/zero_set_collapsed_shell.obj", mTriangulation.vertices, mTriangulation.triangles);
             WKYLIB::Mesh::writeCurve2D(mOutputDirectory + "/zero_set_collapsed_zero_set.obj", mTriangulation.getZeroSet().vertices,
+                                       mTriangulation.getZeroSet().lines);
+        }
+
+        WKYLIB::DebugTimer timer2("Zero Set Collapse(General)");
+        timer2.start();
+        EdgeCollapse collapserGeneral(mTriangulation, mShell, EdgeCollapse::ZERO_SET, false, mSampleRadius);
+        collapserGeneral.collapse();
+        timer2.end();
+
+        mTriangulation.buildZeroSet();
+        if(mNeedGenTempResult)
+        {
+            WKYLIB::Mesh::writeMesh2D(mOutputDirectory + "/zero_set_collapsed_shell(general).obj", mTriangulation.vertices, mTriangulation.triangles);
+            WKYLIB::Mesh::writeCurve2D(mOutputDirectory + "/zero_set_collapsed_zero_set(general).obj", mTriangulation.getZeroSet().vertices,
                                        mTriangulation.getZeroSet().lines);
         }
     }

@@ -1,5 +1,6 @@
 #include "EdgeCollapse.h"
 #include "KernelRegion.h"
+#include "SamplingQuadTree.h"
 #include <wkylib/geometry.h>
 #include <iostream>
 
@@ -7,11 +8,12 @@ using namespace zjucad::matrix;
 
 namespace SBV
 {
-    EdgeCollapse::EdgeCollapse(TriangulatedShell &triangulation, const Shell& shell, Type type, bool isHalfEdge)
+    EdgeCollapse::EdgeCollapse(TriangulatedShell &triangulation, const Shell& shell, Type type, bool isHalfEdge, double sampleRadius)
         : mTriangulation(triangulation),
           mShell(shell),
           mType(type),
-          mIsHalfEdge(isHalfEdge)
+          mIsHalfEdge(isHalfEdge),
+          mSampleRadius(sampleRadius)
     {
         mCollapseTo.reserve(triangulation.vertices.size(2));
         for(int i = 0; i < triangulation.vertices.size(2); i++)
@@ -700,7 +702,39 @@ namespace SBV
         }
         else if(mType == ZERO_SET)
         {
+            //find AABB of the one ring area
+            double xmin = std::numeric_limits<double>::max();
+            double xmax = std::numeric_limits<double>::min();
+            double ymin = std::numeric_limits<double>::max();
+            double ymax = std::numeric_limits<double>::min();
 
+            for(int i = 0; i < lines.size(2); i++)
+            {
+                const matrixr_t& a = mTriangulation.vertices(colon(), lines(0, i));
+                const matrixr_t& b = mTriangulation.vertices(colon(), lines(1, i));
+                xmax = a[0] > xmax ? a[0] : xmax;
+                xmin = a[0] < xmin ? a[0] : xmin;
+                ymax = a[1] > ymax ? a[1] : ymax;
+                ymin = a[1] < ymin ? a[1] : ymin;
+                xmax = b[0] > xmax ? b[0] : xmax;
+                xmin = b[0] < xmin ? b[0] : xmin;
+                ymax = b[1] > ymax ? b[1] : ymax;
+                ymin = b[1] < ymin ? b[1] : ymin;
+            }
+
+            SamplingQuadTree tree(kernel, xmax, xmin, ymax, ymin, mSampleRadius);
+            auto& samples = tree.getSamples();
+            for(int i = 0; i < samples.size(); i++)
+            {
+                auto& point = samples[i];
+                double error = computeError(vert, point) + computeError(vertCollapseTo, point);
+                if(error < out_error)
+                {
+                    found = true;
+                    out_error = error;
+                    position = point;
+                }
+            }
         }
         return found;
     }

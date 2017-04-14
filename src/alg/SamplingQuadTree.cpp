@@ -1,62 +1,62 @@
 
 #include "SamplingQuadTree.h"
 #include "KernelRegion.h"
+#include <iostream>
 
 namespace SBV
 {
     SamplingQuadTree::SamplingQuadTree(const KernelRegion &kernel, double xmax, double xmin, double ymax, double ymin,
                                        double sampleRadius)
-        : QuadTree(xmin, xmax, ymin, ymax),
-          mKernel(kernel),
+        : mKernel(kernel),
           mSampleRadius(sampleRadius)
     {
-        build();
+        sample(xmin, xmax, ymin, ymax);
     }
 
-    void SamplingQuadTree::build()
+    void SamplingQuadTree::sample(double xmin, double xmax, double ymin, double ymax)
     {
-        sample(this->mRoot);
-    }
-
-    void SamplingQuadTree::sample(QuadTreeNode *node)
-    {
-        matrixr_t lb(2, 1);
-        matrixr_t lt(2, 1);
-        matrixr_t rb(2, 1);
-        matrixr_t rt(2, 1);
-
-        lb[0] = node->xMin;
-        lb[1] = node->yMin;
-        lt[0] = node->xMin;
-        lt[1] = node->yMax;
-        rb[0] = node->xMax;
-        rb[1] = node->yMin;
-        rt[0] = node->xMax;
-        rt[1] = node->yMax;
-
-        bool invalidLB = mKernel.isInvalidRegion(lb);
-        bool invalidLT = mKernel.isInvalidRegion(lt);
-        bool invalidRB = mKernel.isInvalidRegion(rb);
-        bool invalidRT = mKernel.isInvalidRegion(rt);
-
-        if(isOutsideKernelRegion(node))
+        if(isOutsideKernelRegion(xmin, xmax, ymin, ymax))
         {
-            return;
+            //return;
         }
 
-        if(node->xMax - node->xMin < mSampleRadius || node->yMax - node->yMin < mSampleRadius)
+        double xmid = (xmin + xmax) / 2;
+        double ymid = (ymin + ymax) / 2;
+
+        if(xmax - xmin < mSampleRadius || ymax - ymin < mSampleRadius)
         {
             matrixr_t point(2, 1);
-            point[0] = (node->xMax + node->xMin) / 2;
-            point[1] = (node->yMax + node->yMin) / 2;
-            insertToNode(point, node);
+            point[0] = xmid;
+            point[1] = ymid;
+            if(mKernel.contains(point))
+            {
+                mSamples.push_back(point);
+            }
             return;
         }
+        sample(xmin, xmid, ymin, ymid);
+        sample(xmin, xmid, ymid, ymax);
+        sample(xmid, xmax, ymin, ymid);
+        sample(xmid, xmax, ymid, ymax);
+    }
 
-        split(node);
-        sample(node->lb);
-        sample(node->lt);
-        sample(node->rb);
-        sample(node->rt);
+    bool SamplingQuadTree::isOutsideKernelRegion(double xmin, double xmax, double ymin, double ymax)
+    {
+        matrixr_t p1(2, 1), p2(2, 1), p3(2, 1), p4(2, 1);
+        p1[0] = xmin;
+        p1[1] = ymin;
+        p2[0] = xmin;
+        p2[1] = ymax;
+        p3[0] = xmax;
+        p3[1] = ymin;
+        p4[0] = xmax;
+        p4[1] = ymax;
+
+        return false;
+
+        if(mKernel.contains(p1) || mKernel.contains(p2) || mKernel.contains(p3) || mKernel.contains(p4))
+        {
+            return false;
+        }
     }
 }
