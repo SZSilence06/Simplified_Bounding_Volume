@@ -85,6 +85,9 @@ namespace WKYLIB {
     //transform barycenter to coordinate
     void bary_to_coor(const matrixr_t& vertices, const matrixs_t& triangles, const matrixr_t& bary,
                       matrixr_t& coor);
+
+    //print a matrix
+    void print_matrix(const matrixr_t& a, const std::string& name);
 }
 
 #endif // GEOMETRY_H

@@ -421,10 +421,12 @@ namespace SBV
         matrixs_t lines;
         std::set<size_t> innerSample;
         std::set<size_t> outerSample;
-        buildOneRingArea(firstVert, secondVert, lines, innerSample, outerSample);
+        size_t maxErrorInnerSample, maxErrorOuterSample;
+        buildOneRingArea(firstVert, secondVert, lines, innerSample, outerSample, maxErrorInnerSample, maxErrorOuterSample);
 
-        KernelRegion kernel(mTriangulation.vertices, lines, mShell, innerSample, outerSample,
-                            mTriangulation, mTriangulation.vertType[firstVert]);
+        KernelRegion kernel(mTriangulation.vertices, lines, mShell, innerSample, outerSample, maxErrorInnerSample, maxErrorOuterSample,
+                            mTriangulation, mTriangulation.vertType[firstVert],
+                            mType == BOUNDARY ? INVALID_REGION_BOUNDARY : INVALID_REGION_ZERO_SET);
         if(kernel.contains(collapseTo) == false)
         {
             return false;
@@ -494,13 +496,21 @@ namespace SBV
     }
 
     void EdgeCollapse::buildOneRingArea(size_t firstVert, size_t secondVert, matrixs_t& lines,
-                                            std::set<size_t>& innerSample, std::set<size_t>& outerSample)
+                                        std::set<size_t>& innerSample, std::set<size_t>& outerSample,
+                                        size_t& maxErrorInnerSample, size_t& maxErrorOuterSample)
     {
         std::vector<std::pair<size_t, size_t> > boundaryEdges;
         findBoundaryEdge(firstVert, secondVert, boundaryEdges);
         findBoundaryEdge(secondVert, firstVert, boundaryEdges);
-        findShellSamples(firstVert, innerSample, outerSample);
-        findShellSamples(secondVert, innerSample, outerSample);
+
+        double maxErrorInner1, maxErrorOuter1, maxErrorInner2, maxErrorOuter2;
+        size_t maxErrorInnerSample1 = -1, maxErrorOuterSample1 = -1,
+                maxErrorInnerSample2 = -1, maxErrorOuterSample2 = -1;
+        findShellSamples(firstVert, innerSample, outerSample, maxErrorInner1, maxErrorInnerSample1, maxErrorOuter1, maxErrorOuterSample1);
+        findShellSamples(secondVert, innerSample, outerSample, maxErrorInner2, maxErrorInnerSample2, maxErrorOuter2, maxErrorOuterSample2);
+
+        maxErrorInnerSample = maxErrorInner1 > maxErrorInner2 ? maxErrorInnerSample1 : maxErrorInnerSample2;
+        maxErrorOuterSample = maxErrorOuter1 > maxErrorOuter2 ? maxErrorOuterSample1 : maxErrorOuterSample2;
 
         lines.resize(2, boundaryEdges.size());
         int i = 0;
@@ -546,7 +556,9 @@ namespace SBV
         }
     }
 
-    void EdgeCollapse::findShellSamples(size_t vert, std::set<size_t> &innerSample, std::set<size_t> &outerSample)
+    void EdgeCollapse::findShellSamples(size_t vert, std::set<size_t> &innerSample, std::set<size_t> &outerSample,
+                                        double& maxErrorInner, size_t& maxErrorInnerSample,
+                                        double& maxErrorOuter, size_t& maxErrorOuterSample)
     {
         double xmin = std::numeric_limits<double>::max();
         double xmax = std::numeric_limits<double>::min();
@@ -590,6 +602,7 @@ namespace SBV
         matrixs_t sampleInner;
         mShell.getInnerTree().getPointsInRange(xmin, xmax, ymin, ymax, sampleInner);
 
+        maxErrorInner = -std::numeric_limits<double>::max();
         for(int i = 0; i < sampleInner.size(); i++)
         {
             const matrixr_t& point = mShell.mInnerShell(colon(), sampleInner[i]);
@@ -613,6 +626,14 @@ namespace SBV
                 matrixr_t bary;
                 if(WKYLIB::barycentric_2D(point, triangle, bary))
                 {
+                    double error = fabs(mTriangulation.getFValue(a) * bary[0] +
+                            mTriangulation.getFValue(b) * bary[1] +
+                            mTriangulation.getFValue(c) * bary[2] + 1);
+                    if(maxErrorInner < error)
+                    {
+                        maxErrorInner = error;
+                        maxErrorInnerSample = sampleInner[i];
+                    }
                     innerSample.insert(sampleInner[i]);
                     break;
                 }
@@ -622,6 +643,7 @@ namespace SBV
         matrixs_t sampleOuter;
         mShell.getOuterTree().getPointsInRange(xmin, xmax, ymin, ymax, sampleOuter);
 
+        maxErrorOuter = -std::numeric_limits<double>::max();
         for(int i = 0; i < sampleOuter.size(); i++)
         {
             const matrixr_t& point = mShell.mOuterShell(colon(), sampleOuter[i]);
@@ -645,6 +667,14 @@ namespace SBV
                 matrixr_t bary;
                 if(WKYLIB::barycentric_2D(point, triangle, bary))
                 {
+                    double error = fabs(mTriangulation.getFValue(a) * bary[0] +
+                            mTriangulation.getFValue(b) * bary[1] +
+                            mTriangulation.getFValue(c) * bary[2] - 1);
+                    if(maxErrorOuter < error)
+                    {
+                        maxErrorOuter = error;
+                        maxErrorOuterSample = sampleOuter[i];
+                    }
                     outerSample.insert(sampleOuter[i]);
                     break;
                 }
@@ -657,11 +687,14 @@ namespace SBV
         matrixs_t lines;
         std::set<size_t> innerSample;
         std::set<size_t> outerSample;
+        size_t maxErrorInnerSample;
+        size_t maxErrorOuterSample;
         bool found = false;
-        buildOneRingArea(vert, vertCollapseTo, lines, innerSample, outerSample);
+        buildOneRingArea(vert, vertCollapseTo, lines, innerSample, outerSample, maxErrorInnerSample, maxErrorOuterSample);
 
-        KernelRegion kernel(mTriangulation.vertices, lines, mShell, innerSample, outerSample,
-                                 mTriangulation, mTriangulation.vertType[vert]);
+        KernelRegion kernel(mTriangulation.vertices, lines, mShell, innerSample, outerSample, maxErrorInnerSample, maxErrorOuterSample,
+                                 mTriangulation, mTriangulation.vertType[vert],
+                            mType == BOUNDARY ? INVALID_REGION_BOUNDARY : INVALID_REGION_ZERO_SET);
         out_error = std::numeric_limits<double>::max();
 
         if(mType == BOUNDARY)

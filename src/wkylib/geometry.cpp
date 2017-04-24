@@ -3,6 +3,7 @@
 #include <zjucad/matrix/colon.h>
 #include <vector>
 #include <limits>
+#include <eigen3/Eigen/Dense>
 
 namespace WKYLIB {
     //get 2D angle from 2d coordinate. Range from [0, 2*PI).
@@ -277,8 +278,9 @@ namespace WKYLIB {
             throw std::invalid_argument("You can only use 3d matrices in barycentric().");
         }
 
-        bary.resize(3, 1);
-        const matrixr_t& a = triangle(colon(), 0);
+        bary = matrixr_t(3, 1);
+
+        /*const matrixr_t& a = triangle(colon(), 0);
         const matrixr_t& b = triangle(colon(), 1);
         const matrixr_t& c = triangle(colon(), 2);
 
@@ -291,7 +293,33 @@ namespace WKYLIB {
         const double denom = 1.0 / norm(vu);
         bary[1] = dot(vu, vw) >= 0 ? norm(vw) * denom : -norm(vw) * denom;
         bary[2] = dot(uw, vu) <= 0 ? norm(uw) * denom : -norm(uw) * denom;
+        bary[0] = 1 - bary[1] - bary[2];*/
+
+        Eigen::Vector3d a, b, c, p;
+        a[0] = triangle(0, 0);
+        a[1] = triangle(1, 0);
+        a[2] = triangle(2, 0);
+        b[0] = triangle(0, 1);
+        b[1] = triangle(1, 1);
+        b[2] = triangle(2, 1);
+        c[0] = triangle(0, 2);
+        c[1] = triangle(1, 2);
+        c[2] = triangle(2, 2);
+        p[0] = point[0];
+        p[1] = point[1];
+        p[2] = point[2];
+
+        const Eigen::Vector3d u = b - a;
+        const Eigen::Vector3d v = c - a;
+        const Eigen::Vector3d w = p - a;
+        const Eigen::Vector3d vw = v.cross(w);
+        const Eigen::Vector3d vu = v.cross(u);
+        const Eigen::Vector3d uw = u.cross(w);
+        const double denom = 1.0 / vu.norm();
+        bary[1] = vu.dot(vw) >= 0 ? vw.norm() * denom : -vw.norm() * denom;
+        bary[2] = uw.dot(vu) <= 0 ? uw.norm() * denom : -uw.norm() * denom;
         bary[0] = 1 - bary[1] - bary[2];
+
         bool result = (bary[0] > 0 || fabs(bary[0]) < 1e-6)
                 && (bary[1] >0 || fabs(bary[1]) < 1e-6)
                 && (bary[2] > 0 || fabs(bary[2]) < 1e-6);
@@ -306,10 +334,6 @@ namespace WKYLIB {
         {
             throw std::invalid_argument("You can only use 2d matrices in barycentric_2D().");
         }
-
-        const matrixr_t& a = triangle(colon(), 0);
-        const matrixr_t& b = triangle(colon(), 1);
-        const matrixr_t& c = triangle(colon(), 2);
 
         matrixr_t triangle_3D = zeros<double>(3, 3);
         triangle_3D(colon(0, 1), colon()) = triangle;
@@ -473,5 +497,19 @@ namespace WKYLIB {
 
         coor = bary[0] * triangle(colon(), 0) + bary[1] * triangle(colon(), 1)
                 + (1 - bary[0] - bary[1]) * triangle(colon(), 2);
+    }
+
+    //print a matrix
+    void print_matrix(const matrixr_t& a, const std::string& name)
+    {
+        std::cout << name << " : " << a.size(1) << "*" << a.size(2) << std::endl;
+        for(int i = 0; i < a.size(1); i++)
+        {
+            for(int j = 0; j < a.size(2); j++)
+            {
+                std::cout << a(i, j) << " ";
+            }
+            std::cout << std::endl;
+        }
     }
 }

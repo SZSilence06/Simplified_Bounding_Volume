@@ -7,14 +7,19 @@ namespace SBV
 {
     KernelRegion::KernelRegion(const matrixr_t &points, const matrixs_t &lines, const Shell& shell,
                                const std::set<size_t>& innerSample, const std::set<size_t>& outerSample,
-                               const TriangulatedShell& triangulation, PointType collapsedPointType)
+                               size_t maxErrorInnerSample, size_t maxErrorOuterSample,
+                               const TriangulatedShell& triangulation, PointType collapsedPointType,
+                               InvalidRegionType invalidRegionType)
         : mPoints(points),
           mLines(lines),
           mShell(shell),
           mInnerSamples(innerSample),
           mOuterSamples(outerSample),
+          mInnerMaxErrorSample(maxErrorInnerSample),
+          mOuterMaxErrorSample(maxErrorOuterSample),
           mTriangulation(triangulation),
-          mPointType(collapsedPointType)
+          mPointType(collapsedPointType),
+          mInvalidRegionType(invalidRegionType)
     {
         buildAdjacency();
         buildPolygonSequence();
@@ -22,7 +27,6 @@ namespace SBV
         mClockwise = isClockwise();
 
         construct();
-        //findShellSamples();
     }
 
     void KernelRegion::buildAdjacency()
@@ -123,34 +127,257 @@ namespace SBV
                 A(i, 2) = ab[1] * a[0] - ab[0] * a[1];
             }
         }
+
+        computeInvalidConstraints();
     }
 
-    void KernelRegion::findShellSamples()
+    void KernelRegion::computeInvalidConstraints()
     {
-        /*mInnerSamples.clear();
-        mOuterSamples.clear();
-
-        matrixr_t polygon(2, mLines.size(2));
-        for(int i = 0; i < mLines.size(2); i++)
+        if(mInvalidRegionType == INVALID_REGION_BOUNDARY)
         {
-            polygon(colon(), i) = mPoints(colon(), mPolygon[i]);
+            for(size_t sample : mInnerSamples)
+            {
+                 matrixr_t EInner = mShell.mInnerShell(colon(), sample);
+                 for(int i = 0; i < mLines.size(2); i++)
+                 {
+                     const matrixr_t& a = mPoints(colon(), mLines(0, i));
+                     const matrixr_t& b = mPoints(colon(), mLines(1, i));
+                     double signA = mTriangulation.getSign(mLines(0, i));
+                     double signB = mTriangulation.getSign(mLines(1, i));
+
+                     if(mPointType == POINT_INNER)
+                     {
+                         if(signA < 0 && signB < 0)
+                         {
+
+                         }
+                         else if(signA > 0 && signB > 0)
+                         {
+                             buildConstraintForBundary(a, b, EInner, 1);
+                         }
+                         else
+                         {
+                             if(signA > 0)
+                             {
+                                 buildConstraintForBundary(a, b, EInner, 3);
+                             }
+                             else
+                             {
+                                 buildConstraintForBundary(b, a, EInner, 3);
+                             }
+                         }
+                     }
+                     else
+                     {
+                         if(signA < 0 && signB < 0)
+                         {
+                             buildConstraintForBundary(a, b, EInner, 2);
+                         }
+                         else if(signA > 0 && signB > 0)
+                         {
+
+                         }
+                         else
+                         {
+                             if(signA > 0)
+                             {
+                                 buildConstraintForBundary(a, b, EInner, 4);
+                             }
+                             else
+                             {
+                                 buildConstraintForBundary(b, a, EInner, 4);
+                             }
+                         }
+                     }
+                 }
+            }
+
+            for(size_t sample : mOuterSamples)
+            {
+                 matrixr_t EOuter = mShell.mOuterShell(colon(), sample);
+                 for(int i = 0; i < mLines.size(2); i++)
+                 {
+                     const matrixr_t& a = mPoints(colon(), mLines(0, i));
+                     const matrixr_t& b = mPoints(colon(), mLines(1, i));
+                     double signA = mTriangulation.getSign(mLines(0, i));
+                     double signB = mTriangulation.getSign(mLines(1, i));
+
+                     if(mPointType == POINT_OUTER)
+                     {
+                         if(signA < 0 && signB < 0)
+                         {
+                             buildConstraintForBundary(a, b, EOuter, 1);
+                         }
+                         else if(signA > 0 && signB > 0)
+                         {
+
+                         }
+                         else
+                         {
+                             if(signA > 0)
+                             {
+                                 buildConstraintForBundary(b, a, EOuter, 3);
+                             }
+                             else
+                             {
+                                 buildConstraintForBundary(a, b, EOuter, 3);
+                             }
+                         }
+                     }
+                     else
+                     {
+                         if(signA < 0 && signB < 0)
+                         {
+
+                         }
+                         else if(signA > 0 && signB > 0)
+                         {
+                             buildConstraintForBundary(a, b, EOuter, 2);
+                         }
+                         else
+                         {
+                             if(signA > 0)
+                             {
+                                 buildConstraintForBundary(b, a, EOuter, 4);
+                             }
+                             else
+                             {
+                                 buildConstraintForBundary(a, b, EOuter, 4);
+                             }
+                         }
+                     }
+                 }
+            }
+
+            /*matrixr_t EInner = mShell.mInnerShell(colon(), mInnerMaxErrorSample);
+            matrixr_t EOuter = mShell.mOuterShell(colon(), mOuterMaxErrorSample);
+            for(int i = 0; i < mLines.size(2); i++)
+            {
+                const matrixr_t& a = mPoints(colon(), mLines(0, i));
+                const matrixr_t& b = mPoints(colon(), mLines(1, i));
+
+                if(mTriangulation.getSign(mLines(0, i)) < 0 && mTriangulation.getSign(mLines(1, i)) < 0)
+                {
+                    //the vertices of the edge has the same sign with E, so no invalid region
+                    buildConstraintForBundary(a, b, EOuter, 1);
+                }
+                else if(mTriangulation.getSign(mLines(0, i)) > 0 && mTriangulation.getSign(mLines(1, i)) > 0)
+                {
+                    buildConstraintForBundary(a, b, EInner, 1);
+                }
+                else
+                {
+                    buildConstraintForBundary(a, b, EInner, 2);
+                    buildConstraintForBundary(a, b, EOuter, 2);
+                }
+            }*/
         }
-
-        matrixs_t points;
-        mShell.getInnerTree().getPointsInPolygon(polygon, points);
-        for(int i = 0; i < points.size(2); i++)
-        {
-            mInnerSamples.insert(points[i]);
-        }
-
-        mShell.getOuterTree().getPointsInPolygon(polygon, points);
-        for(int i = 0; i < points.size(2); i++)
-        {
-            mOuterSamples.insert(points[i]);
-        }*/
     }
 
-    bool KernelRegion::contains(const matrixr_t &point) const
+    void KernelRegion::buildConstraintForBundary(const matrixr_t &a, const matrixr_t &b, const matrixr_t &E, int situation)
+    {
+        matrixr_t constraint(3, 3);
+        matrixr_t constraint_aE, constraint_bE;
+
+        buildSegment(a, E, constraint_aE);
+        if(b[0] * constraint_aE[0] + b[1] * constraint_aE[1] + constraint_aE[2] > 0)
+        {
+            constraint(0, colon()) = constraint_aE;
+        }
+        else
+        {
+            constraint(0, colon()) = -constraint_aE;
+        }
+
+        buildSegment(b, E, constraint_bE);
+        if(a[0] * constraint_bE[0] + a[1] * constraint_bE[1] + constraint_bE[2] > 0)
+        {
+            constraint(1, colon()) = constraint_bE;
+        }
+        else
+        {
+            constraint(1, colon()) = -constraint_bE;
+        }
+
+        if(situation < 3)
+        {
+            //situation 1, 2
+            matrixr_t constraint_ab;
+            buildSegment(a, b, constraint_ab);
+            double dist = E[0] * constraint_ab[0] + E[1] * constraint_ab[1] + constraint_ab[2];
+            constraint_ab[2] -= 2 * dist;
+            if(situation == 1)
+            {
+                if(E[0] * constraint_ab[0] + E[1] * constraint_ab[1] + constraint_ab[2] > 0)
+                {
+                    constraint(2, colon()) = constraint_ab;
+                }
+                else
+                {
+                    constraint(2, colon()) = -constraint_ab;
+                }
+            }
+            else
+            {
+                if(E[0] * constraint_ab[0] + E[1] * constraint_ab[1] + constraint_ab[2] < 0)
+                {
+                    constraint(2, colon()) = constraint_ab;
+                }
+                else
+                {
+                    constraint(2, colon()) = -constraint_ab;
+                }
+            }
+        }
+        else
+        {
+            //situation 3, 4
+            matrixr_t Y = (a + b) / 2;
+            matrixr_t constraint_EY;
+            buildSegment(E, Y, constraint_EY);
+            if(situation == 3)
+            {
+                double dist = a[0] * constraint_EY[0] + a[1] * constraint_EY[1] + constraint_EY[2];
+                constraint_EY[2] += dist;
+                if(dist > 0)
+                {
+                    constraint(2, colon()) = constraint_EY;
+                }
+                else
+                {
+                    constraint(2, colon()) = -constraint_EY;
+                }
+            }
+            else
+            {
+                double dist = b[0] * constraint_EY[0] + b[1] * constraint_EY[1] + constraint_EY[2];
+                constraint_EY[2] += dist;
+                if(dist < 0)
+                {
+                    constraint(2, colon()) = constraint_EY;
+                }
+                else
+                {
+                    constraint(2, colon()) = -constraint_EY;
+                }
+            }
+        }
+
+        mInvalidConstraints.push_back(constraint);
+    }
+
+    void KernelRegion::buildSegment(const matrixr_t &a, const matrixr_t &b, matrixr_t& segment)
+    {
+        matrixr_t ab = b - a;
+        ab /= norm(ab);
+        segment.resize(1, 3);
+        segment[0] = ab[1];
+        segment[1] = -ab[0];
+        segment[2] = ab[0] * a[1] - ab[1] * a[0];
+    }
+
+    bool KernelRegion::
+    contains(const matrixr_t &point) const
     {
         matrixr_t homo(3, 1);
         homo[0] = point[0];
@@ -173,6 +400,34 @@ namespace SBV
 
     bool KernelRegion::isInvalidRegion(const matrixr_t &point) const
     {
+        bool result1 = false;
+        if(mInvalidRegionType == INVALID_REGION_BOUNDARY)
+        {
+            for(int i = 0; i < mInvalidConstraints.size(); i++)
+            {
+                bool invalid = true;
+                const matrixr_t& constraint = mInvalidConstraints[i];
+                matrixr_t homo(3, 1);
+                homo[0] = point[0];
+                homo[1] = point[1];
+                homo[2] = 1;
+                matrixr_t result = constraint * homo;
+                for(int j = 0; j < result.size(); j++)
+                {
+                    if(result[j] > 0)
+                    {
+                        invalid = false;
+                        break;
+                    }
+                }
+                if(invalid)
+                {
+                    result1 = true;
+                    break;
+                }
+            }
+            //return false;
+        }
         for(int i = 0; i < mLines.size(2); i++)
         {
             matrixr_t triangle(2, 3);
@@ -218,5 +473,10 @@ namespace SBV
         }
 
         return false;
+    }
+
+    bool KernelRegion::getBestPos(const matrixr_t &Q, matrixr_t &output_position) const
+    {
+
     }
 }
