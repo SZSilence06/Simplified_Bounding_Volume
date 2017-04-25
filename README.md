@@ -6,6 +6,7 @@ This program is an algorithm for generating bounding volume within a user-given 
 
 This program uses these open-source libraries:
 * Boost
+* Eigen
 * CGAL
 * libkdtree++
 * zjucad sdk
