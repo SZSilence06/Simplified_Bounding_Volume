@@ -11,7 +11,7 @@ namespace WKYLIB
         public:
             CudaPointer()
             {
-                cudaMallocManaged(&this->pointer, sizeof(T));
+
             }
 
             CudaPointer(const T& obj) : CudaPointer()
@@ -26,12 +26,24 @@ namespace WKYLIB
 
             ~CudaPointer()
             {
-                cudaFree(this->pointer);
+                if(this->pointer)
+                {
+                    this->pointer->~T();
+                    cudaFree(this->pointer);
+                }
             }
 
             void assign(const T& obj)
             {
-                *this->pointer = obj;
+                if(this->pointer == nullptr)
+                {
+                    cudaMallocManaged(&this->pointer, sizeof(T));
+                    new(this->pointer) T(obj);
+                }
+                else
+                {
+                    *this->pointer = obj;
+                }
             }
 
             T* operator->()
