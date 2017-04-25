@@ -8,6 +8,7 @@ namespace SBV
     {
         castMatToCuda(innerShell, mInnerShell);
         castMatToCuda(outerShell, mOuterShell);
+        castTriangulation(triangulation, mCudaTriangulation);
     }
 
     void CudaController::castMatToCuda(const matrixr_t &matrix, CudaPointer<Eigen::MatrixXd> &cudaMat)
@@ -20,6 +21,13 @@ namespace SBV
                 eigenMat(i, j) = matrix(i, j);
             }
         }
-        cudaMat = eigenMat;
+        cudaMat.assign(eigenMat);
+    }
+
+    void CudaController::castTriangulation(const TriangulatedShell &triangulation, CudaPointer<CudaTriangulatedShell> &cuda_triangulation)
+    {
+        castMatToCuda(triangulation.vertices, cuda_triangulation->vertices);
+        castMatToCuda(triangulation.triangles, cuda_triangulation->triangles);
+        cuda_triangulation->vertType.assign(triangulation.vertType);
     }
 }

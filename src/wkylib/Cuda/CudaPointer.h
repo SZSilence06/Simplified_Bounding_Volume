@@ -16,23 +16,23 @@ namespace WKYLIB
 
             CudaPointer(const T& obj) : CudaPointer()
             {
-                *this->pointer = obj;
+                assign(obj);
             }
 
+            //copying requires reference counting, so before I implement that, I will disable copying
             CudaPointer(const CudaPointer<T>& another) = delete;
             CudaPointer(CudaPointer<T>&& rhs) = delete;
+            CudaPointer& operator= (const CudaPointer<T>& another) = delete;
 
             ~CudaPointer()
             {
                 cudaFree(this->pointer);
             }
 
-            CudaPointer& operator= (const T& obj)
+            void assign(const T& obj)
             {
                 *this->pointer = obj;
             }
-
-            CudaPointer& operator= (const CudaPointer<T>& another) = delete;
 
             T* operator->()
             {

@@ -4,10 +4,25 @@
 #include "TriangulatedShell.h"
 #include <thrust/device_vector.h>
 #include <wkylib/Cuda/CudaPointer.h>
+#include <wkylib/Cuda/CudaVector.h>
 #include "eigen3.3/Eigen/Dense"
 
 namespace SBV
 {
+    class CudaTriangulatedShell
+    {
+        template<class T>
+        using CudaPointer = WKYLIB::Cuda::CudaPointer<T>;
+
+        template<class T>
+        using CudaVector = WKYLIB::Cuda::CudaVector<T>;
+
+    public:
+        CudaPointer<Eigen::MatrixXd> vertices;
+        CudaPointer<Eigen::MatrixXd> triangles;
+        CudaVector<PointType> vertType;
+    };
+
     class CudaController
     {
     public:
@@ -16,14 +31,15 @@ namespace SBV
 
     private:
         template<class T>
-        using CudaPointer = typename WKYLIB::Cuda::CudaPointer<T>;
+        using CudaPointer = WKYLIB::Cuda::CudaPointer<T>;
 
         void castMatToCuda(const matrixr_t& matrix, CudaPointer<Eigen::MatrixXd>& cudaMat);
+        void castTriangulation(const TriangulatedShell& triangulation, CudaPointer<CudaTriangulatedShell>& cuda_triangulation);
 
     private:
         CudaPointer<Eigen::MatrixXd> mInnerShell;
         CudaPointer<Eigen::MatrixXd> mOuterShell;
-        TriangulatedShell* mCudaTriangulation = nullptr;
+        CudaPointer<CudaTriangulatedShell> mCudaTriangulation;
     };
 }
 
