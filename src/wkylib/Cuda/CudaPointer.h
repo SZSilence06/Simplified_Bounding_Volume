@@ -6,6 +6,58 @@ namespace WKYLIB
     namespace Cuda
     {
         template<class T>
+        class CudaPointer;
+
+        template<class T>
+        class RefCount
+        {
+        private:
+            RefCount(const T& object)
+            {
+                cudaMallocManaged(&this->object, sizeof(T));
+                new(this->object) T(object);
+                this->ref = 1;
+            }
+
+            ~RefCount()
+            {
+                if(this->object)
+                {
+                    destroy();
+                }
+            }
+
+            T* get() { return this->object;}
+
+            void destroy()
+            {
+                this->object->~T();
+                cudaFree(this->object);
+                this->object = nullptr;
+            }
+
+            void addRef()
+            {
+                this->ref++;
+            }
+
+            void decRef()
+            {
+                this->ref--;
+                if(this->ref == 0)
+                {
+                    destroy();
+                }
+            }
+
+        private:
+            T* object = nullptr;
+            int ref = 0;
+
+            friend class CudaPointer<T>;
+        };
+
+        template<class T>
         class CudaPointer
         {
         public:
@@ -19,31 +71,64 @@ namespace WKYLIB
                 assign(obj);
             }
 
-            //copying requires reference counting, so before I implement that, I will disable copying
-            CudaPointer(const CudaPointer<T>& another) = delete;
-            CudaPointer(CudaPointer<T>&& rhs) = delete;
-            CudaPointer& operator= (const CudaPointer<T>& another) = delete;
+            CudaPointer(const CudaPointer<T>& another)
+            {
+                this->refCount = another.refCount;
+                this->pointer = another.pointer;
+                if(this->refCount)
+                {
+                    this->refCount->addRef();
+                }
+            }
+
+            CudaPointer(CudaPointer<T>&& rhs)
+            {
+                this->refCount = rhs.refCount;
+                this->pointer = rhs.pointer;
+                if(this->refCount)
+                {
+                    this->refCount->addRef();
+                }
+            }
+
+            CudaPointer& operator= (const CudaPointer<T>& another)
+            {
+                if(this == &another)
+                {
+                    return *this;
+                }
+
+                if(this->refCount)
+                {
+                    this->refCount->decRef();
+                }
+
+                this->refCount = another.refCount;
+                this->pointer = another.pointer;
+                if(this->refCount)
+                {
+                    this->refCount->addRef();
+                }
+
+                return *this;
+            }
 
             ~CudaPointer()
             {
-                if(this->pointer)
+                if(this->refCount)
                 {
-                    this->pointer->~T();
-                    cudaFree(this->pointer);
+                    this->refCount->decRef();
                 }
             }
 
             void assign(const T& obj)
             {
-                if(this->pointer == nullptr)
+                if(this->refCount)
                 {
-                    cudaMallocManaged(&this->pointer, sizeof(T));
-                    new(this->pointer) T(obj);
+                    this->refCount->decRef();
                 }
-                else
-                {
-                    *this->pointer = obj;
-                }
+                this->refCount = new RefCount<T>(obj);
+                this->pointer = refCount->get();
             }
 
             T* operator->()
@@ -67,7 +152,19 @@ namespace WKYLIB
             }
 
         private:
+            void destroy()
+            {
+                if(this->pointer)
+                {
+                    this->pointer->~T();
+                    cudaFree(this->pointer);
+                    delete refCount;
+                }
+            }
+
+        private:
             T* pointer = nullptr;
+            RefCount<T>* refCount = nullptr;
         };
     }
 }

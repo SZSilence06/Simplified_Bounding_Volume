@@ -6,8 +6,10 @@ namespace SBV
                                    const matrixr_t &outerShell,
                                    const TriangulatedShell &triangulation)
     {
-        castMatToCuda(innerShell, mInnerShell);
-        castMatToCuda(outerShell, mOuterShell);
+        CudaShell shell;
+        castMatToCuda(innerShell, shell.innerShell);
+        castMatToCuda(outerShell, shell.outerShell);
+        mShell.assign(shell);
         castTriangulation(triangulation, mCudaTriangulation);
     }
 

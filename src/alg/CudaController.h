@@ -23,6 +23,19 @@ namespace SBV
         CudaVector<PointType> vertType;
     };
 
+    class CudaShell
+    {
+        template<class T>
+        using CudaPointer = WKYLIB::Cuda::CudaPointer<T>;
+
+        template<class T>
+        using CudaVector = WKYLIB::Cuda::CudaVector<T>;
+
+    public:
+        CudaPointer<Eigen::MatrixXd> innerShell;
+        CudaPointer<Eigen::MatrixXd> outerShell;
+    };
+
     class CudaController
     {
     public:
@@ -37,8 +50,7 @@ namespace SBV
         void castTriangulation(const TriangulatedShell& triangulation, CudaPointer<CudaTriangulatedShell>& cuda_triangulation);
 
     private:
-        CudaPointer<Eigen::MatrixXd> mInnerShell;
-        CudaPointer<Eigen::MatrixXd> mOuterShell;
+        CudaPointer<CudaShell> mShell;
         CudaPointer<CudaTriangulatedShell> mCudaTriangulation;
     };
 }

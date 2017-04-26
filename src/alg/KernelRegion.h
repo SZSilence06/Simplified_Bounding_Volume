@@ -5,11 +5,11 @@
 #include <map>
 #include <set>
 #include "TriangulatedShell.h"
-#include "Shell.h"
-
 
 namespace SBV
 {
+    class Shell;
+
     enum InvalidRegionType
     {
         INVALID_REGION_BOUNDARY,
@@ -58,6 +58,7 @@ namespace SBV
         std::vector<matrixr_t> mInvalidConstraints;
 
         friend class SamplingQuadTree;
+        friend class CudaKernelRegion;
     };
 }
 

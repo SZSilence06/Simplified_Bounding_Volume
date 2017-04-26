@@ -1,4 +1,5 @@
 #include "KernelRegion.h"
+#include "Shell.h"
 #include <wkylib/geometry.h>
 
 using namespace zjucad::matrix;
@@ -147,16 +148,19 @@ namespace SBV
 
                      if(mPointType == POINT_INNER)
                      {
+                         //F(T) = F(E), so it is situation 1 or 3
                          if(signA < 0 && signB < 0)
                          {
 
                          }
                          else if(signA > 0 && signB > 0)
                          {
+                             //situation 1
                              buildConstraintForBundary(a, b, EInner, 1);
                          }
                          else
                          {
+                             //situation 3
                              if(signA > 0)
                              {
                                  buildConstraintForBundary(a, b, EInner, 3);
@@ -169,6 +173,7 @@ namespace SBV
                      }
                      else
                      {
+                         //F(T) != F(E), so it is situation 2 or 4
                          if(signA < 0 && signB < 0)
                          {
                              buildConstraintForBundary(a, b, EInner, 2);
@@ -181,11 +186,11 @@ namespace SBV
                          {
                              if(signA > 0)
                              {
-                                 buildConstraintForBundary(a, b, EInner, 4);
+                                 buildConstraintForBundary(b, a, EInner, 4);
                              }
                              else
                              {
-                                 buildConstraintForBundary(b, a, EInner, 4);
+                                 buildConstraintForBundary(a, b, EInner, 4);
                              }
                          }
                      }
@@ -204,6 +209,8 @@ namespace SBV
 
                      if(mPointType == POINT_OUTER)
                      {
+                         //F(T) > 0
+                          //F(T) = F(E), so it is situation 1 or 3
                          if(signA < 0 && signB < 0)
                          {
                              buildConstraintForBundary(a, b, EOuter, 1);
@@ -226,6 +233,8 @@ namespace SBV
                      }
                      else
                      {
+                         //F(T) < 0
+                          //F(T) != F(E), so it is situation 2 or 4
                          if(signA < 0 && signB < 0)
                          {
 
@@ -238,11 +247,11 @@ namespace SBV
                          {
                              if(signA > 0)
                              {
-                                 buildConstraintForBundary(b, a, EOuter, 4);
+                                 buildConstraintForBundary(a, b, EOuter, 4);
                              }
                              else
                              {
-                                 buildConstraintForBundary(a, b, EOuter, 4);
+                                 buildConstraintForBundary(b, a, EOuter, 4);
                              }
                          }
                      }
@@ -308,7 +317,7 @@ namespace SBV
             constraint_ab[2] -= 2 * dist;
             if(situation == 1)
             {
-                if(E[0] * constraint_ab[0] + E[1] * constraint_ab[1] + constraint_ab[2] > 0)
+                if(dist < 0)
                 {
                     constraint(2, colon()) = constraint_ab;
                 }
@@ -319,7 +328,7 @@ namespace SBV
             }
             else
             {
-                if(E[0] * constraint_ab[0] + E[1] * constraint_ab[1] + constraint_ab[2] < 0)
+                if(dist > 0)
                 {
                     constraint(2, colon()) = constraint_ab;
                 }
@@ -335,10 +344,10 @@ namespace SBV
             matrixr_t Y = (a + b) / 2;
             matrixr_t constraint_EY;
             buildSegment(E, Y, constraint_EY);
+            double dist = a[0] * constraint_EY[0] + a[1] * constraint_EY[1] + constraint_EY[2];
+            constraint_EY[2] += dist;
             if(situation == 3)
             {
-                double dist = a[0] * constraint_EY[0] + a[1] * constraint_EY[1] + constraint_EY[2];
-                constraint_EY[2] += dist;
                 if(dist > 0)
                 {
                     constraint(2, colon()) = constraint_EY;
@@ -350,8 +359,6 @@ namespace SBV
             }
             else
             {
-                double dist = b[0] * constraint_EY[0] + b[1] * constraint_EY[1] + constraint_EY[2];
-                constraint_EY[2] += dist;
                 if(dist < 0)
                 {
                     constraint(2, colon()) = constraint_EY;
@@ -376,8 +383,7 @@ namespace SBV
         segment[2] = ab[0] * a[1] - ab[1] * a[0];
     }
 
-    bool KernelRegion::
-    contains(const matrixr_t &point) const
+    bool KernelRegion::contains(const matrixr_t &point) const
     {
         matrixr_t homo(3, 1);
         homo[0] = point[0];
