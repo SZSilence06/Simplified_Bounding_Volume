@@ -23,6 +23,7 @@ namespace SBV {
                          const CudaPointer<CudaTriangulatedShell>& triangulation);
 
         __device__ bool contains(const Eigen::Vector2d& point) const;
+        __device__ bool IsInvalidRegion(const Eigen::Vector2d& point) const;
 
     private:
         void castMatToCuda(const matrixr_t& matrix, CudaPointer<Eigen::MatrixXd>& cudaMat);

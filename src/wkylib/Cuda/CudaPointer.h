@@ -61,17 +61,17 @@ namespace WKYLIB
         class CudaPointer
         {
         public:
-            CudaPointer()
+            __host__ __device__ CudaPointer()
             {
 
             }
 
-            CudaPointer(const T& obj) : CudaPointer()
+            __host__ __device__ CudaPointer(const T& obj) : CudaPointer()
             {
                 assign(obj);
             }
 
-            CudaPointer(const CudaPointer<T>& another)
+            __host__ __device__ CudaPointer(const CudaPointer<T>& another)
             {
                 this->refCount = another.refCount;
                 this->pointer = another.pointer;
@@ -81,7 +81,7 @@ namespace WKYLIB
                 }
             }
 
-            CudaPointer(CudaPointer<T>&& rhs)
+            __host__ __device__ CudaPointer(CudaPointer<T>&& rhs)
             {
                 this->refCount = rhs.refCount;
                 this->pointer = rhs.pointer;
@@ -91,7 +91,7 @@ namespace WKYLIB
                 }
             }
 
-            CudaPointer& operator= (const CudaPointer<T>& another)
+            __host__ __device__ CudaPointer& operator= (const CudaPointer<T>& another)
             {
                 if(this == &another)
                 {
@@ -113,7 +113,7 @@ namespace WKYLIB
                 return *this;
             }
 
-            ~CudaPointer()
+            __host__ __device__ ~CudaPointer()
             {
                 if(this->refCount)
                 {
@@ -131,22 +131,32 @@ namespace WKYLIB
                 this->pointer = refCount->get();
             }
 
-            T* operator->()
+            T& __host__ __device__ operator*()
+            {
+                return *this->pointer;
+            }
+
+            const T& __host__ __device__ operator*() const
+            {
+                return *this->pointer;
+            }
+
+            __host__ __device__ T* operator->()
             {
                 return this->pointer;
             }
 
-            const T* operator->() const
+            __host__ __device__ const T* operator->() const
             {
                 return this->pointer;
             }
 
-            T* get()
+            __host__ __device__ T* get()
             {
                 return this->pointer;
             }
 
-            const T* get() const
+            __host__ __device__ const T* get() const
             {
                 return this->pointer;
             }

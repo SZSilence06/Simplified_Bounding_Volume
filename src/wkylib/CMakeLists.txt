@@ -23,3 +23,5 @@ add_subdirectory(Cuda)
 
 add_library(wkylib ${headers} ${sources})
 
+add_subdirectory(Test)
+

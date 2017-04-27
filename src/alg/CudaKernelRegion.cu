@@ -54,4 +54,77 @@ namespace SBV
         }
         cudaMat.assign(eigenMat);
     }
+
+    /*__device__ bool CudaKernelRegion::contains(const Eigen::Vector2d &point) const
+    {
+        Eigen::Vector3d homo;
+        homo[0] = point[0];
+        homo[1] = point[1];
+        homo[2] = 1;
+        Eigen::VectorXd result = A * homo;
+        for(int i = 0; i < result.rows(); i++)
+        {
+            if(result[i] > 0)
+            {
+                return false;
+            }
+        }
+        if(isInvalidRegion(point))
+        {
+            return false;
+        }
+        return true;
+    }
+
+    __device__ bool CudaKernelRegion::IsInvalidRegion(const Eigen::Vector2d& point) const
+    {
+        auto& lines = *mLines;
+        auto& vertices = *mTriangulation->vertices;
+        for(int i = 0; i < lines.rows(); i++)
+        {
+            Eigen::MatrixXd triangle(2, 3);
+            triangle.col(0) = vertices.col(lines(0, i));
+            triangle.col(1) = vertices.col(lines(1, i));
+            triangle.col(2) = point;
+
+            for(int i = 0; i < mInnerSamples.size(); i++)
+            {
+                size_t sample = mInnerSamples.getElements()[i];
+                matrixr_t bary;
+                if(WKYLIB::barycentric_2D(mShell.mInnerShell(colon(), sample), triangle, bary))
+                {
+                    //the point is inside the tetrahedron
+                    double f0 = mTriangulation.getFValue(mLines(0, i));
+                    double f1 = mTriangulation.getFValue(mLines(1, i));
+                    double f2 = mTriangulation.getFValue(mPointType);
+
+                    double f = f0 * bary[0] + f1 * bary[1] + f2 * bary[2];
+                    if(f > 0)
+                    {
+                        return true;
+                    }
+                }
+            }
+
+            for(size_t sample : mOuterSamples)
+            {
+                matrixr_t bary;
+                if(WKYLIB::barycentric_2D(mShell.mOuterShell(colon(), sample), triangle, bary))
+                {
+                    //the point is inside the tetrahedron
+                    double f0 = mTriangulation.getFValue(mLines(0, i));
+                    double f1 = mTriangulation.getFValue(mLines(1, i));
+                    double f2 = mTriangulation.getFValue(mPointType);
+
+                    double f = f0 * bary[0] + f1 * bary[1] + f2 * bary[2];
+                    if(f < 0)
+                    {
+                        return true;
+                    }
+                }
+            }
+        }
+
+        return false;
+    }*/
 }
