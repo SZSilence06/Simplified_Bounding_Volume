@@ -8,5 +8,6 @@ This program uses these open-source libraries:
 * Boost
 * Eigen
 * CGAL
+* Catch
 * libkdtree++
 * zjucad sdk
