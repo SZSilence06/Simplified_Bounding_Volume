@@ -66,3 +66,51 @@ TEST_CASE("CudaVector manipulation with gpu kernel", "[CudaVector]") {
         CHECK(v[i] == 2 * i);
     }
 }
+
+class TestCudaVectorObject
+{
+public:
+    CudaVector<int> data;
+};
+
+__global__ void kernel_test_vector_object_manipulation(CudaPointer<TestCudaVectorObject> object)
+{
+    CudaVector<int>& v = object->data;
+    for(int i = 0; i < v.size(); i++)
+    {
+        v[i] *= 2;
+    }
+}
+
+TEST_CASE("CudaVector-contained object manipulation with gpu kernel", "[CudaVector]") {
+    TestCudaVectorObject object;
+    for(int i = 0; i < 10; i++)
+    {
+        object.data.push_back(i);
+    }
+
+    REQUIRE(object.data.size() == 10);
+    for(int i = 0; i < object.data.size(); i++)
+    {
+        CHECK(object.data[i] == i);
+    }
+
+    CudaPointer<TestCudaVectorObject> gpu_object;
+    gpu_object.assign(object);
+
+    REQUIRE(gpu_object->data.size() == 10);
+    for(int i = 0; i < gpu_object->data.size(); i++)
+    {
+        CudaVector<int>& v = gpu_object->data;
+        CHECK(v[i] == i);
+    }
+
+    kernel_test_vector_object_manipulation <<< 1, 1 >>> (gpu_object);
+    cudaDeviceSynchronize();
+
+    CudaVector<int>& v = gpu_object->data;
+    for(int i = 0; i < v.size(); i++)
+    {
+        CHECK(v[i] == 2 * i);
+    }
+}

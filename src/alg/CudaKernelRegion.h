@@ -23,7 +23,11 @@ namespace SBV {
                          const CudaPointer<CudaTriangulatedShell>& triangulation);
 
         __device__ bool contains(const Eigen::Vector2d& point) const;
-        __device__ bool IsInvalidRegion(const Eigen::Vector2d& point) const;
+        __device__ bool isInvalidRegion(const Eigen::Vector2d& point) const;
+        __device__ bool barycentric(const Eigen::Vector3d& a, const Eigen::Vector3d& b, const Eigen::Vector3d& c,
+                                       const Eigen::Vector3d& p, Eigen::Vector3d& bary) const;
+        __device__ bool barycentric_2D(const Eigen::Vector2d& a, const Eigen::Vector2d& b, const Eigen::Vector2d& c,
+                                       const Eigen::Vector2d& p, Eigen::Vector3d& bary) const;
 
     private:
         void castMatToCuda(const matrixr_t& matrix, CudaPointer<Eigen::MatrixXd>& cudaMat);
@@ -33,8 +37,8 @@ namespace SBV {
         //these data are on gpu
         CudaPointer<Eigen::MatrixXi> mLines;
         CudaPointer<CudaShell> mShell;
-        CudaVector<size_t> mInnerSamples;
-        CudaVector<size_t> mOuterSamples;
+        CudaPointer<CudaVector<size_t>> mInnerSamples;
+        CudaPointer<CudaVector<size_t>> mOuterSamples;
         CudaPointer<CudaTriangulatedShell> mTriangulation;
         CudaPointer<PointType> mPointType;
         CudaPointer<InvalidRegionType> mInvalidRegionType;
