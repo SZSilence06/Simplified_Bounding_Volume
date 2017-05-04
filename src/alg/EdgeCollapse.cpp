@@ -1,6 +1,7 @@
 #include "EdgeCollapse.h"
 #include "KernelRegion.h"
 #include "SamplingQuadTree.h"
+#include "CudaController.h"
 #include <wkylib/geometry.h>
 #include <iostream>
 #include <omp.h>
@@ -9,9 +10,11 @@ using namespace zjucad::matrix;
 
 namespace SBV
 {
-    EdgeCollapse::EdgeCollapse(TriangulatedShell &triangulation, const Shell& shell, Type type, bool isHalfEdge, double sampleRadius)
+    EdgeCollapse::EdgeCollapse(TriangulatedShell &triangulation, const Shell& shell, const CudaController& cudaController,
+                               Type type, bool isHalfEdge, double sampleRadius)
         : mTriangulation(triangulation),
           mShell(shell),
+          mCudaController(cudaController),
           mType(type),
           mIsHalfEdge(isHalfEdge),
           mSampleRadius(sampleRadius)
@@ -762,6 +765,7 @@ namespace SBV
 
             SamplingQuadTree tree(kernel, xmax, xmin, ymax, ymin, mSampleRadius);
             auto& samples = tree.getSamples();
+
             for(int i = 0; i < samples.size(); i++)
             {
                 auto& point = samples[i];

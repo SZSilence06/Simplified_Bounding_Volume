@@ -5,6 +5,7 @@
 #include "Common.h"
 #include "Refinement.h"
 #include "Shell.h"
+#include "CudaController.h"
 
 namespace SBV {
     class Simplifier{
@@ -63,9 +64,9 @@ namespace SBV {
         bool mNeedGenTempResult = false;
 
         Shell mShell;
-
         TriangulatedShell mTriangulation;
         ZeroSet mZeroSet;
+        CudaController mCudaController;
     };
 }
 

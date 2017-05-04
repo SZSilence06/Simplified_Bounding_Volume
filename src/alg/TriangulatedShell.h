@@ -2,19 +2,11 @@
 #define WKY_TRIANGULATED_SHELL_H
 
 #include "Common.h"
+#include "PointType.h"
 #include <set>
 
 namespace SBV
 {
-    enum PointType
-    {
-        POINT_BOUNDING_BOX,
-        POINT_INNER,
-        POINT_OUTER,
-        POINT_ZERO,
-        POINT_UNKNOWN
-    };
-
     class TriangulatedShell
     {
     public:

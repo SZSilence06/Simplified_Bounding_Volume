@@ -87,7 +87,7 @@ namespace WKYLIB
                 return mElements + mSize + 1;
             }
 
-            void push_back(const T& object)
+            __host__ __device__ void push_back(const T& object)
             {
                 if(mSize >= mCapacity)
                 {

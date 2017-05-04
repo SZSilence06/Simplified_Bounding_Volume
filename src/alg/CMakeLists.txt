@@ -14,12 +14,12 @@ endif()
 
 find_package(CUDA REQUIRED)
 if(CUDA_FOUND)
-    list(APPEND CUDA_NVCC_FLAGS "-std=c++11")
     include_directories(${CUDA_INCLUDE_DIRS})
+    list(APPEND CUDA_NVCC_FLAGS -std=c++11 --expt-relaxed-constexpr -Xcudafe \"--diag_suppress=extra_semicolon\" )
+    set(CUDA_SEPARABLE_COMPILATION ON)
 endif()
 
-cuda_compile(CUDA_OBJECTS ${cuda_sources})
-add_library(alg ${headers} ${sources} ${CUDA_OBJECTS})
+cuda_add_library(alg ${headers} ${sources} ${cuda_sources})
 
 target_link_libraries(alg
     wkylib

@@ -3,6 +3,8 @@
 
 #include <zjucad/matrix/matrix.h>
 
+#pragma NVCC diagnostic ignored "-Wall"
+
 namespace SBV
 {
     using matrixr_t = zjucad::matrix::matrix<double>;

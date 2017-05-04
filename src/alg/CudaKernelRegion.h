@@ -1,15 +1,17 @@
 #ifndef WKY_CUDA_KERNEL_REGION_H
 #define WKY_CUDA_KERNEL_REGION_H
 
-#include "TriangulatedShell.h"
-#include <thrust/device_vector.h>
+#include "Common.h"
 #include <wkylib/Cuda/CudaPointer.h>
 #include <wkylib/Cuda/CudaVector.h>
 #include "eigen3.3/Eigen/Dense"
-#include "KernelRegion.h"
-#include "CudaController.h"
+#include "InvalidRegionType.h"
+#include "CudaShell.h"
+#include "CudaTriangulatedShell.h"
 
 namespace SBV {
+    class KernelRegion;
+
     class CudaKernelRegion
     {
         template<class T>
@@ -23,15 +25,17 @@ namespace SBV {
                          const CudaPointer<CudaTriangulatedShell>& triangulation);
 
         __device__ bool contains(const Eigen::Vector2d& point) const;
+
+
+    private:
+        void castMatToCuda(const matrixr_t& matrix, CudaPointer<Eigen::MatrixXd>& cudaMat);
+        void castMatToCuda_size_t(const matrixs_t& matrix, CudaPointer<Eigen::MatrixXi>& cudaMat);
+
         __device__ bool isInvalidRegion(const Eigen::Vector2d& point) const;
         __device__ bool barycentric(const Eigen::Vector3d& a, const Eigen::Vector3d& b, const Eigen::Vector3d& c,
                                        const Eigen::Vector3d& p, Eigen::Vector3d& bary) const;
         __device__ bool barycentric_2D(const Eigen::Vector2d& a, const Eigen::Vector2d& b, const Eigen::Vector2d& c,
                                        const Eigen::Vector2d& p, Eigen::Vector3d& bary) const;
-
-    private:
-        void castMatToCuda(const matrixr_t& matrix, CudaPointer<Eigen::MatrixXd>& cudaMat);
-        void castMatToCuda_size_t(const matrixs_t& matrix, CudaPointer<Eigen::MatrixXi>& cudaMat);
 
     private:
         //these data are on gpu

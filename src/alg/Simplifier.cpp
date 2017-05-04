@@ -22,6 +22,8 @@ namespace SBV
         std::cout << "Start refinement..." << std::endl;
         refine();
 
+        mCudaController.build(mShell.mInnerShell, mShell.mOuterShell, mTriangulation);
+
         std::cout << "Start Boundary collapse..." << std::endl;
         collapseBoundary();
 
@@ -113,7 +115,7 @@ namespace SBV
     {
         WKYLIB::DebugTimer timer("Boundary Collapse(Half Edge)");
         timer.start();
-        EdgeCollapse collapserHalfEdge(mTriangulation, mShell, EdgeCollapse::BOUNDARY, true, mSampleRadius);
+        EdgeCollapse collapserHalfEdge(mTriangulation, mShell, mCudaController, EdgeCollapse::BOUNDARY, true, mSampleRadius);
         collapserHalfEdge.collapse();
         timer.end();
 
@@ -157,7 +159,7 @@ namespace SBV
     {
         WKYLIB::DebugTimer timer("Zero Set Collapse(Half Edge)");
         timer.start();
-        EdgeCollapse collapserHalfEdge(mTriangulation, mShell, EdgeCollapse::ZERO_SET, true, mSampleRadius);
+        EdgeCollapse collapserHalfEdge(mTriangulation, mShell, mCudaController, EdgeCollapse::ZERO_SET, true, mSampleRadius);
         collapserHalfEdge.collapse();
         timer.end();
 

@@ -29,19 +29,19 @@ namespace WKYLIB
 
             T* get() { return this->object;}
 
-            void destroy()
+            __host__ __device__ void destroy()
             {
                 this->object->~T();
                 cudaFree(this->object);
                 this->object = nullptr;
             }
 
-            void addRef()
+            __host__ __device__ void addRef()
             {
                 this->ref++;
             }
 
-            void decRef()
+             __host__ __device__ void decRef()
             {
                 this->ref--;
                 if(this->ref == 0)
@@ -66,7 +66,7 @@ namespace WKYLIB
 
             }
 
-            __host__ __device__ CudaPointer(const T& obj) : CudaPointer()
+            CudaPointer(const T& obj) : CudaPointer()
             {
                 assign(obj);
             }

@@ -1,60 +1,74 @@
+#include "Common.h"
 #include "CudaController.h"
+#include "CudaControllerImpl.h"
+#include "CudaSamplingTree.h"
+#include "CudaTriangulatedShell.h"
+#include "TriangulatedShell.h"
+#include "KernelRegion.h"
 #include <wkylib/Geometry/Util.h>
 
 using namespace WKYLIB::Geometry;
 
 namespace SBV
 {
-    __device__ double CudaTriangulatedShell::getFValue(PointType pointType) const
+    CudaController::~CudaController()
     {
-        switch(pointType)
+        if(impl)
         {
-        case POINT_BOUNDING_BOX:
-            return 1;
-        case POINT_OUTER:
-            return 1;
-        case POINT_INNER:
-            return -1;
+            delete impl;
         }
-        return 0;
     }
 
-    __device__ double CudaTriangulatedShell::getFValue(size_t vert) const
+    void CudaController::build(const matrixr_t &innerShell, const matrixr_t &outerShell, const TriangulatedShell &triangulation)
     {
-        return getFValue(vertType[vert]);
+        this->impl = new CudaControllerImpl();
+        this->impl->build(innerShell, outerShell, triangulation);
     }
 
-    __device__ double CudaTriangulatedShell::getSign(size_t vert) const
+    void CudaController::sample(double xmin, double xmax, double ymin, double ymax, double sampleRadius,
+                                std::vector<matrixr_t> &output_samples)
     {
-        double value = getFValue(vert);
-        if(value > 0)
-        {
-            return 1;
-        }
-        else if(value == 0)
-        {
-            return 0;
-        }
-        return -1;
+        this->impl->sample(xmin, xmax, ymin, ymax, sampleRadius, output_samples);
     }
 
-
-    CudaController::CudaController(const matrixr_t &innerShell,
-                                   const matrixr_t &outerShell,
-                                   const TriangulatedShell &triangulation)
+    void CudaController::buildKernelRegion(const KernelRegion &kernel)
     {
-        CudaShell shell;
-        zju_mat_to_eigen(innerShell, shell.innerShell);
-        zju_mat_to_eigen(outerShell, shell.outerShell);
-        mShell.assign(shell);
-        castTriangulation(triangulation, mCudaTriangulation);
+        this->impl->buildKernelRegion(kernel);
     }
 
-    void CudaController::castTriangulation(const TriangulatedShell &triangulation, CudaPointer<CudaTriangulatedShell> &cuda_triangulation)
+    //////////////////////////////////////////////////////////////////////////////////
+    void CudaControllerImpl::build(const matrixr_t &innerShell, const matrixr_t &outerShell, const TriangulatedShell &triangulation)
+    {
+        mShell.assign(CudaShell());
+        zju_mat_to_eigen(innerShell, mShell->innerShell);
+        zju_mat_to_eigen(outerShell, mShell->outerShell);
+        castTriangulation(triangulation, mTriangulation);
+    }
+
+    void CudaControllerImpl::castTriangulation(const TriangulatedShell &triangulation, CudaPointer<CudaTriangulatedShell> &cuda_triangulation)
     {
         cuda_triangulation.assign(CudaTriangulatedShell());
         zju_mat_to_eigen(triangulation.vertices, cuda_triangulation->vertices);
         zju_mat_to_eigen(triangulation.triangles, cuda_triangulation->triangles);
         cuda_triangulation->vertType.assign(triangulation.vertType);
+    }
+
+    void CudaControllerImpl::buildKernelRegion(const KernelRegion &kernel)
+    {
+        mKernel.assign(CudaKernelRegion(kernel, mShell, mTriangulation));
+    }
+
+    void CudaControllerImpl::sample(double xmin, double xmax, double ymin, double ymax, double sampleRadius,
+                                    std::vector<matrixr_t> &output_samples)
+    {
+        CudaSamplingTree tree(mKernel, xmax, xmin, ymax, ymin, sampleRadius);
+
+        output_samples.reserve(tree.getSamples().size());
+        for(int i = 0; i < tree.getSamples().size(); i++)
+        {
+            matrixr_t mat;
+            eigen_to_zju_vector2d(tree.getSamples()[i], mat);
+            output_samples.push_back(mat);
+        }
     }
 }

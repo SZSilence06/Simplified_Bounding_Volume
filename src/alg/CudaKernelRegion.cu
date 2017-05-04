@@ -1,4 +1,6 @@
 #include "CudaKernelRegion.h"
+#include "Common.h"
+#include "KernelRegion.h"
 
 namespace SBV
 {
