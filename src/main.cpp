@@ -131,6 +131,11 @@ void parseCmdLines(int argc, char**argv)
 
 void genDefaultParams()
 {
+    if(g_alpha == std::numeric_limits<double>::max())
+    {
+        g_alpha = 0.2;
+    }
+
     if(g_outputPath == "")
     {
         //no output directory, so we auto generate one.
@@ -143,6 +148,8 @@ void genDefaultParams()
         {
             g_outputPath = g_inputMeshPath.substr(0, pos);
         }
+        g_outputPath += " -e " + std::to_string(g_maxDistance) + " -r " + std::to_string(g_sampleRadius)
+                + " -a " + std::to_string(g_alpha);
     }
 
     if(boost::filesystem::exists(g_outputPath) == false
@@ -150,11 +157,6 @@ void genDefaultParams()
     {
         //output directory don't exist, so create it
         boost::filesystem::create_directory(g_outputPath);
-    }
-
-    if(g_alpha == std::numeric_limits<double>::max())
-    {
-        g_alpha = 0.2;
     }
 }
 
@@ -178,10 +180,7 @@ int main(int argc, char**argv)
     simplifier.setAlpha(g_alpha);
     simplifier.setGenTempResult(g_genTempResult);
 
-    DebugTimer timer("Simplification");
-    timer.start();
     simplifier.simplify();
-    timer.end();
 
     return 0;
 }

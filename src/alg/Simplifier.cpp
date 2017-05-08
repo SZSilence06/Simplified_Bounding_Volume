@@ -17,6 +17,8 @@ namespace SBV
 
     void Simplifier::simplify()
     {
+        mTimerSimplify.start();
+
         generateShells();
 
         std::cout << "Start refinement..." << std::endl;
@@ -30,6 +32,11 @@ namespace SBV
 
         std::cout << "Start zero set collapse..." << std::endl;
         collapseZeroSet();
+
+        mTimerSimplify.end();
+
+        if(mNeedGenTempResult)
+            writeSummary();
     }
 
     void Simplifier::generateShells()
@@ -94,11 +101,10 @@ namespace SBV
 
     void Simplifier::refine()
     {
-        WKYLIB::DebugTimer timer("refinement");
-        timer.start();
+        mTimerRefine.start();
         Refinement refinement(mShell, mTriangulation, mAlpha, mSampleRadius);
         refinement.refine();
-        timer.end();
+        mTimerRefine.end();
 
         mTriangulation.buildZeroSet();
         if(mNeedGenTempResult)
@@ -111,11 +117,10 @@ namespace SBV
 
     void Simplifier::collapseBoundary()
     {
-        WKYLIB::DebugTimer timer("Boundary Collapse(Half Edge)");
-        timer.start();
+        mTimerBoundaryHalfEdge.start();
         EdgeCollapse collapserHalfEdge(mTriangulation, mShell, EdgeCollapse::BOUNDARY, true, mSampleRadius);
         collapserHalfEdge.collapse();
-        timer.end();
+        mTimerBoundaryHalfEdge.end();
 
         mTriangulation.buildZeroSet();
         if(mNeedGenTempResult)
@@ -125,11 +130,10 @@ namespace SBV
                                        mTriangulation.getZeroSet().lines);
         }
 
-        WKYLIB::DebugTimer timer2("Boundary Collapse(General)");
-        timer2.start();
+        mTimerBoundaryGeneral.start();
         EdgeCollapse collapserGeneral(mTriangulation, mShell, EdgeCollapse::BOUNDARY, false, mSampleRadius);
         collapserGeneral.collapse();
-        timer2.end();
+        mTimerBoundaryGeneral.end();
 
         mTriangulation.buildZeroSet();
         if(mNeedGenTempResult)
@@ -142,10 +146,9 @@ namespace SBV
 
     void Simplifier::mutualTessellate()
     {
-        WKYLIB::DebugTimer timer("Mutual Tesselation");
-        timer.start();
+        mTimerMutualTessellation.start();
         mTriangulation.mutualTessellate();
-        timer.end();
+        mTimerMutualTessellation.end();
 
         if(mNeedGenTempResult)
         {
@@ -155,11 +158,10 @@ namespace SBV
 
     void Simplifier::collapseZeroSet()
     {
-        WKYLIB::DebugTimer timer("Zero Set Collapse(Half Edge)");
-        timer.start();
+        mTimerZeroSetHalfEdge.start();
         EdgeCollapse collapserHalfEdge(mTriangulation, mShell, EdgeCollapse::ZERO_SET, true, mSampleRadius);
         collapserHalfEdge.collapse();
-        timer.end();
+        mTimerZeroSetHalfEdge.end();
 
         mTriangulation.buildZeroSet();
         if(mNeedGenTempResult)
@@ -169,11 +171,10 @@ namespace SBV
                                        mTriangulation.getZeroSet().lines);
         }
 
-        WKYLIB::DebugTimer timer2("Zero Set Collapse(General)");
-        timer2.start();
+        mTimerZeroSetGeneral.start();
         EdgeCollapse collapserGeneral(mTriangulation, mShell, EdgeCollapse::ZERO_SET, false, mSampleRadius);
         collapserGeneral.collapse();
-        timer2.end();
+        mTimerZeroSetGeneral.end();
 
         mTriangulation.buildZeroSet();
         if(mNeedGenTempResult)
@@ -182,5 +183,22 @@ namespace SBV
             WKYLIB::Mesh::writeCurve2D(mOutputDirectory + "/zero_set_collapsed_zero_set(general).obj", mTriangulation.getZeroSet().vertices,
                                        mTriangulation.getZeroSet().lines);
         }
+    }
+
+    void Simplifier::writeSummary()
+    {
+        logTimer("Refinement : ", mTimerRefine);
+        logTimer("Boundary Collapse(Half Edge) : ", mTimerBoundaryHalfEdge);
+        logTimer("Boundary Collapse(General) : ", mTimerBoundaryGeneral);
+        logTimer("Mutual Tessellation : ", mTimerMutualTessellation);
+        logTimer("Zero Set Collapse(Half Edge) : ", mTimerZeroSetHalfEdge);
+        logTimer("Zero Set Collapse(General) : ", mTimerZeroSetGeneral);
+        logTimer("Total : ", mTimerSimplify);
+    }
+
+    void Simplifier::logTimer(const std::string& prefix, const DebugTimer &timer)
+    {
+        Logger& logger = Logger::getInstance();
+        logger.log(prefix + std::to_string(timer.getTime()) + " ms.");
     }
 }
