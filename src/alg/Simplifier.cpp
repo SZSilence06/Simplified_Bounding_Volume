@@ -22,7 +22,10 @@ namespace SBV
         std::cout << "Start refinement..." << std::endl;
         refine();
 
+        WKYLIB::DebugTimer timer("Build CudaController");
+        timer.start();
         mCudaController.build(mShell.mInnerShell, mShell.mOuterShell, mTriangulation);
+        timer.end();
 
         std::cout << "Start Boundary collapse..." << std::endl;
         collapseBoundary();

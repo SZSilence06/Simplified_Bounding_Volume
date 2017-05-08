@@ -424,7 +424,6 @@ namespace SBV
         matrixs_t lines;
         std::set<size_t> innerSample;
         std::set<size_t> outerSample;
-        size_t maxErrorInnerSample, maxErrorOuterSample;
         buildOneRingArea(firstVert, secondVert, lines, innerSample, outerSample);
 
         KernelRegion kernel(mTriangulation.vertices, lines, mShell, innerSample, outerSample,
