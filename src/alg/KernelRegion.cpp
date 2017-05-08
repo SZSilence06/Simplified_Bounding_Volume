@@ -8,7 +8,6 @@ namespace SBV
 {
     KernelRegion::KernelRegion(const matrixr_t &points, const matrixs_t &lines, const Shell& shell,
                                const std::set<size_t>& innerSample, const std::set<size_t>& outerSample,
-                               size_t maxErrorInnerSample, size_t maxErrorOuterSample,
                                const TriangulatedShell& triangulation, PointType collapsedPointType,
                                InvalidRegionType invalidRegionType)
         : mPoints(points),
@@ -16,8 +15,6 @@ namespace SBV
           mShell(shell),
           mInnerSamples(innerSample),
           mOuterSamples(outerSample),
-          mInnerMaxErrorSample(maxErrorInnerSample),
-          mOuterMaxErrorSample(maxErrorOuterSample),
           mTriangulation(triangulation),
           mPointType(collapsedPointType),
           mInvalidRegionType(invalidRegionType)
@@ -129,7 +126,7 @@ namespace SBV
             }
         }
 
-        computeInvalidConstraints();
+        //computeInvalidConstraints();
     }
 
     void KernelRegion::computeInvalidConstraints()
@@ -406,7 +403,7 @@ namespace SBV
 
     bool KernelRegion::isInvalidRegion(const matrixr_t &point) const
     {
-        bool result1 = false;
+        /*bool result1 = false;
         if(mInvalidRegionType == INVALID_REGION_BOUNDARY)
         {
             for(int i = 0; i < mInvalidConstraints.size(); i++)
@@ -433,7 +430,7 @@ namespace SBV
                 }
             }
             //return false;
-        }
+        }*/
         for(int i = 0; i < mLines.size(2); i++)
         {
             matrixr_t triangle(2, 3);

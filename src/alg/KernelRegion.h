@@ -16,7 +16,6 @@ namespace SBV
     public:
         KernelRegion(const matrixr_t& points, const matrixs_t& lines, const Shell& shell,
                      const std::set<size_t>& innerSample, const std::set<size_t>& outerSample,
-                     size_t maxErrorInnerSample, size_t maxErrorOuterSample,
                      const TriangulatedShell& triangulation, PointType collapsedPointType,
                      InvalidRegionType invalidRegionType);
 
@@ -39,8 +38,6 @@ namespace SBV
         const Shell& mShell;
         const std::set<size_t>& mInnerSamples;
         const std::set<size_t>& mOuterSamples;
-        size_t mInnerMaxErrorSample;
-        size_t mOuterMaxErrorSample;
         const TriangulatedShell& mTriangulation;
         PointType mPointType;
         InvalidRegionType mInvalidRegionType;
