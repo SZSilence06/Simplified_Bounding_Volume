@@ -1,6 +1,12 @@
 #ifndef WKY_GEOMETRY_UTIL_H
 #define WKY_GEOMETRY_UTIL_H
 
+#define EIGEN_DEFAULT_DENSE_INDEX_TYPE int
+#if (defined __GNUC__) && (__GNUC__>4 || __GNUC_MINOR__>=7)
+  #undef _GLIBCXX_ATOMIC_BUILTINS
+  #undef _GLIBCXX_USE_INT128
+#endif
+
 #include "Common.h"
 #include <eigen3/Eigen/Dense>
 

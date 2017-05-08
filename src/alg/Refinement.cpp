@@ -24,9 +24,9 @@ namespace SBV
 
     void Refinement::computeBoundingBox()
     {
-        double xMax = std::numeric_limits<double>::min();
+        double xMax = -std::numeric_limits<double>::max();
         double xMin = std::numeric_limits<double>::max();
-        double yMax = std::numeric_limits<double>::min();
+        double yMax = -std::numeric_limits<double>::max();
         double yMin = std::numeric_limits<double>::max();
 
         for(int i = 0; i < mShell.mOuterShell.size(2); i++)

@@ -4,6 +4,7 @@
 #include <vector>
 #include <limits>
 #include <eigen3/Eigen/Dense>
+#include <iostream>
 
 namespace WKYLIB {
     //get 2D angle from 2d coordinate. Range from [0, 2*PI).

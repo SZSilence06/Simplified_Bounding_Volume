@@ -10,7 +10,7 @@ using namespace zjucad::matrix;
 
 namespace SBV
 {
-    EdgeCollapse::EdgeCollapse(TriangulatedShell &triangulation, const Shell& shell, const CudaController& cudaController,
+    EdgeCollapse::EdgeCollapse(TriangulatedShell &triangulation, const Shell& shell, CudaController& cudaController,
                                Type type, bool isHalfEdge, double sampleRadius)
         : mTriangulation(triangulation),
           mShell(shell),
@@ -743,6 +743,9 @@ namespace SBV
         }
         else if(mType == ZERO_SET)
         {
+            this->mtx.lock();
+            mCudaController.buildKernelRegion(kernel);
+
             //find AABB of the one ring area
             double xmin = std::numeric_limits<double>::max();
             double xmax = std::numeric_limits<double>::min();
@@ -763,8 +766,12 @@ namespace SBV
                 ymin = b[1] < ymin ? b[1] : ymin;
             }
 
-            SamplingQuadTree tree(kernel, xmax, xmin, ymax, ymin, mSampleRadius);
-            auto& samples = tree.getSamples();
+            //SamplingQuadTree tree(kernel, xmax, xmin, ymax, ymin, mSampleRadius);
+            //auto& samples = tree.getSamples();
+            std::vector<matrixr_t> samples;
+            mCudaController.sample(xmin, xmax, ymin, ymax, mSampleRadius, samples);
+
+            this->mtx.unlock();
 
             for(int i = 0; i < samples.size(); i++)
             {

@@ -1,6 +1,7 @@
 #ifndef WKY_CUDA_VECTOR_H
 #define WKY_CUDA_VECTOR_H
 
+#include "CudaAllocator.h"
 #include <thrust/device_vector.h>
 
 namespace WKYLIB
@@ -15,21 +16,22 @@ namespace WKYLIB
             using const_iterator = const T*;
             using pointer = T*;
             using reference = T*;
+            using allocator = CudaAllocator<T>;
 
         public:
             CudaVector()
             {
-                cudaMallocManaged(&mElements, sizeof(T));
+                mElements = allocator::allocate();
             }
 
             CudaVector(const CudaVector<T>& other)
             {
                 mSize = other.mSize;
                 mCapacity = other.mCapacity;
-                cudaMallocManaged(&mElements, sizeof(T) * mCapacity);
+                mElements = allocator::allocate(mCapacity);
                 for(int i = 0; i < mSize; i++)
                 {
-                    new (mElements + i) T(other[i]);
+                    allocator::construct(mElements + i, other[i]);
                 }
             }
 
@@ -51,10 +53,10 @@ namespace WKYLIB
 
                 mSize = other.mSize;
                 mCapacity = other.mCapacity;
-                cudaMallocManaged(&mElements, sizeof(T) * mCapacity);
+                mElements = allocator::allocate(mCapacity);
                 for(int i = 0; i < mSize; i++)
                 {
-                    new (mElements + i) T(other[i]);
+                    allocator::construct(mElements + i, other[i]);
                 }
                 return *this;
             }
@@ -93,8 +95,15 @@ namespace WKYLIB
                 {
                     expandCapacity();
                 }
-                new (mElements + mSize) T(object);
+                allocator::construct(mElements + mSize, object);
                 mSize++;
+            }
+
+            void reserve(size_t size)
+            {
+                destroyAll();
+                mCapacity = size;
+                mElements = allocator::allocate(mCapacity);
             }
 
             void assign(const std::vector<T>& vector)
@@ -102,10 +111,10 @@ namespace WKYLIB
                 destroyAll();
                 mSize = vector.size();
                 mCapacity = vector.capacity();
-                cudaMallocManaged(&mElements, sizeof(T) * mCapacity);
+                mElements = allocator::allocate(mCapacity);
                 for(int i = 0; i < vector.size(); i++)
                 {
-                    mElements[i] = vector[i];
+                    allocator::construct(mElements + i, vector[i]);
                 }
             }
 
@@ -114,22 +123,10 @@ namespace WKYLIB
                 destroyAll();
                 mSize = vector.size();
                 mCapacity = vector.capacity();
-                cudaMallocManaged(&mElements, sizeof(T) * mCapacity);
+                mElements = allocator::allocate(mCapacity);
                 for(int i = 0; i < vector.size(); i++)
                 {
-                    mElements[i] = vector[i];
-                }
-            }
-
-            void assign(const thrust::device_vector<T>& vector)
-            {
-                destroyAll();
-                mSize = vector.size();
-                mCapacity = vector.capacity();
-                cudaMallocManaged(&mElements, sizeof(T) * mCapacity);
-                for(int i = 0; i < vector.size(); i++)
-                {
-                    mElements[i] = vector[i];
+                    allocator::construct(mElements + i, vector[i]);
                 }
             }
 
@@ -156,10 +153,10 @@ namespace WKYLIB
                 cudaMallocManaged(&mElements, sizeof(T) * mCapacity);
                 for(int i = 0; i < mSize; i++)
                 {
-                    new (mElements + i) T(std::move(old[i]));
-                    (old + i)->~T();
+                    allocator::construct(mElements + i, std::move(old[i]));
+                    allocator::destroy(old + i);
                 }
-                cudaFree(old);
+                allocator::deallocate(old);
             }
 
             void destroyAll()
@@ -168,9 +165,10 @@ namespace WKYLIB
                 {
                     for(int i = 0; i < mSize; i++)
                     {
-                        (mElements + i)->~T();
+                        allocator::destroy(mElements + i);
                     }
-                    cudaFree(mElements);
+                    allocator::deallocate(mElements);
+                    mSize = mCapacity = 0;
                 }
             }
 

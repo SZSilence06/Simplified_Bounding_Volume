@@ -20,7 +20,7 @@ namespace SBV
         };
 
     public:
-        EdgeCollapse(TriangulatedShell& triangulation, const Shell& shell, const CudaController& cudaController,
+        EdgeCollapse(TriangulatedShell& triangulation, const Shell& shell, CudaController& cudaController,
                      Type type, bool isHalfEdge, double sampleRadius);
 
         void collapse();
@@ -73,7 +73,7 @@ namespace SBV
     private:
         TriangulatedShell& mTriangulation;
         const Shell& mShell;
-        const CudaController& mCudaController;
+        CudaController& mCudaController;
         Type mType;
         bool mIsHalfEdge = true;
         double mSampleRadius;

@@ -127,9 +127,9 @@ namespace SBV
                                        mTriangulation.getZeroSet().lines);
         }
 
-        /*WKYLIB::DebugTimer timer2("Boundary Collapse(General)");
+        WKYLIB::DebugTimer timer2("Boundary Collapse(General)");
         timer2.start();
-        EdgeCollapse collapserGeneral(mTriangulation, mShell, EdgeCollapse::BOUNDARY, false, mSampleRadius);
+        EdgeCollapse collapserGeneral(mTriangulation, mShell, mCudaController, EdgeCollapse::BOUNDARY, false, mSampleRadius);
         collapserGeneral.collapse();
         timer2.end();
 
@@ -139,7 +139,7 @@ namespace SBV
             WKYLIB::Mesh::writeMesh2D(mOutputDirectory + "/boundary_collapsed_shell(general).obj", mTriangulation.vertices, mTriangulation.triangles);
             WKYLIB::Mesh::writeCurve2D(mOutputDirectory + "/boundary_collapsed_zero_set(general).obj", mTriangulation.getZeroSet().vertices,
                                        mTriangulation.getZeroSet().lines);
-        }*/
+        }
     }
 
     void Simplifier::mutualTessellate()
@@ -171,9 +171,9 @@ namespace SBV
                                        mTriangulation.getZeroSet().lines);
         }
 
-        /*WKYLIB::DebugTimer timer2("Zero Set Collapse(General)");
+        WKYLIB::DebugTimer timer2("Zero Set Collapse(General)");
         timer2.start();
-        EdgeCollapse collapserGeneral(mTriangulation, mShell, EdgeCollapse::ZERO_SET, false, mSampleRadius);
+        EdgeCollapse collapserGeneral(mTriangulation, mShell, mCudaController, EdgeCollapse::ZERO_SET, false, mSampleRadius);
         collapserGeneral.collapse();
         timer2.end();
 
@@ -183,6 +183,6 @@ namespace SBV
             WKYLIB::Mesh::writeMesh2D(mOutputDirectory + "/zero_set_collapsed_shell(general).obj", mTriangulation.vertices, mTriangulation.triangles);
             WKYLIB::Mesh::writeCurve2D(mOutputDirectory + "/zero_set_collapsed_zero_set(general).obj", mTriangulation.getZeroSet().vertices,
                                        mTriangulation.getZeroSet().lines);
-        }*/
+        }
     }
 }

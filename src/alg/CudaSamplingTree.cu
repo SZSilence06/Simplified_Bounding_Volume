@@ -20,7 +20,7 @@ namespace SBV
         {
             Eigen::Vector2d point;
             point[0] = *xmin + *sampleRadius * x;
-            point[1] = *ymin + *sampleRadius * y;
+            point[1] = *ymin + *sampleRadius * y;        
 
             if(kernel->contains(point))
             {
@@ -37,6 +37,7 @@ namespace SBV
         : mKernel(kernel),
           mSampleRadius(sampleRadius)
     {
+        mSamples.assign(CudaVector<Eigen::Vector2d>());
         sample(xmin, xmax, ymin, ymax);
     }
 
@@ -51,8 +52,10 @@ namespace SBV
         CudaPointer<double> gpu_ymin(ymin);
         CudaPointer<double> gpu_sampleRadius(mSampleRadius);
 
+        mSamples->reserve(xCount * yCount);
+
         dim3 grid(256, 256);
-        computeSample <<<grid, grid>>> (mKernel, gpu_xmin, gpu_ymin, gpu_xCount,
+        computeSample <<<1, 1>>> (mKernel, gpu_xmin, gpu_ymin, gpu_xCount,
                                      gpu_yCount, gpu_sampleRadius, mSamples);
 
         cudaDeviceSynchronize();

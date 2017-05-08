@@ -5,6 +5,12 @@
 
 #pragma NVCC diagnostic ignored "-Wall"
 
+#define EIGEN_DEFAULT_DENSE_INDEX_TYPE int
+#if (defined __GNUC__) && (__GNUC__>4 || __GNUC_MINOR__>=7)
+  #undef _GLIBCXX_ATOMIC_BUILTINS
+  #undef _GLIBCXX_USE_INT128
+#endif
+
 namespace SBV
 {
     using matrixr_t = zjucad::matrix::matrix<double>;

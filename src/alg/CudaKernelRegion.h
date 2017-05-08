@@ -5,6 +5,7 @@
 #include <wkylib/Cuda/CudaPointer.h>
 #include <wkylib/Cuda/CudaVector.h>
 #include "eigen3.3/Eigen/Dense"
+#include "CudaEigen.h"
 #include "InvalidRegionType.h"
 #include "CudaShell.h"
 #include "CudaTriangulatedShell.h"
@@ -28,9 +29,6 @@ namespace SBV {
 
 
     private:
-        void castMatToCuda(const matrixr_t& matrix, CudaPointer<Eigen::MatrixXd>& cudaMat);
-        void castMatToCuda_size_t(const matrixs_t& matrix, CudaPointer<Eigen::MatrixXi>& cudaMat);
-
         __device__ bool isInvalidRegion(const Eigen::Vector2d& point) const;
         __device__ bool barycentric(const Eigen::Vector3d& a, const Eigen::Vector3d& b, const Eigen::Vector3d& c,
                                        const Eigen::Vector3d& p, Eigen::Vector3d& bary) const;
@@ -41,12 +39,12 @@ namespace SBV {
         //these data are on gpu
         CudaPointer<Eigen::MatrixXi> mLines;
         CudaPointer<CudaShell> mShell;
-        CudaPointer<CudaVector<size_t>> mInnerSamples;
-        CudaPointer<CudaVector<size_t>> mOuterSamples;
         CudaPointer<CudaTriangulatedShell> mTriangulation;
-        CudaPointer<PointType> mPointType;
-        CudaPointer<InvalidRegionType> mInvalidRegionType;
-        CudaPointer<bool> mClockwise;
+        CudaVector<size_t> mInnerSamples;
+        CudaVector<size_t> mOuterSamples;
+        PointType mPointType;
+        InvalidRegionType mInvalidRegionType;
+        bool mClockwise;
 
         CudaPointer<Eigen::MatrixXd> A;
     };

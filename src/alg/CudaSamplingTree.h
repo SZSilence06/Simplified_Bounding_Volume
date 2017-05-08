@@ -1,6 +1,7 @@
 #ifndef WKY_CUDA_SAMPLING_TREE_H
 #define WKY_CUDA_SAMPLING_TREE_H
 
+#include "Common.h"
 #include <wkylib/Cuda/CudaPointer.h>
 #include <wkylib/Cuda/CudaVector.h>
 #include "eigen3.3/Eigen/Dense"

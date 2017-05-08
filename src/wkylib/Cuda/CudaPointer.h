@@ -1,6 +1,8 @@
 #ifndef WKY_CUDA_POINTER_H
 #define WKY_CUDA_POINTER_H
 
+#include "CudaAllocator.h"
+
 namespace WKYLIB
 {
     namespace Cuda
@@ -12,10 +14,12 @@ namespace WKYLIB
         class RefCount
         {
         private:
+            using Allocator = CudaAllocator<T>;
+
             RefCount(const T& object)
             {
-                cudaMallocManaged(&this->object, sizeof(T));
-                new(this->object) T(object);
+                this->object = Allocator::allocate();
+                Allocator::construct(this->object, object);
                 this->ref = 1;
             }
 
@@ -31,8 +35,8 @@ namespace WKYLIB
 
             __host__ __device__ void destroy()
             {
-                this->object->~T();
-                cudaFree(this->object);
+                Allocator::destroy(object);
+                Allocator::deallocate(this->object);
                 this->object = nullptr;
             }
 
@@ -159,17 +163,6 @@ namespace WKYLIB
             __host__ __device__ const T* get() const
             {
                 return this->pointer;
-            }
-
-        private:
-            void destroy()
-            {
-                if(this->pointer)
-                {
-                    this->pointer->~T();
-                    cudaFree(this->pointer);
-                    delete refCount;
-                }
             }
 
         private:

@@ -37,20 +37,40 @@ namespace SBV
     }
 
     //////////////////////////////////////////////////////////////////////////////////
+    CudaControllerImpl::CudaControllerImpl()
+    {
+        cudaGetDeviceCount(&mDeviceCount);
+        for(int i = 0; i < mDeviceCount; i++)
+        {
+            cudaGetDeviceProperties(&mDeviceProperty, i);
+        }
+    }
+
     void CudaControllerImpl::build(const matrixr_t &innerShell, const matrixr_t &outerShell, const TriangulatedShell &triangulation)
     {
         mShell.assign(CudaShell());
-        zju_mat_to_eigen(innerShell, mShell->innerShell);
-        zju_mat_to_eigen(outerShell, mShell->outerShell);
+
+        Eigen::MatrixXd eigen_innerShell;
+        Eigen::MatrixXd eigen_outerShell;
+        zju_mat_to_eigen(innerShell, eigen_innerShell);
+        zju_mat_to_eigen(outerShell, eigen_outerShell);
+        mShell->innerShell.assign(eigen_innerShell);
+        mShell->outerShell.assign(eigen_outerShell);
+
         castTriangulation(triangulation, mTriangulation);
     }
 
     void CudaControllerImpl::castTriangulation(const TriangulatedShell &triangulation, CudaPointer<CudaTriangulatedShell> &cuda_triangulation)
     {
         cuda_triangulation.assign(CudaTriangulatedShell());
-        zju_mat_to_eigen(triangulation.vertices, cuda_triangulation->vertices);
-        zju_mat_to_eigen(triangulation.triangles, cuda_triangulation->triangles);
-        cuda_triangulation->vertType.assign(triangulation.vertType);
+
+        Eigen::MatrixXd vertices;
+        zju_mat_to_eigen(triangulation.vertices, vertices);
+        cuda_triangulation->vertices.assign(vertices);
+
+        Eigen::MatrixXi triangles;
+        zju_mat_to_eigen(triangulation.triangles, triangles);
+        cuda_triangulation->triangles.assign(triangles);
     }
 
     void CudaControllerImpl::buildKernelRegion(const KernelRegion &kernel)

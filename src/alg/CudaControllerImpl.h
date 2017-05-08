@@ -17,7 +17,7 @@ namespace SBV
     class CudaControllerImpl
     {
     public:
-        CudaControllerImpl() = default;
+        CudaControllerImpl();
         ~CudaControllerImpl() = default;
 
         void build(const matrixr_t& innerShell, const matrixr_t& outerShell, const TriangulatedShell& triangulation);
@@ -34,6 +34,9 @@ namespace SBV
         void castTriangulation(const TriangulatedShell& triangulation, CudaPointer<CudaTriangulatedShell>& cuda_triangulation);
 
     private:
+        int mDeviceCount = 0;
+        cudaDeviceProp mDeviceProperty;
+
         CudaPointer<CudaShell> mShell;
         CudaPointer<CudaTriangulatedShell> mTriangulation;
         CudaPointer<CudaKernelRegion> mKernel;
