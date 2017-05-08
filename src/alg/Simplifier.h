@@ -6,10 +6,14 @@
 #include "Refinement.h"
 #include "Shell.h"
 #include "CudaController.h"
+#include "Logger.h"
+#include <wkylib/debug_util.h>
 
 namespace SBV {
     class Simplifier{
     public:
+        using DebugTimer = WKYLIB::DebugTimer;
+
         Simplifier(Curve& mesh);
 
         void simplify();
@@ -17,6 +21,7 @@ namespace SBV {
         void setOutputDirectory(const std::string& outputDir)
         {
             this->mOutputDirectory = outputDir;
+            Logger::getInstance().setFile(outputDir + "/log.txt");
         }
 
         void setMaxDistance(double maxDist)
@@ -54,6 +59,8 @@ namespace SBV {
         void collapseBoundary();
         void mutualTessellate();
         void collapseZeroSet();
+        void writeSummary();
+        void logTimer(const std::string& prefix, const DebugTimer& timer);
 
     private:
         std::string mOutputDirectory;
@@ -62,6 +69,15 @@ namespace SBV {
         double mSampleRadius = -1;
         double mAlpha = 0.2;
         bool mNeedGenTempResult = false;
+
+        DebugTimer mTimerRefine = DebugTimer("refinement");
+        DebugTimer mTimerBoundaryHalfEdge = DebugTimer("Boundary Collapse(Half Edge)");
+        DebugTimer mTimerBoundaryGeneral = DebugTimer("Boundary Collapse(General)");
+        DebugTimer mTimerZeroSetHalfEdge = DebugTimer("Zero Set Collapse(Half Edge)");
+        DebugTimer mTimerZeroSetGeneral = DebugTimer("Zero Set Collapse(General)");
+        DebugTimer mTimerMutualTessellation = DebugTimer("Mutual Tesselation");
+        DebugTimer mTimerBuildCuda = DebugTimer("Build CudaController");
+        DebugTimer mTimerSimplify = DebugTimer("Simplification");
 
         Shell mShell;
         TriangulatedShell mTriangulation;

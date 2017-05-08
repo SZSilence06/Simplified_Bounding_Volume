@@ -58,6 +58,11 @@ namespace WKYLIB {
             }
             std::cout << name << " finished after " << elapsed_millisecond << " ms." << std::endl;
         }
+
+        unsigned long getTime() const
+        {
+            return elapsed_millisecond;
+        }
     };
 }
 
