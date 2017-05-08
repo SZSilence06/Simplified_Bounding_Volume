@@ -58,7 +58,7 @@ namespace SBV
         mShell->outerShell.assign(eigen_outerShell);
 
         castTriangulation(triangulation, mTriangulation);
-    }
+      }
 
     void CudaControllerImpl::castTriangulation(const TriangulatedShell &triangulation, CudaPointer<CudaTriangulatedShell> &cuda_triangulation)
     {
@@ -71,6 +71,8 @@ namespace SBV
         Eigen::MatrixXi triangles;
         zju_mat_to_eigen(triangulation.triangles, triangles);
         cuda_triangulation->triangles.assign(triangles);
+
+        cuda_triangulation->vertType.assign(triangulation.vertType);
     }
 
     void CudaControllerImpl::buildKernelRegion(const KernelRegion &kernel)
