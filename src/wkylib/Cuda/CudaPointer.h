@@ -23,6 +23,14 @@ namespace WKYLIB
                 this->ref = 1;
             }
 
+            RefCount(T&& object)
+            {
+                this->object = Allocator::allocate();
+                Allocator::construct(this->object, std::forward<T&&>(object));
+                this->ref = 1;
+            }
+
+
             ~RefCount()
             {
                 if(this->object)
@@ -33,25 +41,25 @@ namespace WKYLIB
 
             T* get() { return this->object;}
 
-            __host__ __device__ void destroy()
+            void destroy()
             {
                 Allocator::destroy(object);
                 Allocator::deallocate(this->object);
                 this->object = nullptr;
             }
 
-            __host__ __device__ void addRef()
+            void addRef()
             {
                 this->ref++;
             }
 
-             __host__ __device__ void decRef()
+            void decRef()
             {
                 this->ref--;
                 if(this->ref == 0)
                 {
-                    destroy();
-                }
+                    delete this;
+                }               
             }
 
         private:
@@ -65,7 +73,7 @@ namespace WKYLIB
         class CudaPointer
         {
         public:
-            __host__ __device__ CudaPointer()
+            CudaPointer()
             {
 
             }
@@ -75,7 +83,7 @@ namespace WKYLIB
                 assign(obj);
             }
 
-            __host__ __device__ CudaPointer(const CudaPointer<T>& another)
+            CudaPointer(const CudaPointer<T>& another)
             {
                 this->refCount = another.refCount;
                 this->pointer = another.pointer;
@@ -85,7 +93,7 @@ namespace WKYLIB
                 }
             }
 
-            __host__ __device__ CudaPointer(CudaPointer<T>&& rhs)
+            CudaPointer(CudaPointer<T>&& rhs)
             {
                 this->refCount = rhs.refCount;
                 this->pointer = rhs.pointer;
@@ -95,7 +103,7 @@ namespace WKYLIB
                 }
             }
 
-            __host__ __device__ CudaPointer& operator= (const CudaPointer<T>& another)
+            CudaPointer& operator= (const CudaPointer<T>& another)
             {
                 if(this == &another)
                 {
@@ -117,7 +125,7 @@ namespace WKYLIB
                 return *this;
             }
 
-            __host__ __device__ ~CudaPointer()
+            ~CudaPointer()
             {
                 if(this->refCount)
                 {
@@ -132,6 +140,16 @@ namespace WKYLIB
                     this->refCount->decRef();
                 }
                 this->refCount = new RefCount<T>(obj);
+                this->pointer = refCount->get();
+            }
+
+            void assign(T&& obj)
+            {
+                if(this->refCount)
+                {
+                    this->refCount->decRef();
+                }
+                this->refCount = new RefCount<T>(std::forward<T&&>(obj));
                 this->pointer = refCount->get();
             }
 

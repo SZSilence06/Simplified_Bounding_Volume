@@ -5,16 +5,18 @@ using namespace WKYLIB::Cuda;
 
 namespace SBV
 {
-    __global__ void computeSample(CudaPointer<CudaKernelRegion> kernel,
-                                  CudaPointer<double> xmin,
-                                  CudaPointer<double> ymin,
-                                  CudaPointer<int> xCount,
-                                  CudaPointer<int> yCount,
-                                  CudaPointer<double> sampleRadius,
-                                  CudaPointer<CudaVector<Eigen::Vector2d>> samples)
+    __global__ void computeSample(CudaKernelRegion* kernel,
+                                  double* xmin,
+                                  double* ymin,
+                                  int* xCount,
+                                  int* yCount,
+                                  double* sampleRadius,
+                                  CudaVector<Eigen::Vector2d>* samples)
     {
         int x = threadIdx.x + blockIdx.x * blockDim.x;
         int y = threadIdx.y + blockIdx.y * blockDim.y;
+
+        //kernel->printTest();
 
         while(x < *xCount && y < *yCount)
         {
@@ -24,7 +26,7 @@ namespace SBV
 
             if(kernel->contains(point))
             {
-                samples->push_back(point);
+                samples->push_back_on_device(point);
             }
 
             x += blockDim.x * gridDim.x;
@@ -55,8 +57,8 @@ namespace SBV
         mSamples->reserve(xCount * yCount);
 
         dim3 grid(256, 256);
-        computeSample <<<1, 1>>> (mKernel, gpu_xmin, gpu_ymin, gpu_xCount,
-                                     gpu_yCount, gpu_sampleRadius, mSamples);
+        computeSample <<<1, 1>>> (mKernel.get(), gpu_xmin.get(), gpu_ymin.get(), gpu_xCount.get(),
+                                     gpu_yCount.get(), gpu_sampleRadius.get(), mSamples.get());
 
         cudaDeviceSynchronize();
     }

@@ -114,3 +114,79 @@ TEST_CASE("CudaVector-contained object manipulation with gpu kernel", "[CudaVect
         CHECK(v[i] == 2 * i);
     }
 }
+
+class TestNestObject
+{
+public:
+    CudaPointer<CudaVector<int>> data;
+};
+
+class TestNestObject2
+{
+public:
+    CudaPointer<TestNestObject> obj;
+};
+
+__global__ void kernel_test_nest(CudaPointer<TestNestObject> object)
+{
+    CudaVector<int>& v = *object->data;
+    for(int i = 0; i < v.size(); i++)
+    {
+        v[i] *= 2;
+    }
+}
+
+__global__ void kernel_test_further_nest(CudaPointer<TestNestObject2> object)
+{
+    CudaVector<int>& v = *object->obj->data;
+    for(int i = 0; i < v.size(); i++)
+    {
+        v[i] *= 2;
+    }
+}
+
+TEST_CASE("CudaVector nestification with CudaPointer", "[CudaVector]") {
+    TestNestObject object;
+    object.data.assign(CudaVector<int>());
+    for(int i = 0; i < 10; i++)
+    {
+        object.data->push_back(i);
+    }
+
+    REQUIRE(object.data->size() == 10);
+    for(int i = 0; i < object.data->size(); i++)
+    {
+        CHECK((*object.data)[i] == i);
+    }
+
+    CudaPointer<TestNestObject> gpu_object;
+    gpu_object.assign(object);
+
+    REQUIRE(gpu_object->data->size() == 10);
+    for(int i = 0; i < gpu_object->data->size(); i++)
+    {
+        CudaVector<int>& v = *gpu_object->data;
+        CHECK(v[i] == i);
+    }
+
+    kernel_test_nest <<< 1, 1 >>> (gpu_object);
+    cudaDeviceSynchronize();
+
+    CudaVector<int>& v = *gpu_object->data;
+    for(int i = 0; i < v.size(); i++)
+    {
+        CHECK(v[i] == 2 * i);
+    }
+
+    CudaPointer<TestNestObject2> object2;
+    object2.assign(TestNestObject2());
+    object2->obj.assign(object);
+    kernel_test_further_nest <<< 1, 1 >>> (object2);
+    cudaDeviceSynchronize();
+
+    CudaVector<int>& v2 = *object2->obj->data;
+    for(int i = 0; i < v2.size(); i++)
+    {
+        CHECK(v2[i] == 4 * i);
+    }
+}

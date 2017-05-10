@@ -69,7 +69,7 @@ namespace SBV
         {
             for(int j = 0; j < innerSamples.size(); j++)
             {
-                size_t sample = innerSamples[i];
+                size_t sample = innerSamples[j];
                 Eigen::Vector3d bary;
 
                 if(barycentric_2D(vertices.col(lines(0, i)), vertices.col(lines(1, i)), point,
@@ -88,9 +88,9 @@ namespace SBV
                 }
             }
 
-            for(int i = 0; i < outerSamples.size(); i++)
+            for(int j = 0; j < outerSamples.size(); j++)
             {
-                size_t sample = outerSamples[i];
+                size_t sample = outerSamples[j];
                 Eigen::Vector3d bary;
                 if(barycentric_2D(vertices.col(lines(0, i)), vertices.col(lines(1, i)), point,
                                   mShell->outerShell->col(sample), bary))
@@ -146,5 +146,61 @@ namespace SBV
         p_3d[1] = p[1];
 
         return barycentric(a_3d, b_3d, c_3d, p_3d, bary);
+    }
+
+    __host__ __device__ void CudaKernelRegion::printTest()
+    {
+        printf("file %s line %d\n", __FILE__, __LINE__);
+        printf("PointType : %d \n", mPointType);
+        printf("InvalidRegionType : %d \n", mInvalidRegionType);
+        printf("Clockwise : %d \n", mClockwise);
+        //printVector(mTriangulation->vertType, "vertType");
+        //printVector(mInnerSamples, "mInnerSamples");
+        //printVector(mOuterSamples, "mOuterSamples");
+        printEigenMat(mLines, "lines");
+    }
+
+    __host__ __device__ void CudaKernelRegion::printEigenMat(const CudaPointer<Eigen::MatrixXd>& mat, const char* name)
+    {
+        printf("%s : row %d col %d\n", name, mat->rows(), mat->cols());
+        for(int i = 0; i < mat->rows(); i++)
+        {
+            for(int j = 0; j < mat->cols(); j++)
+            {
+                printf("%f ", (*mat)(i, j));
+            }
+            printf("\n");
+        }
+    }
+
+    __host__ __device__ void CudaKernelRegion::printEigenMat(const CudaPointer<Eigen::MatrixXi>& mat, const char* name)
+    {
+        printf("%s : row %d col %d\n", name, mat->rows(), mat->cols());
+        for(int i = 0; i < mat->rows(); i++)
+        {
+            for(int j = 0; j < mat->cols(); j++)
+            {
+                printf("%d ", (*mat)(i, j));
+            }
+            printf("\n");
+        }
+    }
+
+    __host__ __device__ void CudaKernelRegion::printVector(const CudaVector<size_t>& vec, const char* name)
+    {
+        printf("%s : size %lu\n", name, vec.size());
+        for(int i = 0; i < vec.size(); i++)
+        {
+            printf("%lu\n", vec[i]);
+        }
+    }
+
+    __host__ __device__ void CudaKernelRegion::printVector(const CudaVector<PointType>& vec, const char* name)
+    {
+        printf("%s : size %lu\n", name, vec.size());
+        for(int i = 0; i < vec.size(); i++)
+        {
+            printf("%d\n", vec[i]);
+        }
     }
 }

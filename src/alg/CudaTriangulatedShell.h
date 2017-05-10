@@ -2,6 +2,7 @@
 #define WKY_CUDA_TRIANGULATED_SHELL_H
 
 #include "Common.h"
+#include <wkylib/Cuda/CudaEigen.h>
 #include <wkylib/Cuda/CudaPointer.h>
 #include <wkylib/Cuda/CudaVector.h>
 #include "eigen3.3/Eigen/Dense"

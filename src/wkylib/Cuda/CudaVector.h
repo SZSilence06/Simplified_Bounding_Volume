@@ -21,7 +21,6 @@ namespace WKYLIB
         public:
             CudaVector()
             {
-                mElements = allocator::allocate();
             }
 
             CudaVector(const CudaVector<T>& other)
@@ -89,12 +88,19 @@ namespace WKYLIB
                 return mElements + mSize + 1;
             }
 
-            __host__ __device__ void push_back(const T& object)
+            void push_back(const T& object)
             {
                 if(mSize >= mCapacity)
                 {
                     expandCapacity();
                 }
+                allocator::construct(mElements + mSize, object);
+                mSize++;
+            }
+
+            __device__ void push_back_on_device(const T& object)
+            {
+                assert(mSize < mCapacity);
                 allocator::construct(mElements + mSize, object);
                 mSize++;
             }
@@ -149,7 +155,14 @@ namespace WKYLIB
             void expandCapacity()
             {
                 T* old = mElements;
-                mCapacity *= 2;
+                if(mCapacity == 0)
+                {
+                    mCapacity = 1;
+                }
+                else
+                {
+                    mCapacity *= 2;
+                }
                 cudaMallocManaged(&mElements, sizeof(T) * mCapacity);
                 for(int i = 0; i < mSize; i++)
                 {
@@ -168,6 +181,7 @@ namespace WKYLIB
                         allocator::destroy(mElements + i);
                     }
                     allocator::deallocate(mElements);
+                    mElements = nullptr;
                     mSize = mCapacity = 0;
                 }
             }
@@ -175,7 +189,7 @@ namespace WKYLIB
         private:
             T* mElements = nullptr;
             size_t mSize = 0;
-            size_t mCapacity = 1;
+            size_t mCapacity = 0;
         };
     }
 }

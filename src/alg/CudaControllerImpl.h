@@ -31,6 +31,9 @@ namespace SBV
         template<class T>
         using CudaPointer = WKYLIB::Cuda::CudaPointer<T>;
 
+        template<class T>
+        using CudaVector = WKYLIB::Cuda::CudaVector<T>;
+
         void castTriangulation(const TriangulatedShell& triangulation, CudaPointer<CudaTriangulatedShell>& cuda_triangulation);
 
     private:

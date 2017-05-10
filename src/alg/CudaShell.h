@@ -4,6 +4,7 @@
 #include "Common.h"
 #include "eigen3/Eigen/Dense"
 #include <wkylib/Cuda/CudaPointer.h>
+#include <wkylib/Cuda/CudaEigen.h>
 
 namespace SBV
 {

@@ -52,6 +52,24 @@ TEST_CASE( "CudaPointer manipulation with gpu kernel", "[CudaPointer]" ) {
     REQUIRE(*p2->data == 2);
 }
 
+__global__ void kernel_test_nestification(CudaPointer<CudaPointer<int>> p)
+{
+    **p = 2;
+}
+
+TEST_CASE( "CudaPointer multiple nestification", "[CudaPointer]" ) {
+    CudaPointer<int> gpu_int;
+    gpu_int.assign(1);
+    CudaPointer<CudaPointer<int>> gpu_gpu_int;
+    gpu_gpu_int.assign(gpu_int);
+    REQUIRE(**gpu_gpu_int == 1);
+
+    kernel_test_nestification <<<1, 1>>> (gpu_gpu_int);
+    cudaDeviceSynchronize();
+
+    REQUIRE(**gpu_gpu_int == 2);
+}
+
 
 
 

@@ -22,12 +22,13 @@ namespace WKYLIB
             static T* allocate(int count)
             {
                 T* result = nullptr;
-                cudaMallocManaged(&result, sizeof(T) * count);
+                if(count)
+                    cudaMallocManaged(&result, sizeof(T) * count);
                 return result;
             }
 
             template<class... Args >
-            static void construct(T* object, Args&& ... args)
+            __host__ __device__ static void construct(T* object, Args&& ... args)
             {
                 new (object) T(std::forward<Args>(args)...);
             }
@@ -39,7 +40,8 @@ namespace WKYLIB
 
             static void deallocate(T* memory)
             {
-                cudaFree(memory);
+                if(memory)
+                    cudaFree(memory);
             }
         };
     }
