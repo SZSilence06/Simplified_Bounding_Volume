@@ -28,7 +28,10 @@ namespace SBV {
         __device__ bool contains(const Eigen::Vector2d& point) const;
 
         __host__ __device__ void printTest();
-
+        
+        inline __host__ __device__ const CudaVector<size_t>& getInnerSamples() const { return this->mInnerSamples; }
+        inline __host__ __device__ const CudaVector<size_t>& getOuterSamples() const { return this->mOuterSamples; }
+        inline __host__ __device__ const CudaPointer<CudaShell>& getShell() const { return this->mShell; }
 
     private:
         __device__ bool isInvalidRegion(const Eigen::Vector2d& point) const;
@@ -44,7 +47,7 @@ namespace SBV {
 
     private:
         //these data are on gpu
-        CudaPointer<Eigen::MatrixXi> mLines;
+        CudaVector<Eigen::Vector2i> mLines;
         CudaPointer<CudaShell> mShell;
         CudaPointer<CudaTriangulatedShell> mTriangulation;
         CudaVector<size_t> mInnerSamples;

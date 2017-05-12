@@ -15,7 +15,6 @@ namespace SBV
         inline const std::vector<matrixr_t>& getSamples() const { return mSamples; }
 
     private:
-        void build();
         void sample(double xmin, double xmax, double ymin, double ymax);
         bool isOutsideKernelRegion(double xmin, double xmax, double ymin, double ymax);
 

@@ -15,7 +15,7 @@ endif()
 find_package(CUDA REQUIRED)
 if(CUDA_FOUND)
     include_directories(${CUDA_INCLUDE_DIRS})
-    list(APPEND CUDA_NVCC_FLAGS -std=c++11 --expt-relaxed-constexpr -Xcudafe \"--diag_suppress=extra_semicolon\" )
+    list(APPEND CUDA_NVCC_FLAGS -arch=sm_35 -std=c++11 --expt-relaxed-constexpr -Xcudafe \"--diag_suppress=extra_semicolon\" )
     set(CUDA_SEPARABLE_COMPILATION ON)
 endif()
 

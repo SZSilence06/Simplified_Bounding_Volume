@@ -19,8 +19,8 @@ namespace SBV
         using CudaPointer = WKYLIB::Cuda::CudaPointer<T>;
 
     public:
-        CudaPointer<Eigen::MatrixXd> vertices;
-        CudaPointer<Eigen::MatrixXi> triangles;
+        CudaVector<Eigen::Vector2d> vertices;
+        CudaVector<Eigen::Vector3i> triangles;
         CudaVector<PointType> vertType;
 
     public:

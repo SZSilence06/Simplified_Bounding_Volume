@@ -1,6 +1,22 @@
 #ifndef WKY_CUDA_ALLOCATOR_H
 #define WKY_CUDA_ALLOCATOR_H
 
+#ifndef __global__
+#define __global__
+#endif
+
+#ifndef __host__
+#define __host__
+#endif
+
+#ifndef __device__
+#define __device__
+#endif
+
+#ifndef __shared__
+#define __shared__
+#endif
+
 namespace WKYLIB
 {
     namespace Cuda

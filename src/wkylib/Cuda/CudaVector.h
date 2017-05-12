@@ -19,7 +19,7 @@ namespace WKYLIB
             using allocator = CudaAllocator<T>;
 
         public:
-            CudaVector()
+            __host__ __device__ CudaVector()
             {
             }
 
@@ -190,6 +190,47 @@ namespace WKYLIB
             T* mElements = nullptr;
             size_t mSize = 0;
             size_t mCapacity = 0;
+        };
+
+        //template specialization
+        template<class T>
+        class CudaAllocator<CudaVector<T>>
+        {
+        public:
+            CudaAllocator() = default;
+            ~CudaAllocator() = default;
+
+            static CudaVector<T>* allocate()
+            {
+                CudaVector<T>* result = nullptr;
+                cudaMallocManaged(&result, sizeof(CudaVector<T>));
+                return result;
+            }
+
+            static CudaVector<T>* allocate(int count)
+            {
+                CudaVector<T>* result = nullptr;
+                if(count)
+                    cudaMallocManaged(&result, sizeof(CudaVector<T>) * count);
+                return result;
+            }
+
+            template<class... Args >
+            static void construct(CudaVector<T>* object, Args&& ... args)
+            {
+                new (object) CudaVector<T>(std::forward<Args>(args)...);
+            }
+
+            static void destroy(CudaVector<T>* object)
+            {
+                object->~CudaVector();
+            }
+
+            static void deallocate(CudaVector<T>* memory)
+            {
+                if(memory)
+                    cudaFree(memory);
+            }
         };
     }
 }

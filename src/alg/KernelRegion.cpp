@@ -448,6 +448,9 @@ namespace SBV
                     double f1 = mTriangulation.getFValue(mLines(1, i));
                     double f2 = mTriangulation.getFValue(mPointType);
 
+                    if(mInvalidRegionType == INVALID_REGION_ZERO_SET && f0 * f1 < 0)
+                        throw std::logic_error("!!!");
+
                     double f = f0 * bary[0] + f1 * bary[1] + f2 * bary[2];
                     if(f > 0)
                     {
@@ -465,6 +468,9 @@ namespace SBV
                     double f0 = mTriangulation.getFValue(mLines(0, i));
                     double f1 = mTriangulation.getFValue(mLines(1, i));
                     double f2 = mTriangulation.getFValue(mPointType);
+
+                    if(mInvalidRegionType == INVALID_REGION_ZERO_SET && f0 * f1 < 0)
+                        throw std::logic_error("!!!");
 
                     double f = f0 * bary[0] + f1 * bary[1] + f2 * bary[2];
                     if(f < 0)

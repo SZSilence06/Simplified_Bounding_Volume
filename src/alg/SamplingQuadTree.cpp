@@ -1,6 +1,7 @@
 
 #include "SamplingQuadTree.h"
 #include "KernelRegion.h"
+#include "eigen3.3/Eigen/Dense"
 #include <iostream>
 
 namespace SBV
@@ -15,7 +16,26 @@ namespace SBV
 
     void SamplingQuadTree::sample(double xmin, double xmax, double ymin, double ymax)
     {
-        if(isOutsideKernelRegion(xmin, xmax, ymin, ymax))
+        int x = 0;
+        int y = 0;
+        int xCount = (xmax - xmin) / mSampleRadius;
+        int yCount = (ymax - ymin) / mSampleRadius;
+
+        while(x < xCount && y < yCount)
+        {
+            matrixr_t point(2, 1);
+            point[0] = xmin + mSampleRadius * x;
+            point[1] = ymin + mSampleRadius * y;
+
+            if(mKernel.contains(point))
+            {
+                mSamples.push_back(point);
+            }
+
+            x++;
+            y++;
+        }
+        /*if(isOutsideKernelRegion(xmin, xmax, ymin, ymax))
         {
             //return;
         }
@@ -37,7 +57,7 @@ namespace SBV
         sample(xmin, xmid, ymin, ymid);
         sample(xmin, xmid, ymid, ymax);
         sample(xmid, xmax, ymin, ymid);
-        sample(xmid, xmax, ymid, ymax);
+        sample(xmid, xmax, ymid, ymax);*/
     }
 
     bool SamplingQuadTree::isOutsideKernelRegion(double xmin, double xmax, double ymin, double ymax)

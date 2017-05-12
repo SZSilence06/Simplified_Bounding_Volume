@@ -3,7 +3,7 @@
 #include <zjucad/matrix/colon.h>
 #include <vector>
 #include <limits>
-#include <eigen3/Eigen/Dense>
+#include "External/eigen3.3/Eigen/Dense"
 #include <iostream>
 
 namespace WKYLIB {
@@ -502,6 +502,20 @@ namespace WKYLIB {
 
     //print a matrix
     void print_matrix(const matrixr_t& a, const std::string& name)
+    {
+        std::cout << name << " : " << a.size(1) << "*" << a.size(2) << std::endl;
+        for(int i = 0; i < a.size(1); i++)
+        {
+            for(int j = 0; j < a.size(2); j++)
+            {
+                std::cout << a(i, j) << " ";
+            }
+            std::cout << std::endl;
+        }
+    }
+
+    //print a matrix
+    void print_matrix(const matrixs_t& a, const std::string& name)
     {
         std::cout << name << " : " << a.size(1) << "*" << a.size(2) << std::endl;
         for(int i = 0; i < a.size(1); i++)

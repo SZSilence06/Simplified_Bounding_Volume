@@ -85,6 +85,7 @@ namespace SBV
         std::vector<std::vector<std::shared_ptr<EdgeInfo> > > mRelatedEdgeInfo;    //recording the edge infos related to the vertices
 
         std::mutex mtx;
+        std::mutex mtx_collapse;
 
     };
 }

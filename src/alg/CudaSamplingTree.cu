@@ -34,6 +34,35 @@ namespace SBV
         }
     }
 
+    /*void computeSample_cpu(CudaKernelRegion* kernel,
+                                  double* xmin,
+                                  double* ymin,
+                                  int* xCount,
+                                  int* yCount,
+                                  double* sampleRadius,
+                                  CudaVector<Eigen::Vector2d>* samples)
+    {
+        int x = 0;
+        int y = 0;
+
+        //kernel->printTest();
+
+        while(x < *xCount && y < *yCount)
+        {
+            Eigen::Vector2d point;
+            point[0] = *xmin + *sampleRadius * x;
+            point[1] = *ymin + *sampleRadius * y;
+
+            if(kernel->contains(point))
+            {
+                samples->push_back(point);
+            }
+
+            x++;
+            y++;
+        }
+    }*/
+
     CudaSamplingTree::CudaSamplingTree(CudaPointer<CudaKernelRegion> kernel, double xmax, double xmin, double ymax, double ymin,
                                        double sampleRadius)
         : mKernel(kernel),
@@ -56,9 +85,11 @@ namespace SBV
 
         mSamples->reserve(xCount * yCount);
 
-        dim3 grid(256, 256);
         computeSample <<<1, 1>>> (mKernel.get(), gpu_xmin.get(), gpu_ymin.get(), gpu_xCount.get(),
                                      gpu_yCount.get(), gpu_sampleRadius.get(), mSamples.get());
+
+        //computeSample_cpu(mKernel.get(), gpu_xmin.get(), gpu_ymin.get(), gpu_xCount.get(),
+        //                  gpu_yCount.get(), gpu_sampleRadius.get(), mSamples.get());
 
         cudaDeviceSynchronize();
     }

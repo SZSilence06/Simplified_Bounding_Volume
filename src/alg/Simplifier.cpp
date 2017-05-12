@@ -24,10 +24,6 @@ namespace SBV
         std::cout << "Start refinement..." << std::endl;
         refine();
 
-        mTimerBuildCuda.start();
-        mCudaController.build(mShell.mInnerShell, mShell.mOuterShell, mTriangulation);
-        mTimerBuildCuda.end();
-
         std::cout << "Start Boundary collapse..." << std::endl;
         collapseBoundary();
 
@@ -134,6 +130,10 @@ namespace SBV
                                        mTriangulation.getZeroSet().lines);
         }
 
+        mTimerBuildCuda.start();
+        mCudaController.build(mShell.mInnerShell, mShell.mOuterShell, mTriangulation);
+        mTimerBuildCuda.suspend();
+
         mTimerBoundaryGeneral.start();
         EdgeCollapse collapserGeneral(mTriangulation, mShell, mCudaController, EdgeCollapse::BOUNDARY, false, mSampleRadius);
         collapserGeneral.collapse();
@@ -174,6 +174,10 @@ namespace SBV
             WKYLIB::Mesh::writeCurve2D(mOutputDirectory + "/zero_set_collapsed_zero_set.obj", mTriangulation.getZeroSet().vertices,
                                        mTriangulation.getZeroSet().lines);
         }
+
+        mTimerBuildCuda.resume();
+        mCudaController.build(mShell.mInnerShell, mShell.mOuterShell, mTriangulation);
+        mTimerBuildCuda.end();
 
         mTimerZeroSetGeneral.start();
         EdgeCollapse collapserGeneral(mTriangulation, mShell, mCudaController, EdgeCollapse::ZERO_SET, false, mSampleRadius);

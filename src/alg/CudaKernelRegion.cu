@@ -16,9 +16,14 @@ namespace SBV
         zju_mat_to_eigen(cpu_kernel.A, A);
         this->A.assign(A);
 
-        Eigen::MatrixXi lines;
-        zju_mat_to_eigen(cpu_kernel.mLines, lines);
-        mLines.assign(lines);
+        mLines.reserve(cpu_kernel.mLines.size(2));
+        for(int i = 0; i < cpu_kernel.mLines.size(2); i++)
+        {
+            Eigen::Vector2i line;
+            line[0] = cpu_kernel.mLines(0, i);
+            line[1] = cpu_kernel.mLines(1, i);
+            mLines.push_back(line);
+        }
 
         this->mPointType = cpu_kernel.mPointType;
         this->mInvalidRegionType = cpu_kernel.mInvalidRegionType;
@@ -42,7 +47,7 @@ namespace SBV
         homo[1] = point[1];
         homo[2] = 1;
 
-        const Eigen::MatrixXd& A = *this->A;
+        const Eigen::Map<Eigen::MatrixXd>& A = *this->A;
         Eigen::VectorXd result = A * homo;
         for(int i = 0; i < result.rows(); i++)
         {
@@ -60,24 +65,24 @@ namespace SBV
 
     __device__ bool CudaKernelRegion::isInvalidRegion(const Eigen::Vector2d& point) const
     {
-        auto& lines = *mLines;
-        auto& vertices = *mTriangulation->vertices;
+        auto& lines = mLines;
+        auto& vertices = mTriangulation->vertices;
         auto& innerSamples = mInnerSamples;
         auto& outerSamples = mOuterSamples;
 
-        for(int i = 0; i < lines.cols(); i++)
+        for(int i = 0; i < lines.size(); i++)
         {
             for(int j = 0; j < innerSamples.size(); j++)
             {
                 size_t sample = innerSamples[j];
                 Eigen::Vector3d bary;
 
-                if(barycentric_2D(vertices.col(lines(0, i)), vertices.col(lines(1, i)), point,
+                if(barycentric_2D(vertices[lines[i][0]], vertices[lines[i][1]], point,
                                   mShell->innerShell->col(sample), bary))
                 {
                     //the point is inside the tetrahedron
-                    double f0 = mTriangulation->getFValue(lines(0, i));
-                    double f1 = mTriangulation->getFValue(lines(1, i));
+                    double f0 = mTriangulation->getFValue(lines[i][0]);
+                    double f1 = mTriangulation->getFValue(lines[i][1]);
                     double f2 = mTriangulation->getFValue(mPointType);
 
                     double f = f0 * bary[0] + f1 * bary[1] + f2 * bary[2];
@@ -92,12 +97,12 @@ namespace SBV
             {
                 size_t sample = outerSamples[j];
                 Eigen::Vector3d bary;
-                if(barycentric_2D(vertices.col(lines(0, i)), vertices.col(lines(1, i)), point,
+                if(barycentric_2D(vertices[lines[i][0]], vertices[lines[i][1]], point,
                                   mShell->outerShell->col(sample), bary))
                 {
                     //the point is inside the tetrahedron
-                    double f0 = mTriangulation->getFValue(lines(0, i));
-                    double f1 = mTriangulation->getFValue(lines(1, i));
+                    double f0 = mTriangulation->getFValue(lines[i][0]);
+                    double f1 = mTriangulation->getFValue(lines[i][1]);
                     double f2 = mTriangulation->getFValue(mPointType);
 
                     double f = f0 * bary[0] + f1 * bary[1] + f2 * bary[2];
@@ -154,10 +159,16 @@ namespace SBV
         printf("PointType : %d \n", mPointType);
         printf("InvalidRegionType : %d \n", mInvalidRegionType);
         printf("Clockwise : %d \n", mClockwise);
+
+        printf("lines : size %d\n", mLines.size());
+        for(int i = 0; i < mLines.size(); i++)
+        {
+            printf("%d %d\n", mLines[i][0], mLines[i][1]);
+        }
         //printVector(mTriangulation->vertType, "vertType");
         //printVector(mInnerSamples, "mInnerSamples");
         //printVector(mOuterSamples, "mOuterSamples");
-        printEigenMat(mLines, "lines");
+        //printEigenMat(A, "A");
     }
 
     __host__ __device__ void CudaKernelRegion::printEigenMat(const CudaPointer<Eigen::MatrixXd>& mat, const char* name)

@@ -27,6 +27,11 @@ namespace SBV
 
         void buildKernelRegion(const KernelRegion& kernel);
 
+        bool findCollapsePos_Boundary(bool isInner, const Eigen::Matrix3d& Q1, const Eigen::Matrix3d& Q2,
+                                      matrixr_t& position, double& out_error);
+        bool findCollapsePos_ZeroSet(const Eigen::Matrix3d& Q1, const Eigen::Matrix3d& Q2,
+                                     matrixr_t& position, double& out_error);
+
     private:
         template<class T>
         using CudaPointer = WKYLIB::Cuda::CudaPointer<T>;

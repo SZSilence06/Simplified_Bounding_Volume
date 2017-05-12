@@ -6,6 +6,9 @@
 #include <iostream>
 #include <omp.h>
 
+#define USE_OPENMP
+#define USE_CUDA
+
 using namespace zjucad::matrix;
 
 namespace SBV
@@ -68,7 +71,9 @@ namespace SBV
         buildMatrices();
 
         //build edge infos
+#ifdef USE_OPENMP
 #pragma omp parallel for schedule(dynamic, 1)
+#endif
         for(int i = 0; i < mTriangulation.vertices.size(2); i++)
         {
             if(mTriangulation.vertType[i] == POINT_BOUNDING_BOX)
@@ -107,8 +112,10 @@ namespace SBV
                 bool found = findCollapsePos(vert, neighbourVert, edgeInfo->position, edgeInfo->error);
                 if(found)
                 {
+                    mtx.lock();
                     mQueue.push(edgeInfo);
                     mRelatedEdgeInfo[vert].push_back(edgeInfo);
+                    mtx.unlock();
                 }
             }
         }
@@ -661,7 +668,6 @@ namespace SBV
         matrixs_t lines;
         std::set<size_t> innerSample;
         std::set<size_t> outerSample;
-        bool found = false;
         buildOneRingArea(vert, vertCollapseTo, lines, innerSample, outerSample);
 
         KernelRegion kernel(mTriangulation.vertices, lines, mShell, innerSample, outerSample,
@@ -669,10 +675,16 @@ namespace SBV
                             mType == BOUNDARY ? INVALID_REGION_BOUNDARY : INVALID_REGION_ZERO_SET);
         out_error = std::numeric_limits<double>::max();
 
+        this->mtx_collapse.lock();
+        mCudaController.buildKernelRegion(kernel);
+
         if(mType == BOUNDARY)
         {
             if(mTriangulation.vertType[vert] == POINT_INNER)
             {
+#ifdef USE_CUDA
+                mCudaController.findCollapsePos_Boundary(true, mQ[vert], mQ[vertCollapseTo], position, out_error);
+#else
                 for(size_t sample : innerSample)
                 {
                     const matrixr_t samplePoint = mShell.mInnerShell(colon(), sample);
@@ -681,15 +693,18 @@ namespace SBV
                         double error = computeError(vert, samplePoint) + computeError(vertCollapseTo, samplePoint);
                         if(error < out_error)
                         {
-                            found = true;
                             out_error = error;
                             position = samplePoint;
                         }
                     }
                 }
+#endif
             }
             else if(mTriangulation.vertType[vert] == POINT_OUTER)
             {
+#ifdef USE_CUDA
+                mCudaController.findCollapsePos_Boundary(false, mQ[vert], mQ[vertCollapseTo], position, out_error);
+#else
                 for(size_t sample : outerSample)
                 {
                     const matrixr_t samplePoint = mShell.mOuterShell(colon(), sample);
@@ -698,12 +713,12 @@ namespace SBV
                         double error = computeError(vert, samplePoint) + computeError(vertCollapseTo, samplePoint);
                         if(error < out_error)
                         {
-                            found = true;
                             out_error = error;
                             position = samplePoint;
                         }
                     }
                 }
+#endif
             }
             else
             {
@@ -712,14 +727,14 @@ namespace SBV
         }
         else if(mType == ZERO_SET)
         {
-            this->mtx.lock();
+            //this->mtx.lock();
             mCudaController.buildKernelRegion(kernel);
 
             //find AABB of the one ring area
             double xmin = std::numeric_limits<double>::max();
-            double xmax = std::numeric_limits<double>::min();
+            double xmax = -std::numeric_limits<double>::max();
             double ymin = std::numeric_limits<double>::max();
-            double ymax = std::numeric_limits<double>::min();
+            double ymax = -std::numeric_limits<double>::max();
 
             for(int i = 0; i < lines.size(2); i++)
             {
@@ -735,12 +750,16 @@ namespace SBV
                 ymin = b[1] < ymin ? b[1] : ymin;
             }
 
-            //SamplingQuadTree tree(kernel, xmax, xmin, ymax, ymin, mSampleRadius);
-            //auto& samples = tree.getSamples();
+
+#ifdef USE_CUDA
             std::vector<matrixr_t> samples;
             mCudaController.sample(xmin, xmax, ymin, ymax, mSampleRadius, samples);
-
-            this->mtx.unlock();
+#else
+            //std::vector<matrixr_t> samples;
+            //mCudaController.sample(xmin, xmax, ymin, ymax, mSampleRadius, samples);
+            SamplingQuadTree tree(kernel, xmax, xmin, ymax, ymin, mSampleRadius);
+            auto& samples = tree.getSamples();
+#endif
 
             for(int i = 0; i < samples.size(); i++)
             {
@@ -748,12 +767,13 @@ namespace SBV
                 double error = computeError(vert, point) + computeError(vertCollapseTo, point);
                 if(error < out_error)
                 {
-                    found = true;
                     out_error = error;
                     position = point;
                 }
             }
         }
-        return found;
+        this->mtx_collapse.unlock();
+
+        return out_error != std::numeric_limits<double>::max();
     }
 }
