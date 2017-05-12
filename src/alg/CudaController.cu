@@ -13,7 +13,7 @@ using namespace WKYLIB::Cuda;
 
 namespace SBV
 {
-    static const int THREADS_PER_BLOCK = 32;
+    static const int THREADS_PER_BLOCK = 256;
 
     __device__ double computeError(const Eigen::Matrix3d& Q, const Eigen::Vector2d& point)
     {
@@ -35,7 +35,8 @@ namespace SBV
             double* out_error)
     {
         __shared__ double cache_error[THREADS_PER_BLOCK];
-        __shared__ Eigen::Vector2d cache_pos[THREADS_PER_BLOCK];
+        __shared__ double cache_pos_x[THREADS_PER_BLOCK];
+        __shared__ double cache_pos_y[THREADS_PER_BLOCK];
 
         const CudaVector<size_t>* samples_id_ptr = nullptr;
         const Eigen::Map<Eigen::MatrixXd>* samples_ptr = nullptr;
@@ -51,59 +52,50 @@ namespace SBV
         }
         const CudaVector<size_t>& samples = *samples_id_ptr;
 
-        double min_error = std::numeric_limits<double>::max();
-        Eigen::Vector2d min_error_pos;
         int tid = threadIdx.x;
-        const int cacheIndex = threadIdx.x;
+        cache_error[threadIdx.x] = std::numeric_limits<double>::max();
         while(tid < samples.size())
         {
-            //printf("cacheIndex %d tid %d \n", cacheIndex, tid);
-            //printf("shell size %d sample id %d\n", samples_ptr->cols(), samples[tid]);
-            cache_error[cacheIndex] = std::numeric_limits<double>::max();
             int sampleId = samples[tid];
-            //printf("tid %d sample id %d\n", tid, sampleId);
             const Eigen::Vector2d& candidate = samples_ptr->col(sampleId);
             if(kernel->contains(candidate))
             {
-                cache_error[cacheIndex] = computeError(*Q1, candidate) + computeError(*Q2, candidate);
-                cache_pos[cacheIndex] = candidate;
-            }
-            __syncthreads();
-
-            //reduction
-            int i = blockDim.x / 2;
-            while(i)
-            {
-                if(cacheIndex < i)
-                {
-                    if(cache_error[cacheIndex + i] < cache_error[cacheIndex])
-                    {
-                         cache_error[cacheIndex] = cache_error[cacheIndex + i];
-                         cache_pos[cacheIndex] = cache_pos[cacheIndex + i];
-                    }
-                }
-                __syncthreads();
-                i /= 2;
-            }
-
-            if(cacheIndex == 0)
-            {
-                if(cache_error[cacheIndex] < min_error)
-                {
-                    min_error = cache_error[cacheIndex];
-                    min_error_pos = cache_pos[cacheIndex];
-                }
+                double error = computeError(*Q1, candidate) + computeError(*Q2, candidate);;
+                if(error < cache_error[threadIdx.x])
+                cache_error[threadIdx.x] = error;
+                cache_pos_x[threadIdx.x] = candidate[0];
+                cache_pos_y[threadIdx.x] = candidate[1];
             }
 
             tid += blockDim.x;
+        }      
+        __syncthreads();
 
+        //reduction
+        int i = blockDim.x / 2;
+        while(i)
+        {
+            if(threadIdx.x < i)
+            {
+                if(cache_error[threadIdx.x + i] < cache_error[threadIdx.x])
+                {
+                     cache_error[threadIdx.x] = cache_error[threadIdx.x + i];
+                     cache_pos_x[threadIdx.x] = cache_pos_x[threadIdx.x + i];
+                     cache_pos_y[threadIdx.x] = cache_pos_y[threadIdx.x + i];
+                }
+            }
             __syncthreads();
+            i /= 2;
         }
 
-        if(cacheIndex == 0)
+        if(threadIdx.x == 0)
         {
-            *out_error = min_error;
-            *out_pos = min_error_pos;
+            if(cache_error[threadIdx.x] < std::numeric_limits<double>::max())
+            {
+                *out_error = cache_error[threadIdx.x];
+                (*out_pos)[0] = cache_pos_x[threadIdx.x];
+                (*out_pos)[1] = cache_pos_y[threadIdx.x];
+            }
         }
     }
 
@@ -229,6 +221,7 @@ namespace SBV
         CudaPointer<Eigen::Vector2d> gpu_pos;
         gpu_pos.assign(Eigen::Vector2d());
 
+        cudaDeviceSynchronize();
         kernel_find_collapse_pos_boundary <<<1, THREADS_PER_BLOCK>>> (mKernel.get(), gpu_isInner.get(),
                                                                       gpu_Q1.get(), gpu_Q2.get(),
                                                                       gpu_pos.get(), gpu_outError.get());
