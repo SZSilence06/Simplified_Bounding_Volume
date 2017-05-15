@@ -57,6 +57,8 @@ namespace SBV {
         bool mClockwise;
 
         CudaPointer<Eigen::MatrixXd> A;
+
+        friend class CudaControllerImpl;
     };
 }
 

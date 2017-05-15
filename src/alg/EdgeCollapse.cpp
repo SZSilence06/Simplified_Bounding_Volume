@@ -750,17 +750,9 @@ namespace SBV
                 ymin = b[1] < ymin ? b[1] : ymin;
             }
 
-
 #ifdef USE_CUDA
-            std::vector<matrixr_t> samples;
+            /*std::vector<matrixr_t> samples;
             mCudaController.sample(xmin, xmax, ymin, ymax, mSampleRadius, samples);
-#else
-            //std::vector<matrixr_t> samples;
-            //mCudaController.sample(xmin, xmax, ymin, ymax, mSampleRadius, samples);
-            SamplingQuadTree tree(kernel, xmax, xmin, ymax, ymin, mSampleRadius);
-            auto& samples = tree.getSamples();
-#endif
-
             for(int i = 0; i < samples.size(); i++)
             {
                 auto& point = samples[i];
@@ -770,7 +762,16 @@ namespace SBV
                     out_error = error;
                     position = point;
                 }
-            }
+            }*/
+            mCudaController.findCollapsePos_ZeroSet(mQ[vert], mQ[vertCollapseTo], mSampleRadius, position, out_error);
+#else
+            //std::vector<matrixr_t> samples;
+            //mCudaController.sample(xmin, xmax, ymin, ymax, mSampleRadius, samples);
+            SamplingQuadTree tree(kernel, xmax, xmin, ymax, ymin, mSampleRadius);
+            auto& samples = tree.getSamples();
+#endif
+
+
         }
         this->mtx_collapse.unlock();
 

@@ -17,8 +17,6 @@ namespace SBV
         int x = originalX;
         int y = threadIdx.y + blockIdx.y * blockDim.y;
 
-        //kernel->printTest();
-
         while(x < *xCount && y < *yCount)
         {
             Eigen::Vector2d point;
@@ -31,11 +29,7 @@ namespace SBV
             }
 
             x += blockDim.x * gridDim.x;
-            if(x >= *xCount)
-            {
-                x = originalX;
-                y += blockDim.y * gridDim.y;
-            }
+            y += blockDim.y * gridDim.y;
         }
     }
 
