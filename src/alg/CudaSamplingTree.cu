@@ -13,7 +13,8 @@ namespace SBV
                                   double* sampleRadius,
                                   CudaVector<Eigen::Vector2d>* samples)
     {
-        int x = threadIdx.x + blockIdx.x * blockDim.x;
+        int originalX = threadIdx.x + blockIdx.x * blockDim.x;
+        int x = originalX;
         int y = threadIdx.y + blockIdx.y * blockDim.y;
 
         //kernel->printTest();
@@ -30,7 +31,11 @@ namespace SBV
             }
 
             x += blockDim.x * gridDim.x;
-            y += blockDim.y * gridDim.y;
+            if(x >= *xCount)
+            {
+                x = originalX;
+                y += blockDim.y * gridDim.y;
+            }
         }
     }
 

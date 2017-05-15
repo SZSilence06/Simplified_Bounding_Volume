@@ -13,7 +13,7 @@ using namespace WKYLIB::Cuda;
 
 namespace SBV
 {
-    static const int THREADS_PER_BLOCK = 256;
+    static const int THREADS_PER_BLOCK = 512;
 
     __device__ double computeError(const Eigen::Matrix3d& Q, const Eigen::Vector2d& point)
     {
