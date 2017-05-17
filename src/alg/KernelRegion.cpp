@@ -102,10 +102,10 @@ namespace SBV
     void KernelRegion::construct()
     {
         A.resize(mPolygon.size(), 3);
-        for(size_t i = 0; i < mPolygon.size() - 1; i++)
+        for(size_t i = 0; i < mPolygon.size(); i++)
         {
             const Point &a = mTriangulation.vertices[mPolygon[i]];
-            const Point &b = mTriangulation.vertices[mPolygon[i + 1]];
+            const Point &b = mTriangulation.vertices[mPolygon[(i + 1) % mPolygon.size()]];
             Point ab = b - a;
             ab /= ab.norm();
 

@@ -63,7 +63,7 @@ namespace SBV
         buildMatrices();
 
         //build edge infos
-//#pragma omp parallel for schedule(dynamic, 1)
+#pragma omp parallel for schedule(dynamic, 1)
         for(size_t i = 0; i < mTriangulation.vertices.size(); i++)
         {
             if(mTriangulation.vertType[i] == POINT_BOUNDING_BOX)

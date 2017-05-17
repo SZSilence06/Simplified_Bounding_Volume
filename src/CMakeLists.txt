@@ -3,6 +3,7 @@ cmake_minimum_required(VERSION 2.6)
 project(sbvgen)
 
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11 -fopenmp -g -Wall -Wextra")
+set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -std=c++11 -fopenmp -O3")
 
 find_package(Boost COMPONENTS system filesystem)
 if(Boost_FOUND)
