@@ -20,15 +20,15 @@ namespace SBV
     public:
         struct ZeroSet
         {
-            matrixr_t vertices;
-            matrixs_t lines;
+            std::vector<Point> vertices;
+            std::vector<Eigen::Vector2i> lines;
             std::vector<std::pair<size_t, size_t> >  vertPairs;   //recording the corresponding vert pairs of the zero set vertices
             std::vector<size_t> lineFaces;                        //recording the corresponding faces of the zero set lines
         };
 
     public:
-        matrixr_t vertices;
-        matrixs_t triangles;
+        std::vector<Point> vertices;
+        std::vector<Eigen::Vector3i> triangles;
         std::vector<PointType> vertType;
 
     public:
@@ -42,16 +42,9 @@ namespace SBV
         void mutualTessellate();
 
     private:
-        struct ZeroFace{
-            std::set<size_t> verts;
-            size_t tetra;
-
-            bool operator <(const ZeroFace& face) const { return this->verts < face.verts; }
-        };
-
         size_t getZeroPointIndex(size_t firstVertex, size_t secondVertex);
         void buildZeroSetExisting();
-        void tryAddZeroFace(size_t currentTetra, size_t zeroVert1, size_t zeroVert2, std::set<ZeroFace>& zeroFaces);
+        void addZeroFace(size_t currentTetra, size_t zeroVert1, size_t zeroVert2);
 
     private:
         ZeroSet mZeroSet;

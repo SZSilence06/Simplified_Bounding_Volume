@@ -1,7 +1,5 @@
 #include "Shell.h"
 
-using namespace zjucad::matrix;
-
 namespace SBV
 {
     void Shell::buildKdTree()

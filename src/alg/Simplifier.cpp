@@ -41,56 +41,64 @@ namespace SBV
 
     void Simplifier::generateShells()
     {
-        matrixr_t normals(2, mSourceMesh.vertices.size(2));
+        std::vector<Point> normals;
 
         WKYLIB::Mesh::computeNormal2D(mSourceMesh.vertices, mSourceMesh.lines, normals);
 
-        matrixr_t shell(2, mSourceMesh.vertices.size(2));
+        std::vector<Point> shell;
+        shell.reserve(mSourceMesh.vertices.size());
 
-        for(int i = 0; i < mSourceMesh.vertices.size(2); i++)
+        for(int i = 0; i < mSourceMesh.vertices.size(); i++)
         {
-            const matrixr_t& vertex = mSourceMesh.vertices(colon(), i);
-            shell(colon(), i) = vertex + normals(colon(), i) * mMaxDistance;
+            const Point& vertex = mSourceMesh.vertices[i];
+            shell.push_back(vertex + normals[i] * mMaxDistance);
         }
 
-        std::vector<matrixr_t> sampled_shell;
+        std::vector<Point> sampled_shell;
 
         sample(shell, mSourceMesh.lines, sampled_shell);
-        mShell.mOuterShell.resize(2, sampled_shell.size());
-        for(int i = 0; i < mShell.mOuterShell.size(2); i++)
+        mShell.mOuterShell.reserve(sampled_shell.size());
+        for(int i = 0; i < sampled_shell.size(); i++)
         {
-            mShell.mOuterShell(colon(), i) = sampled_shell[i];
+            mShell.mOuterShell.push_back(sampled_shell[i]);
         }
 
         sample(mSourceMesh.vertices, mSourceMesh.lines, sampled_shell);
-        mShell.mInnerShell.resize(2, sampled_shell.size());
-        for(int i = 0; i < mShell.mInnerShell.size(2); i++)
+        mShell.mInnerShell.reserve(sampled_shell.size());
+        for(int i = 0; i < sampled_shell.size(); i++)
         {
-            mShell.mInnerShell(colon(), i) = sampled_shell[i];
+            mShell.mInnerShell.push_back(sampled_shell[i]);
         }
 
         mShell.buildKdTree();
 
         if(mNeedGenTempResult)
         {
+#ifdef VER_2D
             WKYLIB::Mesh::writePoints2D(mOutputDirectory + "/inner_shell.vtk", mShell.mInnerShell);
             WKYLIB::Mesh::writePoints2D(mOutputDirectory + "/outer_shell.vtk", mShell.mOuterShell);
+#else
+            WKYLIB::Mesh::writePoints(mOutputDirectory + "/inner_shell.vtk", mShell.mInnerShell);
+            WKYLIB::Mesh::writePoints(mOutputDirectory + "/outer_shell.vtk", mShell.mOuterShell);
+#endif
         }
     }
 
-    void Simplifier::sample(const matrixr_t &vertices, const matrixs_t &triangles, std::vector<matrixr_t> &output_samples)
+#ifdef VER_2D
+    void Simplifier::sample(const std::vector<Point> &vertices, const std::vector<Eigen::Vector2i> &lines,
+                            std::vector<Point> &output_samples)
     {
         output_samples.clear();
-        for(int i = 0; i < triangles.size(2); i++)
+        for(int i = 0; i < lines.size(); i++)
         {
-            const matrixr_t& a = vertices(colon(), triangles(0, i));
-            const matrixr_t& b = vertices(colon(), triangles(1, i));
+            const Point& a = vertices[lines[i][0]];
+            const Point& b = vertices[lines[i][1]];
 
-            matrixr_t ab = b - a;
+            Point ab = b - a;
 
-            int sample_count_ab = (int)(norm(ab) / mSampleRadius);
+            int sample_count_ab = (int)(ab.norm() / mSampleRadius);
 
-            ab /= norm(ab);
+            ab /= ab.norm();
 
             for(int i = 0; i < sample_count_ab; i++)
             {
@@ -98,6 +106,7 @@ namespace SBV
             }
         }
     }
+#endif
 
     void Simplifier::refine()
     {
@@ -109,9 +118,12 @@ namespace SBV
         mTriangulation.buildZeroSet();
         if(mNeedGenTempResult)
         {
+#ifdef VER_2D
             WKYLIB::Mesh::writeMesh2D(mOutputDirectory + "/refined_shell.obj", mTriangulation.vertices, mTriangulation.triangles);
             WKYLIB::Mesh::writeCurve2D(mOutputDirectory + "/refined_zero_set.obj", mTriangulation.getZeroSet().vertices,
                                        mTriangulation.getZeroSet().lines);
+#else
+#endif
         }
     }
 
@@ -125,9 +137,12 @@ namespace SBV
         mTriangulation.buildZeroSet();
         if(mNeedGenTempResult)
         {
+#ifdef VER_2D
             WKYLIB::Mesh::writeMesh2D(mOutputDirectory + "/boundary_collapsed_shell(half_edge).obj", mTriangulation.vertices, mTriangulation.triangles);
             WKYLIB::Mesh::writeCurve2D(mOutputDirectory + "/boundary_collapsed_zero_set(half_edge).obj", mTriangulation.getZeroSet().vertices,
                                        mTriangulation.getZeroSet().lines);
+#else
+#endif
         }
 
         mTimerBoundaryGeneral.start();
@@ -138,9 +153,12 @@ namespace SBV
         mTriangulation.buildZeroSet();
         if(mNeedGenTempResult)
         {
+#ifdef VER_2D
             WKYLIB::Mesh::writeMesh2D(mOutputDirectory + "/boundary_collapsed_shell(general).obj", mTriangulation.vertices, mTriangulation.triangles);
             WKYLIB::Mesh::writeCurve2D(mOutputDirectory + "/boundary_collapsed_zero_set(general).obj", mTriangulation.getZeroSet().vertices,
                                        mTriangulation.getZeroSet().lines);
+#else
+#endif
         }
     }
 
@@ -152,7 +170,10 @@ namespace SBV
 
         if(mNeedGenTempResult)
         {
+#ifdef VER_2D
             WKYLIB::Mesh::writeMesh2D(mOutputDirectory + "/mutual_tesellation.obj", mTriangulation.vertices, mTriangulation.triangles);
+#else
+#endif
         }
     }
 
@@ -166,9 +187,12 @@ namespace SBV
         mTriangulation.buildZeroSet();
         if(mNeedGenTempResult)
         {
+#ifdef VER_2D
             WKYLIB::Mesh::writeMesh2D(mOutputDirectory + "/zero_set_collapsed_shell.obj", mTriangulation.vertices, mTriangulation.triangles);
             WKYLIB::Mesh::writeCurve2D(mOutputDirectory + "/zero_set_collapsed_zero_set.obj", mTriangulation.getZeroSet().vertices,
                                        mTriangulation.getZeroSet().lines);
+#else
+#endif
         }
 
         mTimerZeroSetGeneral.start();
@@ -179,9 +203,12 @@ namespace SBV
         mTriangulation.buildZeroSet();
         if(mNeedGenTempResult)
         {
+#ifdef VER_2D
             WKYLIB::Mesh::writeMesh2D(mOutputDirectory + "/zero_set_collapsed_shell(general).obj", mTriangulation.vertices, mTriangulation.triangles);
             WKYLIB::Mesh::writeCurve2D(mOutputDirectory + "/zero_set_collapsed_zero_set(general).obj", mTriangulation.getZeroSet().vertices,
                                        mTriangulation.getZeroSet().lines);
+#else
+#endif
         }
     }
 

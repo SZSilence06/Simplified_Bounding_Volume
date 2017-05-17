@@ -272,44 +272,9 @@ namespace WKYLIB {
 
     //Compute barycenter coordinates of the point p on trinangle abc.
     //return 1 if p is inside the triangle, and 0 instead.
-    int barycentric(const matrixr_t &point, const matrixr_t &triangle, matrixr_t &bary)
+    int barycentric(const Eigen::Vector3d &a, const Eigen::Vector3d& b, const Eigen::Vector3d& c,
+                    const Eigen::Vector3d &p, Eigen::Vector3d &bary)
     {
-        if(point.size(1) != 3 || triangle.size(1) != 3)
-        {
-            throw std::invalid_argument("You can only use 3d matrices in barycentric().");
-        }
-
-        bary = matrixr_t(3, 1);
-
-        /*const matrixr_t& a = triangle(colon(), 0);
-        const matrixr_t& b = triangle(colon(), 1);
-        const matrixr_t& c = triangle(colon(), 2);
-
-        const matrixr_t u = b - a;
-        const matrixr_t v = c - a;
-        const matrixr_t w = point - a;
-        const matrixr_t vw = cross(v, w);
-        const matrixr_t vu = cross(v, u);
-        const matrixr_t uw = cross(u, w);
-        const double denom = 1.0 / norm(vu);
-        bary[1] = dot(vu, vw) >= 0 ? norm(vw) * denom : -norm(vw) * denom;
-        bary[2] = dot(uw, vu) <= 0 ? norm(uw) * denom : -norm(uw) * denom;
-        bary[0] = 1 - bary[1] - bary[2];*/
-
-        Eigen::Vector3d a, b, c, p;
-        a[0] = triangle(0, 0);
-        a[1] = triangle(1, 0);
-        a[2] = triangle(2, 0);
-        b[0] = triangle(0, 1);
-        b[1] = triangle(1, 1);
-        b[2] = triangle(2, 1);
-        c[0] = triangle(0, 2);
-        c[1] = triangle(1, 2);
-        c[2] = triangle(2, 2);
-        p[0] = point[0];
-        p[1] = point[1];
-        p[2] = point[2];
-
         const Eigen::Vector3d u = b - a;
         const Eigen::Vector3d v = c - a;
         const Eigen::Vector3d w = p - a;
@@ -329,20 +294,20 @@ namespace WKYLIB {
 
     //Compute barycenter coordinates of the point p on 2d trinangle.
     //return 1 if p is inside the triangle, and 0 instead.
-    int barycentric_2D(const matrixr_t &point, const matrixr_t &triangle, matrixr_t &bary)
+    int barycentric_2D(const Eigen::Vector2d &a, const Eigen::Vector2d& b, const Eigen::Vector2d& c,
+                       const Eigen::Vector2d &p, Eigen::Vector3d &bary)
     {
-        if(point.size(1) != 2 || triangle.size(1) != 2)
-        {
-            throw std::invalid_argument("You can only use 2d matrices in barycentric_2D().");
-        }
+        Eigen::Vector3d a_3d, b_3d, c_3d, p_3d;
+        a_3d[0] = a[0];
+        a_3d[1] = a[1];
+        b_3d[0] = b[0];
+        b_3d[1] = b[1];
+        c_3d[0] = c[0];
+        c_3d[1] = c[1];
+        p_3d[0] = p[0];
+        p_3d[1] = p[1];
 
-        matrixr_t triangle_3D = zeros<double>(3, 3);
-        triangle_3D(colon(0, 1), colon()) = triangle;
-
-        matrixr_t point_3D = zeros<double>(3, 1);
-        point_3D(colon(0, 1), 0) = point;
-
-        return barycentric(point_3D, triangle_3D, bary);
+        return barycentric(a_3d, b_3d, c_3d, p_3d, bary);
     }
 
     //Tool function used by barycentric_tetra()
@@ -387,33 +352,29 @@ namespace WKYLIB {
 
     //compute intersection between a ray and a triangle abc.
     //return the distance. If no intersection, return -1.
-    real_t compute_intersection_triangle_ray(const matrixr_t &a, const matrixr_t &b, const matrixr_t &c,
-                                          const matrixr_t &p, const matrixr_t &dir)
+    real_t compute_intersection_triangle_ray(const Eigen::Vector3d &a, const Eigen::Vector3d &b, const Eigen::Vector3d &c,
+                                          const Eigen::Vector3d &p, const Eigen::Vector3d &dir)
     {
-        matrixr_t ab = b - a;
-        matrixr_t ac = c - a;
-        matrixr_t plane_normal = cross(ab, ac);
-        plane_normal = plane_normal / norm(plane_normal);
+        Eigen::Vector3d ab = b - a;
+        Eigen::Vector3d ac = c - a;
+        Eigen::Vector3d plane_normal = ab.cross(ac);
+        plane_normal = plane_normal / plane_normal.norm();
 
-        matrixr_t ap = p - a;
-        real_t cos_theta = dot(ap / norm(ap), plane_normal);
-        real_t dist_p_to_plane = norm(ap) * cos_theta;
-        matrixr_t proj_p = p - dist_p_to_plane * plane_normal;
+        Eigen::Vector3d ap = p - a;
+        real_t cos_theta = (ap / ap.norm()).dot(plane_normal);
+        real_t dist_p_to_plane = ap.norm() * cos_theta;
+        Eigen::Vector3d proj_p = p - dist_p_to_plane * plane_normal;
 
-        matrixr_t pprojp = proj_p - p;
-        real_t cos_theta_projp_p_dir = dot(pprojp / norm(pprojp), dir / norm(dir));
+        Eigen::Vector3d pprojp = proj_p - p;
+        real_t cos_theta_projp_p_dir = (pprojp / pprojp.norm()).dot(dir / dir.norm());
         real_t dist = fabs(dist_p_to_plane) / cos_theta_projp_p_dir;
         if(dist < 0)
         {
             return -1;
         }
-        matrixr_t intersect_point = p + dist * dir / norm(dir);
-        matrixr_t bary;
-        matrixr_t triangle(3, 3);
-        triangle(colon(), 0) = a;
-        triangle(colon(), 1) = b;
-        triangle(colon(), 2) = c;
-        if(barycentric(intersect_point, triangle, bary))
+        Eigen::Vector3d intersect_point = p + dist * dir / dir.norm();
+        Eigen::Vector3d bary;
+        if(barycentric(a, b, c, intersect_point, bary))
         {
             return dist;
         }
@@ -423,44 +384,43 @@ namespace WKYLIB {
     //Generate a ray direction, given the coordinate x,y in screen space.
     //fov is represented in degree.
     //The origin point is in the left bottom corner.
-    void generate_ray_dir(const matrixr_t &eye, const matrixr_t& lookAt, const matrixr_t &up,
+    void generate_ray_dir(const Eigen::Vector3d &eye, const Eigen::Vector3d& lookAt, const Eigen::Vector3d &up,
                           double fov, double x, double y, double screen_width, double screen_height,
-                          matrixr_t &output_dir)
+                          Eigen::Vector3d &output_dir)
     {
-        matrixr_t front = (lookAt - eye) / norm(lookAt - eye);
-        matrixr_t up_new = up / norm(up);
-        matrixr_t right = cross(front, up_new);
+        Eigen::Vector3d front = (lookAt - eye).normalized();
+        Eigen::Vector3d up_new = up.normalized();
+        Eigen::Vector3d right = front. cross(up_new);
 
         double sx = x / screen_width;
         double sy = y /screen_height;
         double fovScale = tan(fov * 0.5 * PI / 180) * 2;
 
-        matrixr_t r = right * ((sx - 0.5) * fovScale) * screen_width / screen_height;
-        matrixr_t u = up_new * ((sy - 0.5) * fovScale);
+        Eigen::Vector3d r = right * ((sx - 0.5) * fovScale) * screen_width / screen_height;
+        Eigen::Vector3d u = up_new * ((sy - 0.5) * fovScale);
 
         output_dir = r + u + front;
-        output_dir = output_dir / norm(output_dir);
+        output_dir = output_dir.normalized();
     }
 
     //Pick vertex from the screen. If failed to pick, return -1.
     //Param: 'error' shows the maximum distance from the vertex to be picked to the intersection between the  \
     //         eye ray and the mesh. If the distance is bigger than 'error', the vertex will not be picked.
-    int pick_mesh_vertex(const matrixr_t &vertices, const matrixs_t &triangles, const matrixr_t &eye,
-                         const matrixr_t& lookAt, const matrixr_t &up, double fov,
-                         double x, double y, double screen_width, double screen_height,
+    int pick_mesh_vertex(const std::vector<Eigen::Vector3d> &vertices, const std::vector<Eigen::Vector3i> &triangles,
+                         const Eigen::Vector3d &eye, const Eigen::Vector3d& lookAt, const Eigen::Vector3d &up,
+                         double fov, double x, double y, double screen_width, double screen_height,
                          double error)
     {
-
-        matrixr_t ray_dir;
+        Eigen::Vector3d ray_dir;
 
         generate_ray_dir(eye, lookAt, up, fov, x, y, screen_width, screen_height, ray_dir);
 
         double min_dist = std::numeric_limits<double>::max();
-        for(int i = 0; i < triangles.size(2); i++)
+        for(int i = 0; i < triangles.size(); i++)
         {
-            double dist = compute_intersection_triangle_ray(vertices(colon(),triangles(0,i)),
-                                              vertices(colon(),triangles(1,i)),
-                                              vertices(colon(),triangles(2,i)),
+            double dist = compute_intersection_triangle_ray(vertices[triangles[i][0]],
+                                              vertices[triangles[i][1]],
+                                              vertices[triangles[i][2]],
                                               eye, ray_dir);
             if(dist < 0 || dist >= min_dist)
             {
@@ -474,13 +434,13 @@ namespace WKYLIB {
             return -1;   //The eye ray does not intersect with the mesh.
         }
 
-        matrixr_t intersection = eye + min_dist * ray_dir;
+        Eigen::Vector3d intersection = eye + min_dist * ray_dir;
         int picked_vertex = -1;
         min_dist = std::numeric_limits<double>::max();
-        for(int i = 0; i < vertices.size(2); i++)
+        for(int i = 0; i < vertices.size(); i++)
         {
-            auto& vertex = vertices(colon(), i);
-            double dist = norm(vertex - intersection);
+            auto& vertex = vertices[i];
+            double dist = (vertex - intersection).norm();
             if(dist < min_dist && dist < error)
             {
                 min_dist = dist;

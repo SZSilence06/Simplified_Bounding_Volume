@@ -2,7 +2,7 @@
 #define WKY_MESH_COMMON_H
 
 #include <wkylib/Common.h>
-
+#include <eigen3/Eigen/Dense>
 #include <zjucad/matrix/matrix.h>
 
 namespace WKYLIB

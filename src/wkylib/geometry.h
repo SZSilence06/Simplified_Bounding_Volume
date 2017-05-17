@@ -2,6 +2,7 @@
 #define WKY_GEOMETRY_H
 
 #include <zjucad/matrix/matrix.h>
+#include <eigen3/Eigen/Dense>
 
 using namespace zjucad::matrix;
 
@@ -54,16 +55,18 @@ namespace WKYLIB {
 
     //compute intersection between a ray and a triangle abc.
     //return the distance. If no intersection, return -1.
-    real_t compute_intersection_triangle_ray(const matrixr_t &a, const matrixr_t &b, const matrixr_t &c,
-                                          const matrixr_t &p, const matrixr_t &dir);
+    real_t compute_intersection_triangle_ray(const Eigen::Vector3d &a, const Eigen::Vector3d &b, const Eigen::Vector3d &c,
+                                             const Eigen::Vector3d &p, const Eigen::Vector3d &dir);
 
     //Compute barycenter coordinates of the point p on trinangle.
     //return 1 if p is inside the triangle, and 0 instead.
-    int barycentric(const matrixr_t &point, const matrixr_t &triangle, matrixr_t &bary);
+    int barycentric(const Eigen::Vector3d &a, const Eigen::Vector3d& b, const Eigen::Vector3d& c,
+                    const Eigen::Vector3d &p, Eigen::Vector3d &bary);
 
     //Compute barycenter coordinates of the point p on 2d trinangle abc.
     //return 1 if p is inside the triangle, and 0 instead.
-    int barycentric_2D(const matrixr_t &point, const matrixr_t &triangle, matrixr_t &bary);
+    int barycentric_2D(const Eigen::Vector2d &a, const Eigen::Vector2d& b, const Eigen::Vector2d& c,
+                       const Eigen::Vector2d &p, Eigen::Vector3d &bary);
 
     //Compute barycenter coordinates of the point p on tetrahedron.
     //return 1 if p is inside the tetrahedron, and 0 instead.

@@ -29,23 +29,23 @@ namespace SBV
         double yMax = std::numeric_limits<double>::min();
         double yMin = std::numeric_limits<double>::max();
 
-        for(int i = 0; i < mShell.mOuterShell.size(2); i++)
+        for(int i = 0; i < mShell.mOuterShell.size(); i++)
         {
-            if(xMax < mShell.mOuterShell(0, i))
+            if(xMax < mShell.mOuterShell[i][0])
             {
-                xMax = mShell.mOuterShell(0, i);
+                xMax = mShell.mOuterShell[i][0];
             }
-            if(xMin > mShell.mOuterShell(0, i))
+            if(xMin > mShell.mOuterShell[i][0])
             {
-                xMin = mShell.mOuterShell(0, i);
+                xMin = mShell.mOuterShell[i][0];
             }
-            if(yMax < mShell.mOuterShell(1, i))
+            if(yMax < mShell.mOuterShell[i][1])
             {
-                yMax = mShell.mOuterShell(1, i);
+                yMax = mShell.mOuterShell[i][1];
             }
-            if(yMin > mShell.mOuterShell(1, i))
+            if(yMin > mShell.mOuterShell[i][1])
             {
-                yMin = mShell.mOuterShell(1, i);
+                yMin = mShell.mOuterShell[i][1];
             }
         }
 
@@ -57,21 +57,21 @@ namespace SBV
         PointInfo info;
         info.pointType = PointType::POINT_BOUNDING_BOX;
 
-        mDelaunay.insert(Point(xMax, yMax))->info() = info;
-        mDelaunay.insert(Point(xMax, yMin))->info() = info;
-        mDelaunay.insert(Point(xMin, yMax))->info() = info;
-        mDelaunay.insert(Point(xMin, yMin))->info() = info;
+        mDelaunay.insert(DPoint(xMax, yMax))->info() = info;
+        mDelaunay.insert(DPoint(xMax, yMin))->info() = info;
+        mDelaunay.insert(DPoint(xMin, yMax))->info() = info;
+        mDelaunay.insert(DPoint(xMin, yMin))->info() = info;
     }
 
     void Refinement::initErrors()
     {
-        mInnerError.resize(mShell.mInnerShell.size(2), 0);
-        mOuterError.resize(mShell.mOuterShell.size(2), 0);
+        mInnerError.resize(mShell.mInnerShell.size(), 0);
+        mOuterError.resize(mShell.mOuterShell.size(), 0);
     }
 
     void Refinement::updateErrors()
     {
-        double maxError = -std::numeric_limits<double>::max();
+        double maxError = std::numeric_limits<double>::lowest();
         for(auto iter = mDelaunay.finite_faces_begin(); iter != mDelaunay.finite_faces_end(); ++iter)
         {
             updatePointInCell(*iter);
@@ -98,9 +98,9 @@ namespace SBV
 
         double maxError = -std::numeric_limits<double>::max();
         PointInfo maxErrorPoint;
-        for(int i = 0; i < mShell.mInnerShell.size(2); i++)
+        for(int i = 0; i < mShell.mInnerShell.size(); i++)
         {
-            double f = computeFValue(mShell.mInnerShell(colon(), i), cell);
+            double f = computeFValue(mShell.mInnerShell[i], cell);
             if(f == std::numeric_limits<double>::max())
             {
                 //the point is outside the tetrahedron
@@ -116,9 +116,9 @@ namespace SBV
             info.points.push_back(PointInfo(POINT_INNER, i));
         }
 
-        for(int i = 0; i < mShell.mOuterShell.size(2); i++)
+        for(int i = 0; i < mShell.mOuterShell.size(); i++)
         {
-            double f = computeFValue(mShell.mOuterShell(colon(), i), cell);
+            double f = computeFValue(mShell.mOuterShell[i], cell);
             if(f == std::numeric_limits<double>::max())
             {
                 //the point is outside the tetrahedron
@@ -137,26 +137,26 @@ namespace SBV
         info.maxErrorPoint = maxErrorPoint;
     }
 
-    double Refinement::computeFValue(const matrixr_t &point, const Cell &cell)
+    double Refinement::computeFValue(const Point &point, const Cell &cell)
     {
         const VertexHandle& vh0 = cell.vertex(0);
         const VertexHandle& vh1 = cell.vertex(1);
         const VertexHandle& vh2 = cell.vertex(2);
 
-        Point& p0 = cell.vertex(0)->point();
-        Point& p1 = cell.vertex(1)->point();
-        Point& p2 = cell.vertex(2)->point();
+        DPoint& p0 = cell.vertex(0)->point();
+        DPoint& p1 = cell.vertex(1)->point();
+        DPoint& p2 = cell.vertex(2)->point();
 
-        matrixr_t triangle(2, 3);
-        triangle(0, 0) = p0[0];
-        triangle(1, 0) = p0[1];
-        triangle(0, 1) = p1[0];
-        triangle(1, 1) = p1[1];
-        triangle(0, 2) = p2[0];
-        triangle(1, 2) = p2[1];
+        Point a, b, c;
+        a[0] = p0[0];
+        a[1] = p0[1];
+        b[0] = p1[0];
+        b[1] = p1[1];
+        c[0] = p2[0];
+        c[1] = p2[1];
 
-        matrixr_t bary;
-        if(WKYLIB::barycentric_2D(point, triangle, bary))
+        Eigen::Vector3d bary;
+        if(WKYLIB::barycentric_2D(a, b, c, point, bary))
         {
             //the point is inside the tetrahedron
             double f0 = getFValue(vh0);
@@ -193,15 +193,15 @@ namespace SBV
         }
     }
 
-    void Refinement::getPointMatrix(const PointInfo &point, matrixr_t &pointMatrix)
+    void Refinement::getPointMatrix(const PointInfo &point, Point &pointMatrix)
     {
         switch(point.pointType)
         {
         case PointType::POINT_INNER:
-            pointMatrix = mShell.mInnerShell(colon(), point.index);
+            pointMatrix = mShell.mInnerShell[point.index];
             break;
         case PointType::POINT_OUTER:
-            pointMatrix = mShell.mOuterShell(colon(), point.index);
+            pointMatrix = mShell.mOuterShell[point.index];
             break;
         default:
             //this should not be runned, otherwise there exists logic error
@@ -212,28 +212,28 @@ namespace SBV
     bool Refinement::refine()
     {
         int iterCount = 0;
-        while(!isFinished() && iterCount <= (mShell.mInnerShell.size(2) + mShell.mOuterShell.size(2)))
+        while(!isFinished() && iterCount <= (mShell.mInnerShell.size() + mShell.mOuterShell.size()))
         {
             iterCount++;
             std::cout << "Iteration " << iterCount << " ..." << std::endl;
 
-            matrixr_t point;
+            Point point;
             getPointMatrix(mNextInsertPoint, point);
-            mDelaunay.insert(Point(point[0], point[1]))->info() = mNextInsertPoint;
+            mDelaunay.insert(DPoint(point[0], point[1]))->info() = mNextInsertPoint;
             updateErrors();
         }
 
         std::cout << "Finished refinement after " << iterCount << " iterations." << std::endl;
 
         //organize output data
-        mOutput.vertices.resize(2, mDelaunay.number_of_vertices());
-        mOutput.triangles.resize(3, mDelaunay.number_of_faces());
+        mOutput.vertices.resize(mDelaunay.number_of_vertices());
+        mOutput.triangles.resize(mDelaunay.number_of_faces());
         mOutput.vertType.reserve(mDelaunay.number_of_vertices());
         int i = 0;
         for(auto iter = mDelaunay.finite_vertices_begin(); iter != mDelaunay.finite_vertices_end(); ++iter, ++i)
         {
-            mOutput.vertices(0, i) = iter->point()[0];
-            mOutput.vertices(1, i) = iter->point()[1];
+            mOutput.vertices[i][0] = iter->point()[0];
+            mOutput.vertices[i][1] = iter->point()[1];
 
             PointInfo& info = iter->info();
             iter->info().indexInDelaunay = i;
@@ -246,9 +246,9 @@ namespace SBV
             const PointInfo& info1 = iter->vertex(1)->info();
             const PointInfo& info2 = iter->vertex(2)->info();
 
-            mOutput.triangles(0, i) = info0.indexInDelaunay;
-            mOutput.triangles(1, i) = info1.indexInDelaunay;
-            mOutput.triangles(2, i) = info2.indexInDelaunay;
+            mOutput.triangles[i][0] = info0.indexInDelaunay;
+            mOutput.triangles[i][1] = info1.indexInDelaunay;
+            mOutput.triangles[i][2] = info2.indexInDelaunay;
         }
 
         return true;
@@ -319,11 +319,11 @@ namespace SBV
         const VertexHandle& vh0 = cell.vertex(0);
         const VertexHandle& vh1 = cell.vertex(1);
         const VertexHandle& vh2 = cell.vertex(2);
-        const Point& p0 = vh0->point();
-        const Point& p1 = vh1->point();
-        const Point& p2 = vh2->point();
+        const DPoint& p0 = vh0->point();
+        const DPoint& p1 = vh1->point();
+        const DPoint& p2 = vh2->point();
 
-        matrixr_t a(3, 1), b(3, 1), c(3, 1);
+        Eigen::Vector3d a, b, c;
 
         if(getFValue(vh0) == getFValue(vh1))
         {
@@ -363,9 +363,9 @@ namespace SBV
         }
 
         //compute height from a to bc.
-        matrixr_t ba = a - b;
-        matrixr_t bc = c - b;
-        return norm(cross(ba, bc)) / norm(bc);
+        Eigen::Vector3d ba = a - b;
+        Eigen::Vector3d bc = c - b;
+        return (ba.cross(bc)).norm() / bc.norm();
     }
 
     bool Refinement::checkCondition3(const Cell &cell)
@@ -373,11 +373,11 @@ namespace SBV
         const VertexHandle& vh0 = cell.vertex(0);
         const VertexHandle& vh1 = cell.vertex(1);
         const VertexHandle& vh2 = cell.vertex(2);
-        const Point& p0 = vh0->point();
-        const Point& p1 = vh1->point();
-        const Point& p2 = vh2->point();
+        const DPoint& p0 = vh0->point();
+        const DPoint& p1 = vh1->point();
+        const DPoint& p2 = vh2->point();
 
-        matrixr_t a(2, 1), b(2, 1), c(2, 1);
+        Point a, b, c;
         a[0] = p0[0];
         a[1] = p0[1];
         b[0] = p1[0];
@@ -385,26 +385,26 @@ namespace SBV
         c[0] = p2[0];
         c[1] = p2[1];
 
-        matrixr_t center = (a + b + c) / 3.0;
+        Point center = (a + b + c) / 3.0;
         constexpr double k = sqrt(0.7);
-        matrixr_t newA = k * a + (1 - k) * center;
-        matrixr_t newB = k * b + (1 - k) * center;
-        matrixr_t newC = k * c + (1 - k) * center;
+        Point newA = k * a + (1 - k) * center;
+        Point newB = k * b + (1 - k) * center;
+        Point newC = k * c + (1 - k) * center;
 
         const KdTreeWrap& innerTree = mShell.getInnerTree();
         size_t nearA, nearB, nearC;
         nearA = innerTree.getNearestPoint(newA);
         nearB = innerTree.getNearestPoint(newB);
         nearC = innerTree.getNearestPoint(newC);
-        if(checkClassification(cell, mShell.mInnerShell(colon(), nearA), false) == false)
+        if(checkClassification(cell, mShell.mInnerShell[nearA], false) == false)
         {
             return false;
         }
-        if(checkClassification(cell, mShell.mInnerShell(colon(), nearB), false) == false)
+        if(checkClassification(cell, mShell.mInnerShell[nearB], false) == false)
         {
             return false;
         }
-        if(checkClassification(cell, mShell.mInnerShell(colon(), nearC), false) == false)
+        if(checkClassification(cell, mShell.mInnerShell[nearC], false) == false)
         {
             return false;
         }
@@ -413,15 +413,15 @@ namespace SBV
         nearA = outerTree.getNearestPoint(newA);
         nearB = outerTree.getNearestPoint(newB);
         nearC = outerTree.getNearestPoint(newC);
-        if(checkClassification(cell, mShell.mOuterShell(colon(), nearA), true) == false)
+        if(checkClassification(cell, mShell.mOuterShell[nearA], true) == false)
         {
             return false;
         }
-        if(checkClassification(cell, mShell.mOuterShell(colon(), nearB), true) == false)
+        if(checkClassification(cell, mShell.mOuterShell[nearB], true) == false)
         {
             return false;
         }
-        if(checkClassification(cell, mShell.mOuterShell(colon(), nearC), true) == false)
+        if(checkClassification(cell, mShell.mOuterShell[nearC], true) == false)
         {
             return false;
         }
@@ -429,25 +429,25 @@ namespace SBV
         return true;
     }
 
-    bool Refinement::checkClassification(const Cell &cell, const matrixr_t &point, bool isOuter)
+    bool Refinement::checkClassification(const Cell &cell, const Point &point, bool isOuter)
     {
         const VertexHandle& vh0 = cell.vertex(0);
         const VertexHandle& vh1 = cell.vertex(1);
         const VertexHandle& vh2 = cell.vertex(2);
-        const Point& p0 = vh0->point();
-        const Point& p1 = vh1->point();
-        const Point& p2 = vh2->point();
+        const DPoint& p0 = vh0->point();
+        const DPoint& p1 = vh1->point();
+        const DPoint& p2 = vh2->point();
 
-        matrixr_t triangle(2, 3);
-        triangle(0, 0) = p0[0];
-        triangle(1, 0) = p0[1];
-        triangle(0, 1) = p1[0];
-        triangle(1, 1) = p1[1];
-        triangle(0, 2) = p2[0];
-        triangle(1, 2) = p2[1];
+        Point a, b, c;
+        a[0] = p0[0];
+        a[1] = p0[1];
+        b[0] = p1[0];
+        b[1] = p1[1];
+        c[0] = p2[0];
+        c[1] = p2[1];
 
-        matrixr_t bary;
-        WKYLIB::barycentric_2D(point, triangle, bary);
+        Eigen::Vector3d bary;
+        WKYLIB::barycentric_2D(a, b, c, point, bary);
         double fvalue = getFValue(vh0) * bary[0] + getFValue(vh1) * bary[1] + getFValue(vh2) * bary[2];
         bool result;
         if(isOuter)
