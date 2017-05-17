@@ -212,7 +212,7 @@ namespace SBV
 
             collapseEdge(edgeInfo->firstVert, edgeInfo->secondVert, edgeInfo->position);
             numCollapsed++;
-            std::cout << "Iteration " << numCollapsed << " ..." << std::endl;
+            std::cout << "Collapse " << numCollapsed << " : from " << edgeInfo->firstVert << " to " << edgeInfo->secondVert << std::endl;
         }
 
         organizeOutput();
