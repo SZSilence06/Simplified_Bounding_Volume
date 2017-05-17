@@ -27,7 +27,7 @@ namespace SBV
     void KernelRegion::buildAdjacency()
     {
         //build adjacency list of the vertices.
-        for(int i = 0; i < mLines.size(); i++)
+        for(size_t i = 0; i < mLines.size(); i++)
         {
             size_t a = mLines[i][0];
             size_t b = mLines[i][1];
@@ -88,7 +88,7 @@ namespace SBV
         //judging whether the polygon is clockwise or counter-clockwise.
         double sum = 0;
 
-        for(int i = 0; i < mPolygon.size() - 1; i++)
+        for(size_t i = 0; i < mPolygon.size() - 1; i++)
         {
             const Point &a = mTriangulation.vertices[mPolygon[i]];
             const Point &b = mTriangulation.vertices[mPolygon[i + 1]];
@@ -102,7 +102,7 @@ namespace SBV
     void KernelRegion::construct()
     {
         A.resize(mPolygon.size(), 3);
-        for(int i = 0; i < mPolygon.size() - 1; i++)
+        for(size_t i = 0; i < mPolygon.size() - 1; i++)
         {
             const Point &a = mTriangulation.vertices[mPolygon[i]];
             const Point &b = mTriangulation.vertices[mPolygon[i + 1]];
@@ -147,7 +147,7 @@ namespace SBV
 
     bool KernelRegion::isInvalidRegion(const Point &point) const
     {
-        for(int i = 0; i < mLines.size(); i++)
+        for(size_t i = 0; i < mLines.size(); i++)
         {
             const Point& a = mTriangulation.vertices[mLines[i][0]];
             const Point& b = mTriangulation.vertices[mLines[i][1]];

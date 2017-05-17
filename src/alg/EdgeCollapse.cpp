@@ -15,7 +15,7 @@ namespace SBV
           mSampleRadius(sampleRadius)
     {
         mCollapseTo.reserve(triangulation.vertices.size());
-        for(int i = 0; i < triangulation.vertices.size(); i++)
+        for(size_t i = 0; i < triangulation.vertices.size(); i++)
         {
             mCollapseTo.push_back(i);
         }
@@ -31,7 +31,7 @@ namespace SBV
         mRelatedEdgeInfo.resize(mTriangulation.vertices.size());
 
         //build vertices neighbour info
-        for(int i = 0; i < mTriangulation.triangles.size(); i++)
+        for(size_t i = 0; i < mTriangulation.triangles.size(); i++)
         {
             size_t a = mTriangulation.triangles[i][0];
             size_t b = mTriangulation.triangles[i][1];
@@ -64,7 +64,7 @@ namespace SBV
 
         //build edge infos
 //#pragma omp parallel for schedule(dynamic, 1)
-        for(int i = 0; i < mTriangulation.vertices.size(); i++)
+        for(size_t i = 0; i < mTriangulation.vertices.size(); i++)
         {
             if(mTriangulation.vertType[i] == POINT_BOUNDING_BOX)
             {
@@ -145,12 +145,12 @@ namespace SBV
     void EdgeCollapse::buildMatrices()
     {
         //initialize error matrices to zero
-        for(int i = 0; i < mTriangulation.vertices.size(); i++)
+        for(size_t i = 0; i < mTriangulation.vertices.size(); i++)
         {
             mQ.push_back(Eigen::Matrix3d::Zero());
         }
 
-        for(int i = 0; i < mTriangulation.vertices.size(); i++)
+        for(size_t i = 0; i < mTriangulation.vertices.size(); i++)
         {
             if(mTriangulation.vertType[i] == POINT_BOUNDING_BOX)
             {
@@ -212,7 +212,7 @@ namespace SBV
 
             collapseEdge(edgeInfo->firstVert, edgeInfo->secondVert, edgeInfo->position);
             numCollapsed++;
-            std::cout << "Iteration " << numCollapsed << " ..." << std::endl;
+            std::cout << "Collapse " << numCollapsed << " : from " << edgeInfo->firstVert << " to " << edgeInfo->secondVert << std::endl;
         }
 
         organizeOutput();
@@ -222,14 +222,14 @@ namespace SBV
     {
         std::vector<int> finalIndex;   //recording the final vert index of the original vertices
         finalIndex.reserve(mTriangulation.vertices.size());
-        for(int i = 0; i < mTriangulation.vertices.size(); i++)
+        for(size_t i = 0; i < mTriangulation.vertices.size(); i++)
         {
             finalIndex.push_back(-1);
         }
 
         //compute output vertices count
         size_t newVertCount = 0;
-        for(int i = 0; i < mTriangulation.vertices.size(); i++)
+        for(size_t i = 0; i < mTriangulation.vertices.size(); i++)
         {
             if(mCollapseTo[i] == i)
             {
@@ -240,7 +240,7 @@ namespace SBV
         std::vector<Point> newVertices(newVertCount);
 
         //organize new vertices
-        for(int i = 0, j = 0; i < mTriangulation.vertices.size(); i++)
+        for(size_t i = 0, j = 0; i < mTriangulation.vertices.size(); i++)
         {
             size_t collapsedVert = getCollapsedVert(i);
             if(finalIndex[i] >= 0)
@@ -268,7 +268,7 @@ namespace SBV
         }
 
         //update F value
-        for(int i = 0; i < mTriangulation.vertices.size(); i++)
+        for(size_t i = 0; i < mTriangulation.vertices.size(); i++)
         {
             mTriangulation.vertType[finalIndex[i]] = mTriangulation.vertType[i];
         }
@@ -276,7 +276,7 @@ namespace SBV
 
         //organize new triangles, remove duplicate
         std::vector<Eigen::Vector3i> newTriangleVector;
-        for(int i = 0; i < mTriangulation.triangles.size(); i++)
+        for(size_t i = 0; i < mTriangulation.triangles.size(); i++)
         {
             bool isDuplicated = false;
             std::set<size_t> triangle;
@@ -294,7 +294,7 @@ namespace SBV
             triangle.insert(a);
             triangle.insert(b);
             triangle.insert(c);
-            for(int j = 0; j < newTriangleVector.size(); j++)
+            for(size_t j = 0; j < newTriangleVector.size(); j++)
             {
                 std::set<size_t> oldTriangle;
                 oldTriangle.insert(newTriangleVector[j][0]);
@@ -584,7 +584,7 @@ namespace SBV
         std::vector<size_t> sampleInner;
         mShell.getInnerTree().getPointsInRange(xmin, xmax, ymin, ymax, sampleInner);
 
-        for(int i = 0; i < sampleInner.size(); i++)
+        for(size_t i = 0; i < sampleInner.size(); i++)
         {
             const Point& point = mShell.mInnerShell[sampleInner[i]];
 
@@ -613,7 +613,7 @@ namespace SBV
         std::vector<size_t> sampleOuter;
         mShell.getOuterTree().getPointsInRange(xmin, xmax, ymin, ymax, sampleOuter);
 
-        for(int i = 0; i < sampleOuter.size(); i++)
+        for(size_t i = 0; i < sampleOuter.size(); i++)
         {
             const Point& point = mShell.mOuterShell[sampleOuter[i]];
 
@@ -701,7 +701,7 @@ namespace SBV
             double ymin = std::numeric_limits<double>::max();
             double ymax = std::numeric_limits<double>::min();
 
-            for(int i = 0; i < lines.size(); i++)
+            for(size_t i = 0; i < lines.size(); i++)
             {
                 const Point& a = mTriangulation.vertices[lines[i][0]];
                 const Point& b = mTriangulation.vertices[lines[i][1]];
@@ -717,7 +717,7 @@ namespace SBV
 
             SamplingQuadTree tree(kernel, xmax, xmin, ymax, ymin, mSampleRadius);
             auto& samples = tree.getSamples();
-            for(int i = 0; i < samples.size(); i++)
+            for(size_t i = 0; i < samples.size(); i++)
             {
                 auto& point = samples[i];
                 double error = computeError(vert, point) + computeError(vertCollapseTo, point);

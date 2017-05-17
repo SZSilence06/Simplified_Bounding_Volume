@@ -48,7 +48,7 @@ namespace SBV
         std::vector<Point> shell;
         shell.reserve(mSourceMesh.vertices.size());
 
-        for(int i = 0; i < mSourceMesh.vertices.size(); i++)
+        for(size_t i = 0; i < mSourceMesh.vertices.size(); i++)
         {
             const Point& vertex = mSourceMesh.vertices[i];
             shell.push_back(vertex + normals[i] * mMaxDistance);
@@ -58,14 +58,14 @@ namespace SBV
 
         sample(shell, mSourceMesh.lines, sampled_shell);
         mShell.mOuterShell.reserve(sampled_shell.size());
-        for(int i = 0; i < sampled_shell.size(); i++)
+        for(size_t i = 0; i < sampled_shell.size(); i++)
         {
             mShell.mOuterShell.push_back(sampled_shell[i]);
         }
 
         sample(mSourceMesh.vertices, mSourceMesh.lines, sampled_shell);
         mShell.mInnerShell.reserve(sampled_shell.size());
-        for(int i = 0; i < sampled_shell.size(); i++)
+        for(size_t i = 0; i < sampled_shell.size(); i++)
         {
             mShell.mInnerShell.push_back(sampled_shell[i]);
         }
@@ -89,7 +89,7 @@ namespace SBV
                             std::vector<Point> &output_samples)
     {
         output_samples.clear();
-        for(int i = 0; i < lines.size(); i++)
+        for(size_t i = 0; i < lines.size(); i++)
         {
             const Point& a = vertices[lines[i][0]];
             const Point& b = vertices[lines[i][1]];

@@ -20,19 +20,19 @@ namespace WKYLIB
 
             out << "# vtk DataFile Version 2.0\n TET\nASCII\nDATASET UNSTRUCTURED_GRID\nPOINTS "
                 << points.size() << " float" << std::endl;
-            for(int i = 0; i < points.size(); i++)
+            for(size_t i = 0; i < points.size(); i++)
             {
                 out << points[i][0] << " " << points[i][1] << " " << points[i][2] << std::endl;
             }
 
             out << "CELLS " << points.size() << " " << points.size() * 2 << std::endl;
-            for(int i = 0; i < points.size(); i++)
+            for(size_t i = 0; i < points.size(); i++)
             {
                 out << "1 " << i << std::endl;
             }
 
             out << "CELL_TYPES " << points.size() << std::endl;
-            for(int i = 0; i < points.size(); i++)
+            for(size_t i = 0; i < points.size(); i++)
             {
                 out << "1" << std::endl;
             }
@@ -45,7 +45,7 @@ namespace WKYLIB
         bool writePoints2D(const std::string &file, const std::vector<Eigen::Vector2d> &points)
         {
             std::vector<Eigen::Vector3d> points_3D(points.size());
-            for(int i = 0; i < points_3D.size(); i++)
+            for(size_t i = 0; i < points_3D.size(); i++)
             {
                 points_3D[i][0] = points[i][0];
                 points_3D[i][1] = 0;
@@ -112,11 +112,11 @@ namespace WKYLIB
                 return false;
             }
 
-            for(int i = 0; i < vertices.size(); i++)
+            for(size_t i = 0; i < vertices.size(); i++)
             {
                 out << "v " << vertices[i][0] << " 0 " << vertices[i][1] << std::endl;
             }
-            for(int i = 0; i < lines.size(); i++)
+            for(size_t i = 0; i < lines.size(); i++)
             {
                 out << "l " << lines[i][0] + 1 << " " << lines[i][1] + 1 << std::endl;
             }
@@ -137,11 +137,11 @@ namespace WKYLIB
                 return false;
             }
 
-            for(int i = 0; i < vertices.size(); i++)
+            for(size_t i = 0; i < vertices.size(); i++)
             {
                 out << "v " << vertices[i][0] << " 0 " << vertices[i][1] << std::endl;
             }
-            for(int i = 0; i < triangles.size(); i++)
+            for(size_t i = 0; i < triangles.size(); i++)
             {
                 out << "f " << triangles[i][0] + 1 << " " << triangles[i][1] + 1 << " " << triangles[i][2] + 1 << std::endl;
             }

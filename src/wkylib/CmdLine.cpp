@@ -88,7 +88,7 @@ namespace WKYLIB
             case CmdParamType::INT:
             {
                 char *endptr = nullptr;
-                int value = std::strtol(paramValue, &endptr, 10);
+                int value = std::strtol(paramValue, &endptr, static_cast<long>(10));
                 if(checkParseValid(paramValue, &endptr) == false)
                 {
                     return false;

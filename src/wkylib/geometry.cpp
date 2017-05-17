@@ -117,7 +117,7 @@ namespace WKYLIB {
     //Test whether a and b are on same side of the given curve.
     bool is_on_same_side(const matrixr_t &curve,const matrixr_t &a,const matrixr_t &b){
         int cninter = 0,ret,i;
-        if(ret = intersect(a,b,curve(colon(),1),curve(colon(),0),true)){
+        if((ret = intersect(a,b,curve(colon(),1),curve(colon(),0),true)) == true){
             cninter++;
             if(ret == 4){          //on the end point
                 if(curve.size() == 2){
@@ -127,14 +127,14 @@ namespace WKYLIB {
             }
         }
         for(i=1;i<curve.size(2)-2;i++){
-            if(ret = intersect(a,b,curve(colon(),i),curve(colon(),i+1),false)){
+            if((ret = intersect(a,b,curve(colon(),i),curve(colon(),i+1),false)) == true){
                 cninter++;
                 if(ret == 5){
                     cninter--;
                 }
             }
         }
-        if(curve.size(2) >2 && (ret = intersect(a,b,curve(colon(),curve.size(2)-2),curve(colon(),curve.size(2)-1),true))){
+        if(curve.size(2) >2 && ((ret = intersect(a,b,curve(colon(),curve.size(2)-2),curve(colon(),curve.size(2)-1),true)) == true)){
             cninter++;
         }
         if(cninter %2 ){
@@ -193,7 +193,7 @@ namespace WKYLIB {
                 return true;
             }
             int inter;
-            if(inter = intersect(p,a,poly(colon(),i),poly(colon(),i+1),false)){
+            if((inter = intersect(p,a,poly(colon(),i),poly(colon(),i+1),false)) != 0){
                 cnInter++;
                 if(inter == 5){       //intersects on the tail of the edge
                     cnInter--;
@@ -205,7 +205,7 @@ namespace WKYLIB {
             return true;
         }
         int inter;
-        if(inter = intersect(p,a,poly(colon(),poly.size(2)-1),poly(colon(),0),false)){
+        if((inter = intersect(p,a,poly(colon(),poly.size(2)-1),poly(colon(),0),false)) != 0){
             cnInter++;
             if(inter == 5){       //intersects on the tail of the edge
                 cnInter--;
@@ -249,14 +249,14 @@ namespace WKYLIB {
     }
 
     //Tool function used by compute_volume();
-    float SignedVolumeOfTriangle(const matrixr_t &a, const matrixr_t &b, const matrixr_t &c) {
+    double SignedVolumeOfTriangle(const matrixr_t &a, const matrixr_t &b, const matrixr_t &c) {
         real_t v321 = c[0] * b[1] * a[2];
         real_t v231 = b[0] * c[1] * a[2];
         real_t v312 = c[0] * a[1] * b[2];
         real_t v132 = a[0] * c[1] * b[2];
         real_t v213 = b[0] * a[1] * c[2];
         real_t v123 = a[0] * b[1] * c[2];
-        return (1.0f/6.0f) * (-v321 + v231 + v312 - v132 - v213 + v123);
+        return (1.0 / 6.0) * (-v321 + v231 + v312 - v132 - v213 + v123);
     }
 
     //Compute volume of a triangle mesh
@@ -311,7 +311,7 @@ namespace WKYLIB {
     }
 
     //Tool function used by barycentric_tetra()
-    float ScTP(const matrixr_t &a, const matrixr_t &b, const matrixr_t &c)
+    double ScTP(const matrixr_t &a, const matrixr_t &b, const matrixr_t &c)
     {
         // computes scalar triple product
         return dot(a, cross(b, c));
@@ -331,11 +331,11 @@ namespace WKYLIB {
         matrixr_t vbc = tetra(colon(), 2) - tetra(colon(), 1);
         matrixr_t vbd = tetra(colon(), 3) - tetra(colon(), 1);
         // ScTP computes the scalar triple product
-        float va6 = ScTP(vbp, vbd, vbc);
-        float vb6 = ScTP(vap, vac, vad);
-        float vc6 = ScTP(vap, vad, vab);
-        float vd6 = ScTP(vap, vab, vac);
-        float v6 = 1 / ScTP(vab, vac, vad);
+        double va6 = ScTP(vbp, vbd, vbc);
+        double vb6 = ScTP(vap, vac, vad);
+        double vc6 = ScTP(vap, vad, vab);
+        double vd6 = ScTP(vap, vab, vac);
+        double v6 = 1 / ScTP(vab, vac, vad);
 
         bary = matrixr_t(4, 1);
         bary[0] = va6 * v6;
@@ -404,7 +404,7 @@ namespace WKYLIB {
     }
 
     //Pick vertex from the screen. If failed to pick, return -1.
-    //Param: 'error' shows the maximum distance from the vertex to be picked to the intersection between the  \
+    //Param: 'error' shows the maximum distance from the vertex to be picked to the intersection between the
     //         eye ray and the mesh. If the distance is bigger than 'error', the vertex will not be picked.
     int pick_mesh_vertex(const std::vector<Eigen::Vector3d> &vertices, const std::vector<Eigen::Vector3i> &triangles,
                          const Eigen::Vector3d &eye, const Eigen::Vector3d& lookAt, const Eigen::Vector3d &up,
@@ -416,7 +416,7 @@ namespace WKYLIB {
         generate_ray_dir(eye, lookAt, up, fov, x, y, screen_width, screen_height, ray_dir);
 
         double min_dist = std::numeric_limits<double>::max();
-        for(int i = 0; i < triangles.size(); i++)
+        for(size_t i = 0; i < triangles.size(); i++)
         {
             double dist = compute_intersection_triangle_ray(vertices[triangles[i][0]],
                                               vertices[triangles[i][1]],
@@ -437,14 +437,14 @@ namespace WKYLIB {
         Eigen::Vector3d intersection = eye + min_dist * ray_dir;
         int picked_vertex = -1;
         min_dist = std::numeric_limits<double>::max();
-        for(int i = 0; i < vertices.size(); i++)
+        for(size_t i = 0; i < vertices.size(); i++)
         {
             auto& vertex = vertices[i];
             double dist = (vertex - intersection).norm();
             if(dist < min_dist && dist < error)
             {
                 min_dist = dist;
-                picked_vertex = i;
+                picked_vertex = static_cast<int>(i);
             }
         }
         return picked_vertex;
@@ -454,7 +454,7 @@ namespace WKYLIB {
     void bary_to_coor(const matrixr_t& vertices, const matrixs_t& triangles, const matrixr_t& bary,
                       matrixr_t& coor)
     {
-        matrixr_t triangle = vertices(colon(), triangles(colon(), bary[2]));
+        matrixr_t triangle = vertices(colon(), triangles(colon(), static_cast<long int>(bary[2])));
 
         coor = bary[0] * triangle(colon(), 0) + bary[1] * triangle(colon(), 1)
                 + (1 - bary[0] - bary[1]) * triangle(colon(), 2);

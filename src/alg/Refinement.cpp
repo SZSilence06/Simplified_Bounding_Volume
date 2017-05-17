@@ -29,7 +29,7 @@ namespace SBV
         double yMax = std::numeric_limits<double>::min();
         double yMin = std::numeric_limits<double>::max();
 
-        for(int i = 0; i < mShell.mOuterShell.size(); i++)
+        for(size_t i = 0; i < mShell.mOuterShell.size(); i++)
         {
             if(xMax < mShell.mOuterShell[i][0])
             {
@@ -98,7 +98,7 @@ namespace SBV
 
         double maxError = -std::numeric_limits<double>::max();
         PointInfo maxErrorPoint;
-        for(int i = 0; i < mShell.mInnerShell.size(); i++)
+        for(size_t i = 0; i < mShell.mInnerShell.size(); i++)
         {
             double f = computeFValue(mShell.mInnerShell[i], cell);
             if(f == std::numeric_limits<double>::max())
@@ -110,13 +110,13 @@ namespace SBV
             if(maxError < error)
             {
                 maxError = error;
-                maxErrorPoint = PointInfo(POINT_INNER, i);
+                maxErrorPoint = PointInfo(POINT_INNER, static_cast<int>(i));
             }
             mInnerError[i] = fabs(f + 1);
-            info.points.push_back(PointInfo(POINT_INNER, i));
+            info.points.push_back(PointInfo(POINT_INNER, static_cast<int>(i)));
         }
 
-        for(int i = 0; i < mShell.mOuterShell.size(); i++)
+        for(size_t i = 0; i < mShell.mOuterShell.size(); i++)
         {
             double f = computeFValue(mShell.mOuterShell[i], cell);
             if(f == std::numeric_limits<double>::max())
@@ -128,10 +128,10 @@ namespace SBV
             if(maxError < error)
             {
                 maxError = error;
-                maxErrorPoint = PointInfo(POINT_OUTER, i);
+                maxErrorPoint = PointInfo(POINT_OUTER, static_cast<int>(i));
             }
             mOuterError[i] = fabs(f - 1);
-            info.points.push_back(PointInfo(POINT_OUTER, i));
+            info.points.push_back(PointInfo(POINT_OUTER, static_cast<int>(i)));
         }
 
         info.maxErrorPoint = maxErrorPoint;
@@ -211,7 +211,7 @@ namespace SBV
 
     bool Refinement::refine()
     {
-        int iterCount = 0;
+        size_t iterCount = 0;
         while(!isFinished() && iterCount <= (mShell.mInnerShell.size() + mShell.mOuterShell.size()))
         {
             iterCount++;
@@ -257,7 +257,7 @@ namespace SBV
     bool Refinement::isFinished()
     {
         //check for condition 1.
-        for(int i = 0; i < mInnerError.size(); i++)
+        for(size_t i = 0; i < mInnerError.size(); i++)
         {
             if(mInnerError[i] > 1 - mAlpha)
             {
@@ -265,7 +265,7 @@ namespace SBV
             }
         }
 
-        for(int i = 0; i < mOuterError.size(); i++)
+        for(size_t i = 0; i < mOuterError.size(); i++)
         {
             if(mOuterError[i] > 1 - mAlpha)
             {

@@ -31,7 +31,7 @@ namespace WKYLIB
         {
             std::vector<Eigen::Vector2d> vnSum(vertices.size());
             normals.resize(vertices.size());
-            for(int i = 0; i < lines.size(); i++){
+            for(size_t i = 0; i < lines.size(); i++){
                 const Eigen::Vector2d& a = vertices[lines[i][0]];
                 const Eigen::Vector2d& b = vertices[lines[i][1]];
                 Eigen::Vector2d ab = b - a;
@@ -43,7 +43,7 @@ namespace WKYLIB
                     vnSum[lines[i][j]] += faceNormal;
                 }
             }
-            for(int i = 0; i < vertices.size(); i++){
+            for(size_t i = 0; i < vertices.size(); i++){
                 double temp = vnSum[i].norm();
                 normals[i] = vnSum[i] / temp;
             }

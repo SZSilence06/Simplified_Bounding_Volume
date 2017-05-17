@@ -13,7 +13,7 @@ typedef matrix<size_t> matrixs_t;
 namespace WKYLIB {
     #define ZERO(x) (fabs(x)<1e-6)
     #define EQUAL(a,b) (ZERO(a-b))
-    const float PI = 3.1415926;
+    const double PI = 3.1415926;
 
     //get 2D angle from 2d coordinate. Range from [0, 2*PI).
     double get_2d_angle(double x, double y);
@@ -78,8 +78,8 @@ namespace WKYLIB {
                           matrixr_t &output_dir);
 
     //Pick vertex from the screen. If failed to pick, return -1.
-    //Param: 'error' shows the maximum distance from the vertex to be picked to the intersection between the  \
-             eye ray and the mesh. If the distance is bigger than 'error', the vertex will not be picked.
+    //Param: 'error' shows the maximum distance from the vertex to be picked to the intersection between the
+    //         eye ray and the mesh. If the distance is bigger than 'error', the vertex will not be picked.
     int pick_mesh_vertex(const matrixr_t &vertices, const matrixs_t &triangles, const matrixr_t &eye,
                          const matrixr_t& lookAt, const matrixr_t &up, double fov,
                          double x, double y, double screen_width, double screen_height,

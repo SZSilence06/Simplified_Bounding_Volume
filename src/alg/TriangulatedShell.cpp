@@ -49,7 +49,7 @@ namespace SBV
         mZeroSet.vertPairs.clear();
         mZeroSet.lineFaces.clear();
         int zeroFaceCount = 0;
-        for(int i = 0; i < triangles.size(); i++)
+        for(size_t i = 0; i < triangles.size(); i++)
         {
             size_t v0 = triangles[i][0];
             size_t v1 = triangles[i][1];
@@ -65,7 +65,7 @@ namespace SBV
 
         //build zero face connection
         mZeroSet.lines.clear();
-        for(int i = 0; i < triangles.size(); i++)
+        for(size_t i = 0; i < triangles.size(); i++)
         {
             size_t v0 = triangles[i][0];
             size_t v1 = triangles[i][1];
@@ -104,7 +104,7 @@ namespace SBV
 
         //build zero point positions
         mZeroSet.vertices.resize(mZeroSet.vertPairs.size());
-        for(int i = 0; i< mZeroSet.vertPairs.size(); i++)
+        for(size_t i = 0; i< mZeroSet.vertPairs.size(); i++)
         {
             auto& vertPair = mZeroSet.vertPairs[i];
             mZeroSet.vertices[i] = (vertices[vertPair.first] + vertices[vertPair.second]) / 2;
@@ -116,7 +116,7 @@ namespace SBV
         mZeroSet.lineFaces.clear();
 
         mZeroSet.vertices.clear();
-        for(int i = 0; i < vertices.size(); i++)
+        for(size_t i = 0; i < vertices.size(); i++)
         {
             if(vertType[i] == POINT_ZERO)
             {
@@ -127,7 +127,7 @@ namespace SBV
         //organize zero faces
         mZeroSet.lines.clear();
         mZeroSet.lineFaces.clear();
-        for(int i = 0, j = 0; i < triangles.size(); i++)
+        for(size_t i = 0; i < triangles.size(); i++)
         {
             size_t v0 = triangles[i][0];
             size_t v1 = triangles[i][1];
@@ -161,7 +161,7 @@ namespace SBV
 
     size_t TriangulatedShell::getZeroPointIndex(size_t firstVertex, size_t secondVertex)
     {
-        for(int i = 0; i < mZeroSet.vertPairs.size(); i++)
+        for(size_t i = 0; i < mZeroSet.vertPairs.size(); i++)
         {
             auto& vertPair = mZeroSet.vertPairs[i];
             if((vertPair.first == firstVertex && vertPair.second == secondVertex)
@@ -179,7 +179,7 @@ namespace SBV
     {
         this->hasZeroSet = true;
         std::vector<Eigen::Vector3i> newTriangles;
-        for(int i = 0; i < triangles.size(); i++)
+        for(size_t i = 0; i < triangles.size(); i++)
         {
             const Eigen::Vector3i& face = triangles[i];
             if(getSign(face[0]) == getSign(face[1]) && getSign(face[0]) == getSign(face[2]))
@@ -189,7 +189,7 @@ namespace SBV
             }
         }
 
-        for(int i = 0; i < mZeroSet.lineFaces.size(); i++)
+        for(size_t i = 0; i < mZeroSet.lineFaces.size(); i++)
         {
             const size_t& face = mZeroSet.lineFaces[i];
             const size_t& a = triangles[face][0];
@@ -197,8 +197,6 @@ namespace SBV
             const size_t& c = triangles[face][2];
             const size_t& lineVert11 = mZeroSet.vertPairs[mZeroSet.lines[i][0]].first;
             const size_t& lineVert12 = mZeroSet.vertPairs[mZeroSet.lines[i][0]].second;
-            const size_t& lineVert21 = mZeroSet.vertPairs[mZeroSet.lines[i][1]].first;
-            const size_t& lineVert22 = mZeroSet.vertPairs[mZeroSet.lines[i][1]].second;
 
             size_t commonVert;
             if(getSign(a) == getSign(b))
@@ -249,14 +247,14 @@ namespace SBV
         }
 
         //organize output
-        for(int i = 0; i < mZeroSet.vertices.size(); i++)
+        for(size_t i = 0; i < mZeroSet.vertices.size(); i++)
         {
             vertices.push_back(mZeroSet.vertices[i]);
         }
         triangles = std::move(newTriangles);
 
         //update vertType
-        for(int i = 0; i < mZeroSet.vertices.size(); i++)
+        for(size_t i = 0; i < mZeroSet.vertices.size(); i++)
         {
             vertType.push_back(POINT_ZERO);
         }

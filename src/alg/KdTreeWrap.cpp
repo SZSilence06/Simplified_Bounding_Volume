@@ -9,7 +9,7 @@ namespace SBV
 {
     void KdTreeWrap::build(const std::vector<Point> &points)
     {
-        for(int i = 0; i < points.size(); i++)
+        for(size_t i = 0; i < points.size(); i++)
         {
             KdTreeNode node;
             node.point = points[i];
@@ -39,7 +39,7 @@ namespace SBV
 
         //organize output
         points.resize(end - find_results.begin());
-        for(int i = 0; i < points.size(); i++)
+        for(size_t i = 0; i < points.size(); i++)
         {
             points[i] = find_results[i].index;
         }
@@ -59,7 +59,7 @@ namespace SBV
 
         //organize output
         points.resize(end - find_results.begin());
-        for(int i = 0; i < points.size(); i++)
+        for(size_t i = 0; i < points.size(); i++)
         {
             points[i] = find_results[i].index;
         }
