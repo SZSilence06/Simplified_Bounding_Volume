@@ -300,12 +300,16 @@ namespace WKYLIB {
         Eigen::Vector3d a_3d, b_3d, c_3d, p_3d;
         a_3d[0] = a[0];
         a_3d[1] = a[1];
+        a_3d[2] = 0;
         b_3d[0] = b[0];
         b_3d[1] = b[1];
+        b_3d[2] = 0;
         c_3d[0] = c[0];
         c_3d[1] = c[1];
+        c_3d[2] = 0;
         p_3d[0] = p[0];
         p_3d[1] = p[1];
+        p_3d[2] = 0;
 
         return barycentric(a_3d, b_3d, c_3d, p_3d, bary);
     }

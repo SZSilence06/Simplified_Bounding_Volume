@@ -124,10 +124,9 @@ namespace SBV
             }
         }
 
-        //organize zero faces
-        mZeroSet.lines.clear();
-        mZeroSet.lineFaces.clear();
-        for(size_t i = 0; i < triangles.size(); i++)
+        //find out zero faces count
+        std::set<ZeroFace > zeroFaces;
+        for(int i = 0, j = 0; i < triangles.size(); i++)
         {
             size_t v0 = triangles[i][0];
             size_t v1 = triangles[i][1];
@@ -135,28 +134,42 @@ namespace SBV
 
             if(getSign(v0) == getSign(v1) && getSign(v0) == 0)
             {
-                addZeroFace(i, v0, v1);
+                tryAddZeroFace(i, v0, v1, zeroFaces);
             }
             else if(getSign(v0) == getSign(v2) && getSign(v0) == 0)
             {
-                addZeroFace(i, v0, v2);
+                tryAddZeroFace(i, v0, v2, zeroFaces);
             }
             else if(getSign(v1) == getSign(v2) && getSign(v1) == 0)
             {
-                addZeroFace(i, v1, v2);
+                tryAddZeroFace(i, v1, v2, zeroFaces);
             }
+        }
+        //organize zero faces
+        int i = 0;
+        mZeroSet.lines.resize(zeroFaces.size());
+        for(const ZeroFace& face : zeroFaces)
+        {
+            int j = 0;
+            for(const size_t& vert : face.verts)
+            {
+                mZeroSet.lines[i][j] = vert;
+                j++;
+            }
+            mZeroSet.lineFaces.push_back(face.tetra);
+            i++;
         }
     }
 
-    void TriangulatedShell::addZeroFace(size_t currentTetra, size_t zeroVert1, size_t zeroVert2)
+    void TriangulatedShell::tryAddZeroFace(size_t currentTetra, size_t zeroVert1, size_t zeroVert2,
+                                        std::set<ZeroFace>& zeroFaces)
     {
         int zeroIndexDelta = vertices.size() - mZeroSet.vertices.size();
-        Eigen::Vector2i line;
-        line[0] = zeroVert1 - zeroIndexDelta;
-        line[1] = zeroVert2 - zeroIndexDelta;
-
-        mZeroSet.lines.push_back(line);
-        mZeroSet.lineFaces.push_back(currentTetra);
+        ZeroFace face;
+        face.verts.insert(zeroVert1 - zeroIndexDelta);
+        face.verts.insert(zeroVert2 - zeroIndexDelta);
+        face.tetra = currentTetra;
+        zeroFaces.insert(face);
     }
 
     size_t TriangulatedShell::getZeroPointIndex(size_t firstVertex, size_t secondVertex)

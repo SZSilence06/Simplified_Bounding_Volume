@@ -73,14 +73,14 @@ namespace SBV
         mOuterError.resize(mShell.mOuterShell.size(), 0);
     }
 
-    //optimize this function causes crash
-    void __attribute__((optimize("O0"))) Refinement::updateErrors()
+    void Refinement::updateErrors()
     {
         double maxError = std::numeric_limits<double>::lowest();
         for(auto iter = mDelaunay.finite_faces_begin(); iter != mDelaunay.finite_faces_end(); ++iter)
         {
-            updatePointInCell(*iter);
-            double maxErrorInCell = getError(iter->info().maxErrorPoint);
+            Cell& cell = *iter;
+            updatePointInCell(cell);
+            double maxErrorInCell = getError(cell.info().maxErrorPoint);
             if(maxError < maxErrorInCell)
             {
                 maxError = maxErrorInCell;
@@ -89,8 +89,7 @@ namespace SBV
         }
     }
 
-    //optimize this function causes severe wrong result
-    void __attribute__((optimize("O0"))) Refinement::updatePointInCell(Cell& cell)
+    void Refinement::updatePointInCell(Cell& cell)
     {
         FaceInfo& info = cell.info();
         if(isNewCell(cell) == false)
@@ -143,7 +142,7 @@ namespace SBV
     }
 
     //optimize this function causes crash
-    double __attribute__((optimize("O0"))) Refinement::computeFValue(const Point &point, const Cell &cell)
+    double Refinement::computeFValue(const Point &point, const Cell &cell)
     {
         const VertexHandle& vh0 = cell.vertex(0);
         const VertexHandle& vh1 = cell.vertex(1);
@@ -170,8 +169,6 @@ namespace SBV
             double f2 = getFValue(vh2);
 
             double ans = f0 * bary[0] + f1 * bary[1] + f2 * bary[2];
-            //assert(ans < 1 || fabs(ans-1) < 1e-3);
-            //assert(ans > -1 || fabs(ans+1) < 1e-3);
             return ans;
         }
 
@@ -261,7 +258,7 @@ namespace SBV
         return true;
     }
 
-    bool __attribute__((optimize("O0"))) Refinement::isFinished()
+    bool Refinement::isFinished()
     {
         //check for condition 1.
         for(size_t i = 0; i < mInnerError.size(); i++)
@@ -436,7 +433,7 @@ namespace SBV
         return true;
     }
 
-    bool __attribute__((optimize("O0"))) Refinement::checkClassification(const Cell &cell, const Point &point, bool isOuter)
+    bool Refinement::checkClassification(const Cell &cell, const Point &point, bool isOuter)
     {
         const VertexHandle& vh0 = cell.vertex(0);
         const VertexHandle& vh1 = cell.vertex(1);

@@ -42,9 +42,16 @@ namespace SBV
         void mutualTessellate();
 
     private:
+        struct ZeroFace{
+            std::set<size_t> verts;
+            size_t tetra;
+
+            bool operator <(const ZeroFace& face) const { return this->verts < face.verts; }
+        };
+
         size_t getZeroPointIndex(size_t firstVertex, size_t secondVertex);
         void buildZeroSetExisting();
-        void addZeroFace(size_t currentTetra, size_t zeroVert1, size_t zeroVert2);
+        void tryAddZeroFace(size_t currentTetra, size_t zeroVert1, size_t zeroVert2, std::set<ZeroFace>& zeroFaces);
 
     private:
         ZeroSet mZeroSet;
