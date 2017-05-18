@@ -12,15 +12,15 @@ namespace SBV
     public:
         struct ZeroSet
         {
-            matrixr_t vertices;
-            matrixs_t lines;
+            std::vector<Point> vertices;
+            std::vector<Eigen::Vector2i> lines;
             std::vector<std::pair<size_t, size_t> >  vertPairs;   //recording the corresponding vert pairs of the zero set vertices
             std::vector<size_t> lineFaces;                        //recording the corresponding faces of the zero set lines
         };
 
     public:
-        matrixr_t vertices;
-        matrixs_t triangles;
+        std::vector<Point> vertices;
+        std::vector<Eigen::Vector3i> triangles;
         std::vector<PointType> vertType;
 
     public:

@@ -4,6 +4,7 @@
 #include "Common.h"
 #include "eigen3/Eigen/Dense"
 #include <wkylib/Cuda/CudaPointer.h>
+#include <wkylib/Cuda/CudaVector.h>
 #include <wkylib/Cuda/CudaEigen.h>
 
 namespace SBV
@@ -13,9 +14,12 @@ namespace SBV
         template<class T>
         using CudaPointer = WKYLIB::Cuda::CudaPointer<T>;
 
+        template<class T>
+        using CudaVector = WKYLIB::Cuda::CudaVector<T>;
+
     public:
-        CudaPointer<Eigen::MatrixXd> innerShell;
-        CudaPointer<Eigen::MatrixXd> outerShell;
+        CudaVector<Point> innerShell;
+        CudaVector<Point> outerShell;
     };
 }
 

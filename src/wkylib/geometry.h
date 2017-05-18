@@ -2,6 +2,7 @@
 #define WKY_GEOMETRY_H
 
 #include <zjucad/matrix/matrix.h>
+#include <eigen3/Eigen/Dense>
 
 using namespace zjucad::matrix;
 
@@ -12,7 +13,7 @@ typedef matrix<size_t> matrixs_t;
 namespace WKYLIB {
     #define ZERO(x) (fabs(x)<1e-6)
     #define EQUAL(a,b) (ZERO(a-b))
-    const float PI = 3.1415926;
+    const double PI = 3.1415926;
 
     //get 2D angle from 2d coordinate. Range from [0, 2*PI).
     double get_2d_angle(double x, double y);
@@ -54,16 +55,18 @@ namespace WKYLIB {
 
     //compute intersection between a ray and a triangle abc.
     //return the distance. If no intersection, return -1.
-    real_t compute_intersection_triangle_ray(const matrixr_t &a, const matrixr_t &b, const matrixr_t &c,
-                                          const matrixr_t &p, const matrixr_t &dir);
+    real_t compute_intersection_triangle_ray(const Eigen::Vector3d &a, const Eigen::Vector3d &b, const Eigen::Vector3d &c,
+                                             const Eigen::Vector3d &p, const Eigen::Vector3d &dir);
 
     //Compute barycenter coordinates of the point p on trinangle.
     //return 1 if p is inside the triangle, and 0 instead.
-    int barycentric(const matrixr_t &point, const matrixr_t &triangle, matrixr_t &bary);
+    int barycentric(const Eigen::Vector3d &a, const Eigen::Vector3d& b, const Eigen::Vector3d& c,
+                    const Eigen::Vector3d &p, Eigen::Vector3d &bary);
 
     //Compute barycenter coordinates of the point p on 2d trinangle abc.
     //return 1 if p is inside the triangle, and 0 instead.
-    int barycentric_2D(const matrixr_t &point, const matrixr_t &triangle, matrixr_t &bary);
+    int barycentric_2D(const Eigen::Vector2d &a, const Eigen::Vector2d& b, const Eigen::Vector2d& c,
+                       const Eigen::Vector2d &p, Eigen::Vector3d &bary);
 
     //Compute barycenter coordinates of the point p on tetrahedron.
     //return 1 if p is inside the tetrahedron, and 0 instead.
@@ -75,8 +78,8 @@ namespace WKYLIB {
                           matrixr_t &output_dir);
 
     //Pick vertex from the screen. If failed to pick, return -1.
-    //Param: 'error' shows the maximum distance from the vertex to be picked to the intersection between the  \
-             eye ray and the mesh. If the distance is bigger than 'error', the vertex will not be picked.
+    //Param: 'error' shows the maximum distance from the vertex to be picked to the intersection between the
+    //         eye ray and the mesh. If the distance is bigger than 'error', the vertex will not be picked.
     int pick_mesh_vertex(const matrixr_t &vertices, const matrixs_t &triangles, const matrixr_t &eye,
                          const matrixr_t& lookAt, const matrixr_t &up, double fov,
                          double x, double y, double screen_width, double screen_height,

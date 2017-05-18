@@ -6,12 +6,11 @@ using namespace zjucad::matrix;
 
 namespace SBV
 {
-    KernelRegion::KernelRegion(const matrixr_t &points, const matrixs_t &lines, const Shell& shell,
+    KernelRegion::KernelRegion(const std::vector<Eigen::Vector2i>& lines, const Shell& shell,
                                const std::set<size_t>& innerSample, const std::set<size_t>& outerSample,
                                const TriangulatedShell& triangulation, PointType collapsedPointType,
                                InvalidRegionType invalidRegionType)
-        : mPoints(points),
-          mLines(lines),
+        : mLines(lines),
           mShell(shell),
           mInnerSamples(innerSample),
           mOuterSamples(outerSample),
@@ -30,10 +29,10 @@ namespace SBV
     void KernelRegion::buildAdjacency()
     {
         //build adjacency list of the vertices.
-        for(int i = 0; i < mLines.size(2); i++)
+        for(size_t i = 0; i < mLines.size(); i++)
         {
-            size_t a = mLines(0, i);
-            size_t b = mLines(1, i);
+            size_t a = mLines[i][0];
+            size_t b = mLines[i][1];
 
             auto iterA = mAdjacency.find(a);
             auto iterB = mAdjacency.find(b);
@@ -91,10 +90,10 @@ namespace SBV
         //judging whether the polygon is clockwise or counter-clockwise.
         double sum = 0;
 
-        for(int i = 0; i < mPolygon.size() - 1; i++)
+        for(size_t i = 0; i < mPolygon.size() - 1; i++)
         {
-            const matrixr_t &a = mPoints(colon(), mPolygon[i]);
-            const matrixr_t &b = mPoints(colon(), mPolygon[i + 1]);
+            const Point &a = mTriangulation.vertices[mPolygon[i]];
+            const Point &b = mTriangulation.vertices[mPolygon[i + 1]];
 
             sum += (a[1] - a[0]) * (b[1] + b[0]);
         }
@@ -105,12 +104,12 @@ namespace SBV
     void KernelRegion::construct()
     {
         A.resize(mPolygon.size(), 3);
-        for(int i = 0; i < mPolygon.size() - 1; i++)
+        for(size_t i = 0; i < mPolygon.size(); i++)
         {
-            const matrixr_t &a = mPoints(colon(), mPolygon[i]);
-            const matrixr_t &b = mPoints(colon(), mPolygon[i + 1]);
-            matrixr_t ab = b - a;
-            ab /= norm(ab);
+            const Point &a = mTriangulation.vertices[mPolygon[i]];
+            const Point &b = mTriangulation.vertices[mPolygon[(i + 1) % mPolygon.size()]];
+            Point ab = b - a;
+            ab /= ab.norm();
 
             if(mClockwise)
             {
@@ -129,7 +128,7 @@ namespace SBV
         //computeInvalidConstraints();
     }
 
-    void KernelRegion::computeInvalidConstraints()
+    /*void KernelRegion::computeInvalidConstraints()
     {
         if(mInvalidRegionType == INVALID_REGION_BOUNDARY)
         {
@@ -255,7 +254,7 @@ namespace SBV
                  }
             }
 
-            /*matrixr_t EInner = mShell.mInnerShell(colon(), mInnerMaxErrorSample);
+            matrixr_t EInner = mShell.mInnerShell(colon(), mInnerMaxErrorSample);
             matrixr_t EOuter = mShell.mOuterShell(colon(), mOuterMaxErrorSample);
             for(int i = 0; i < mLines.size(2); i++)
             {
@@ -276,7 +275,7 @@ namespace SBV
                     buildConstraintForBundary(a, b, EInner, 2);
                     buildConstraintForBundary(a, b, EOuter, 2);
                 }
-            }*/
+            }
         }
     }
 
@@ -378,15 +377,15 @@ namespace SBV
         segment[0] = ab[1];
         segment[1] = -ab[0];
         segment[2] = ab[0] * a[1] - ab[1] * a[0];
-    }
+    }*/
 
-    bool KernelRegion::contains(const matrixr_t &point) const
+    bool KernelRegion::contains(const Point &point) const
     {
-        matrixr_t homo(3, 1);
+        Eigen::Vector3d homo(3, 1);
         homo[0] = point[0];
         homo[1] = point[1];
         homo[2] = 1;
-        matrixr_t result = A * homo;
+        Eigen::VectorXd result = A * homo;
         for(int i = 0; i < result.size(); i++)
         {
             if(result[i] > 0)
@@ -401,7 +400,7 @@ namespace SBV
         return true;
     }
 
-    bool KernelRegion::isInvalidRegion(const matrixr_t &point) const
+    bool KernelRegion::isInvalidRegion(const Point &point) const
     {
         /*bool result1 = false;
         if(mInvalidRegionType == INVALID_REGION_BOUNDARY)
@@ -431,21 +430,19 @@ namespace SBV
             }
             //return false;
         }*/
-        for(int i = 0; i < mLines.size(2); i++)
+        for(size_t i = 0; i < mLines.size(); i++)
         {
-            matrixr_t triangle(2, 3);
-            triangle(colon(), 0) = mPoints(colon(), mLines(0, i));
-            triangle(colon(), 1) = mPoints(colon(), mLines(1, i));
-            triangle(colon(), 2) = point;
+            const Point& a = mTriangulation.vertices[mLines[i][0]];
+            const Point& b = mTriangulation.vertices[mLines[i][1]];
 
             for(size_t sample : mInnerSamples)
             {
-                matrixr_t bary;
-                if(WKYLIB::barycentric_2D(mShell.mInnerShell(colon(), sample), triangle, bary))
+                Eigen::Vector3d bary;
+                if(WKYLIB::barycentric_2D(a, b, point, mShell.mInnerShell[sample], bary))
                 {
                     //the point is inside the tetrahedron
-                    double f0 = mTriangulation.getFValue(mLines(0, i));
-                    double f1 = mTriangulation.getFValue(mLines(1, i));
+                    double f0 = mTriangulation.getFValue(mLines[i][0]);
+                    double f1 = mTriangulation.getFValue(mLines[i][1]);
                     double f2 = mTriangulation.getFValue(mPointType);
 
                     if(mInvalidRegionType == INVALID_REGION_ZERO_SET && f0 * f1 < 0)
@@ -461,12 +458,12 @@ namespace SBV
 
             for(size_t sample : mOuterSamples)
             {
-                matrixr_t bary;
-                if(WKYLIB::barycentric_2D(mShell.mOuterShell(colon(), sample), triangle, bary))
+                Eigen::Vector3d bary;
+                if(WKYLIB::barycentric_2D(a, b, point, mShell.mOuterShell[sample], bary))
                 {
                     //the point is inside the tetrahedron
-                    double f0 = mTriangulation.getFValue(mLines(0, i));
-                    double f1 = mTriangulation.getFValue(mLines(1, i));
+                    double f0 = mTriangulation.getFValue(mLines[i][0]);
+                    double f1 = mTriangulation.getFValue(mLines[i][1]);
                     double f2 = mTriangulation.getFValue(mPointType);
 
                     if(mInvalidRegionType == INVALID_REGION_ZERO_SET && f0 * f1 < 0)
@@ -482,10 +479,5 @@ namespace SBV
         }
 
         return false;
-    }
-
-    bool KernelRegion::getBestPos(const matrixr_t &Q, matrixr_t &output_position) const
-    {
-
     }
 }

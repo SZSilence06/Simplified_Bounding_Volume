@@ -13,7 +13,7 @@ namespace WKYLIB
          * @param points : points to write. 
          * @return true if succeeded, and false otherwise.
          */
-        WKY_API bool writePoints(const std::string& file, const matrixr_t& points);
+        WKY_API bool writePoints(const std::string &file, const std::vector<Eigen::Vector3d> &points);
 
         /**
          * @brief write 2d points to a vtk format file, with y coordinate set to 0, and z coordinate as y coordinate.
@@ -21,7 +21,7 @@ namespace WKYLIB
          * @param points : points to write.
          * @return true if succeeded, and false otherwise.
          */
-        WKY_API bool writePoints2D(const std::string& file, const matrixr_t& points);
+        WKY_API bool writePoints2D(const std::string &file, const std::vector<Eigen::Vector2d> &points);
 
         /**
          * @brief read 2d curve from a obj format file, with y coordinate ignored, and z coordinate as y coordinate.
@@ -30,7 +30,8 @@ namespace WKYLIB
          * @param lines : matrix to store the line data.
          * @return true if succeeded, and false otherwise.
          */
-        WKY_API bool readCurve2D(const std::string& file, matrixr_t& vertices, matrixs_t& lines);
+        WKY_API bool readCurve2D(const std::string& file, std::vector<Eigen::Vector2d>& vertices,
+                                 std::vector<Eigen::Vector2i>& lines);
 
         /**
          * @brief write 2D curve to a obj format file, with y coordinate set to 0, and z coordinate as y coordinate.
@@ -39,7 +40,8 @@ namespace WKYLIB
          * @param lines : lines to output.
          * @return true if succeeded, and false otherwise.
          */
-        WKY_API bool writeCurve2D(const std::string& file, const matrixr_t& vertices, const matrixs_t& lines);
+        WKY_API bool writeCurve2D(const std::string& file, const std::vector<Eigen::Vector2d>& vertices,
+                                  const std::vector<Eigen::Vector2i>& lines);
 
         /**
          * @brief write 2D triangle mesh to a obj format file, with y coordinate set to 0, and z coordinate as y coordinate.
@@ -48,7 +50,8 @@ namespace WKYLIB
          * @param triangles : triangles to output.
          * @return true if succeeded, and false otherwise.
          */
-        WKY_API bool writeMesh2D(const std::string& file, const matrixr_t& vertices, const matrixs_t& triangles);
+        WKY_API bool writeMesh2D(const std::string &file, const std::vector<Eigen::Vector2d> &vertices,
+                                 const std::vector<Eigen::Vector3i> &triangles);
     }
 }
 

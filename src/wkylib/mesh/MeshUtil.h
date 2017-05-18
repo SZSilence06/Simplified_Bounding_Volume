@@ -9,7 +9,8 @@ namespace WKYLIB
     {
         WKY_API void computeNormal(const matrixr_t& vertices, const matrixs_t& triangles, matrixr_t& normals);
 
-        WKY_API void computeNormal2D(const matrixr_t& vertices, const matrixr_t& lines, matrixr_t& normals);
+        WKY_API void computeNormal2D(const std::vector<Eigen::Vector2d>& vertices, const std::vector<Eigen::Vector2i>&lines,
+                                           std::vector<Eigen::Vector2d>& normals);
     }
 }
 

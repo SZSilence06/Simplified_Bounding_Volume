@@ -12,18 +12,8 @@ namespace SBV
         : mShell(shell),
           mTriangulation(triangulation)
     {
-        Eigen::MatrixXd A;
-        zju_mat_to_eigen(cpu_kernel.A, A);
-        this->A.assign(A);
-
-        mLines.reserve(cpu_kernel.mLines.size(2));
-        for(int i = 0; i < cpu_kernel.mLines.size(2); i++)
-        {
-            Eigen::Vector2i line;
-            line[0] = cpu_kernel.mLines(0, i);
-            line[1] = cpu_kernel.mLines(1, i);
-            mLines.push_back(line);
-        }
+        this->A.assign(cpu_kernel.A);
+        mLines.assign(cpu_kernel.mLines);
 
         this->mPointType = cpu_kernel.mPointType;
         this->mInvalidRegionType = cpu_kernel.mInvalidRegionType;
@@ -78,7 +68,7 @@ namespace SBV
                 Eigen::Vector3d bary;
 
                 if(barycentric_2D(vertices[lines[i][0]], vertices[lines[i][1]], point,
-                                  mShell->innerShell->col(sample), bary))
+                                  mShell->innerShell[sample], bary))
                 {
                     //the point is inside the tetrahedron
                     double f0 = mTriangulation->getFValue(lines[i][0]);
@@ -98,7 +88,7 @@ namespace SBV
                 size_t sample = outerSamples[j];
                 Eigen::Vector3d bary;
                 if(barycentric_2D(vertices[lines[i][0]], vertices[lines[i][1]], point,
-                                  mShell->outerShell->col(sample), bary))
+                                  mShell->outerShell[sample], bary))
                 {
                     //the point is inside the tetrahedron
                     double f0 = mTriangulation->getFValue(lines[i][0]);
@@ -143,12 +133,16 @@ namespace SBV
         Eigen::Vector3d a_3d, b_3d, c_3d, p_3d;
         a_3d[0] = a[0];
         a_3d[1] = a[1];
+        a_3d[2] = 0;
         b_3d[0] = b[0];
         b_3d[1] = b[1];
+        b_3d[2] = 0;
         c_3d[0] = c[0];
         c_3d[1] = c[1];
+        c_3d[2] = 0;
         p_3d[0] = p[0];
         p_3d[1] = p[1];
+        p_3d[2] = 0;
 
         return barycentric(a_3d, b_3d, c_3d, p_3d, bary);
     }

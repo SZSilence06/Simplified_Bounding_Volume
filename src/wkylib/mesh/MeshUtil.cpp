@@ -26,28 +26,26 @@ namespace WKYLIB
             }
         }
 
-        void computeNormal2D(const matrixr_t& vertices, const matrixr_t& lines, matrixr_t& normals)
+        void computeNormal2D(const std::vector<Eigen::Vector2d>& vertices, const std::vector<Eigen::Vector2i>&lines,
+                             std::vector<Eigen::Vector2d>& normals)
         {
-            if(vertices.size(1) != 2 || lines.size(1) != 2)
-            {
-                throw std::invalid_argument("You can only use 2d matrices for computeNormal2D");
-            }
-            matrixr_t vnSum = zeros(2, vertices.size(2));
-            for(int i = 0; i < lines.size(2); i++){
-                const matrixr_t& a = vertices(colon(), lines(0,i));
-                const matrixr_t& b = vertices(colon(), lines(1,i));
-                matrixr_t ab = b - a;
+            std::vector<Eigen::Vector2d> vnSum(vertices.size());
+            normals.resize(vertices.size());
+            for(size_t i = 0; i < lines.size(); i++){
+                const Eigen::Vector2d& a = vertices[lines[i][0]];
+                const Eigen::Vector2d& b = vertices[lines[i][1]];
+                Eigen::Vector2d ab = b - a;
 
-                matrixr_t faceNormal(2, 1);
+                Eigen::Vector2d faceNormal;
                 faceNormal[0] = ab[1];
                 faceNormal[1] = -ab[0];
                 for(int j = 0; j < 2; j++){
-                    vnSum(colon(), lines(j,i)) += faceNormal;
+                    vnSum[lines[i][j]] += faceNormal;
                 }
             }
-            for(int i = 0; i < vertices.size(2); i++){
-                double temp = norm(vnSum(colon(),i));
-                normals(colon(), i) = vnSum(colon(),i) / temp;
+            for(size_t i = 0; i < vertices.size(); i++){
+                double temp = vnSum[i].norm();
+                normals[i] = vnSum[i] / temp;
             }
         }
     }
