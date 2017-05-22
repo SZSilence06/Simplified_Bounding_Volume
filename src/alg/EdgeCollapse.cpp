@@ -65,7 +65,7 @@ namespace SBV
         buildMatrices();
 
         //build edge infos
-#pragma omp parallel for schedule(dynamic, 1)
+//#pragma omp parallel for schedule(dynamic, 1)
         for(int i = 0; i < mTriangulation.vertices.size(2); i++)
         {
             if(mTriangulation.vertType[i] == POINT_BOUNDING_BOX)
@@ -589,67 +589,86 @@ namespace SBV
 
         matrixs_t sampleInner;
         mShell.getInnerTree().getPointsInRange(xmin, xmax, ymin, ymax, sampleInner);
+        matrixs_t sampleOuter;
+        mShell.getOuterTree().getPointsInRange(xmin, xmax, ymin, ymax, sampleOuter);
 
-        for(int i = 0; i < sampleInner.size(); i++)
+        std::vector<bool> innerComputed(sampleInner.size(), false);
+        std::vector<bool> outerComputed(sampleOuter.size(), false);
+        for(size_t face : mNeighbourFaces[vert])
         {
-            const matrixr_t& point = mShell.mInnerShell(colon(), sampleInner[i]);
+            size_t a = getCollapsedVert(mTriangulation.triangles(0, face));
+            size_t b = getCollapsedVert(mTriangulation.triangles(1, face));
+            size_t c = getCollapsedVert(mTriangulation.triangles(2, face));
 
-            for(size_t face : mNeighbourFaces[vert])
+            if(a == b || a == c || b == c)
             {
-                size_t a = getCollapsedVert(mTriangulation.triangles(0, face));
-                size_t b = getCollapsedVert(mTriangulation.triangles(1, face));
-                size_t c = getCollapsedVert(mTriangulation.triangles(2, face));
+                //the face is collapsed
+                continue;
+            }
+            matrixr_t triangle = mTriangulation.vertices(colon(), mTriangulation.triangles(colon(), face));
 
-                if(a == b || a == c || b == c)
+            for(int i = 0; i < sampleInner.size(); i++)
+            {
+                if(innerComputed[i])
+                    continue;
+
+                const matrixr_t& point = mShell.mInnerShell(colon(), sampleInner[i]);
+                if(fabs(max(triangle(colon(), 0) - point)) < 1e-6
+                        || fabs(max(triangle(colon(), 1) - point)) < 1e-6
+                        || fabs(max(triangle(colon(), 2) - point)) < 1e-6 )
                 {
-                    //the face is collapsed
                     continue;
                 }
 
-                matrixr_t triangle(2, 3);
-                triangle(colon(), 0) = mTriangulation.vertices(colon(), a);
-                triangle(colon(), 1) = mTriangulation.vertices(colon(), b);
-                triangle(colon(), 2) = mTriangulation.vertices(colon(), c);
                 matrixr_t bary;
                 if(WKYLIB::barycentric_2D(point, triangle, bary))
                 {
                     innerSample.insert(sampleInner[i]);
+                    innerComputed[i] = true;
                     break;
                 }
             }
-        }
 
-        matrixs_t sampleOuter;
-        mShell.getOuterTree().getPointsInRange(xmin, xmax, ymin, ymax, sampleOuter);
-
-        for(int i = 0; i < sampleOuter.size(); i++)
-        {
-            const matrixr_t& point = mShell.mOuterShell(colon(), sampleOuter[i]);
-
-            for(size_t face : mNeighbourFaces[vert])
+            for(int i = 0; i < sampleOuter.size(); i++)
             {
-                size_t a = getCollapsedVert(mTriangulation.triangles(0, face));
-                size_t b = getCollapsedVert(mTriangulation.triangles(1, face));
-                size_t c = getCollapsedVert(mTriangulation.triangles(2, face));
+                if(outerComputed[i])
+                    continue;
 
-                if(a == b || a == c || b == c)
+                const matrixr_t& point = mShell.mOuterShell(colon(), sampleOuter[i]);
+
+                if(fabs(max(triangle(colon(), 0) - point)) < 1e-6\
+                        || fabs(max(triangle(colon(), 1) - point)) < 1e-6
+                        || fabs(max(triangle(colon(), 2) - point)) < 1e-6 )
                 {
-                    //the face is collapsed
                     continue;
                 }
 
-                matrixr_t triangle(2, 3);
-                triangle(colon(), 0) = mTriangulation.vertices(colon(), a);
-                triangle(colon(), 1) = mTriangulation.vertices(colon(), b);
-                triangle(colon(), 2) = mTriangulation.vertices(colon(), c);
                 matrixr_t bary;
                 if(WKYLIB::barycentric_2D(point, triangle, bary))
                 {
+                    outerComputed[i] = true;
                     outerSample.insert(sampleOuter[i]);
                     break;
                 }
             }
         }
+
+        /*for(size_t face : mNeighbourFaces[vert]) {
+            matrixr_t invA = ones<double>(3, 3);
+            invA(colon(0, 1), colon()) = mTriangulation.vertices(colon(), mTriangulation.triangles(colon(), face));
+            if(inv(invA)) {
+                std::cerr << "warning: degenerated triangle." << std::endl;
+                continue;
+            }
+            barys = invA*mShell.mOuterShell(colon(), sampleOuter);
+            for(int i = 0; i < barys.size(2); i++)
+            {
+                if(min(barys(colon(), i)) >= 1e-6)
+                {
+                    outerSample.insert(i);
+                }
+            }
+        }*/
     }
 
     bool EdgeCollapse::findCollapsePos(size_t vert, size_t vertCollapseTo, matrixr_t &position, double& out_error)

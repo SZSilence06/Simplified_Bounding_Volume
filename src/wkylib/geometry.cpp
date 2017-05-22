@@ -5,6 +5,9 @@
 #include <limits>
 #include <eigen3/Eigen/Dense>
 #include <iostream>
+#include <hjlib/math/blas_lapack.h>
+#include <zjucad/matrix/lapack.h>
+#include <zjucad/matrix/io.h>
 
 namespace WKYLIB {
     //get 2D angle from 2d coordinate. Range from [0, 2*PI).
@@ -328,7 +331,7 @@ namespace WKYLIB {
     }
 
     //Compute barycenter coordinates of the point p on 2d trinangle.
-    //return 1 if p is inside the triangle, and 0 instead.
+    //return 1 if p is inside the triangle, and 0 instead (or degenerate).
     int barycentric_2D(const matrixr_t &point, const matrixr_t &triangle, matrixr_t &bary)
     {
         if(point.size(1) != 2 || triangle.size(1) != 2)
@@ -336,13 +339,32 @@ namespace WKYLIB {
             throw std::invalid_argument("You can only use 2d matrices in barycentric_2D().");
         }
 
-        matrixr_t triangle_3D = zeros<double>(3, 3);
+        /*matrixr_t triangle_3D = ones<double>(3, 3);
         triangle_3D(colon(0, 1), colon()) = triangle;
 
-        matrixr_t point_3D = zeros<double>(3, 1);
-        point_3D(colon(0, 1), 0) = point;
+        bary = ones<double>(3, 1);
+        bary(colon(0, 1)) = point;
 
-        return barycentric(point_3D, triangle_3D, bary);
+        if(dgesv(triangle_3D, bary)) {
+            std::cerr << "warning: degenerate triangle: " << triangle << std::endl;
+            return 0;
+        };*/
+
+        if(1){
+        matrixr_t triangle_3D = zeros<double>(3, 3);
+        triangle_3D(colon(0, 1), colon()) = triangle;
+        matrixr_t point_3D = zeros<double>(3, 1);
+        point_3D(colon(0, 1)) = point;
+        barycentric(point_3D, triangle_3D, bary);
+        }
+
+        //return min(bary) >= 0;
+        bool result = (bary[0] > 0 || fabs(bary[0]) < 1e-6)
+                && (bary[1] >0 || fabs(bary[1]) < 1e-6)
+                && (bary[2] > 0 || fabs(bary[2]) < 1e-6);
+        return result;
+
+        //return barycentric(point_3D, triangle_3D, bary);
     }
 
     //Tool function used by barycentric_tetra()

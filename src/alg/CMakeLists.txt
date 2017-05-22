@@ -18,5 +18,6 @@ add_library(alg ${headers} ${sources})
 
 target_link_libraries(alg
     wkylib
+    lapack
     ${CGAL_LIBRARY}
     ${GMP_LIBRARIES})
