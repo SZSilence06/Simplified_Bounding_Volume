@@ -587,13 +587,11 @@ namespace SBV
             }
         }
 
-        matrixs_t sampleInner;
+        std::list<size_t> sampleInner;
         mShell.getInnerTree().getPointsInRange(xmin, xmax, ymin, ymax, sampleInner);
-        matrixs_t sampleOuter;
+        std::list<size_t> sampleOuter;
         mShell.getOuterTree().getPointsInRange(xmin, xmax, ymin, ymax, sampleOuter);
 
-        std::vector<bool> innerComputed(sampleInner.size(), false);
-        std::vector<bool> outerComputed(sampleOuter.size(), false);
         for(size_t face : mNeighbourFaces[vert])
         {
             size_t a = getCollapsedVert(mTriangulation.triangles(0, face));
@@ -602,39 +600,37 @@ namespace SBV
 
             if(a == b || a == c || b == c)
             {
-                //the face is collapsed
+                //the face is collapsed, or the sample point is the vert of triangle
                 continue;
             }
+
             matrixr_t triangle = mTriangulation.vertices(colon(), mTriangulation.triangles(colon(), face));
+            triangle(colon(), 0) = mTriangulation.vertices(colon(), a);
+            triangle(colon(), 1) = mTriangulation.vertices(colon(), b);
+            triangle(colon(), 2) = mTriangulation.vertices(colon(), c);
 
-            for(int i = 0; i < sampleInner.size(); i++)
+            for(auto iter = sampleInner.begin(); iter != sampleInner.end(); ++iter)
             {
-                if(innerComputed[i])
-                    continue;
+                const matrixr_t& point = mShell.mInnerShell(colon(), *iter);
 
-                const matrixr_t& point = mShell.mInnerShell(colon(), sampleInner[i]);
                 if(fabs(max(triangle(colon(), 0) - point)) < 1e-6
                         || fabs(max(triangle(colon(), 1) - point)) < 1e-6
                         || fabs(max(triangle(colon(), 2) - point)) < 1e-6 )
                 {
                     continue;
                 }
-
                 matrixr_t bary;
                 if(WKYLIB::barycentric_2D(point, triangle, bary))
                 {
-                    innerSample.insert(sampleInner[i]);
-                    innerComputed[i] = true;
-                    break;
+                    innerSample.insert(*iter);
+                    iter = sampleInner.erase(iter);
+                    --iter;
                 }
             }
 
-            for(int i = 0; i < sampleOuter.size(); i++)
+            for(auto iter = sampleOuter.begin(); iter != sampleOuter.end(); ++iter)
             {
-                if(outerComputed[i])
-                    continue;
-
-                const matrixr_t& point = mShell.mOuterShell(colon(), sampleOuter[i]);
+                const matrixr_t& point = mShell.mOuterShell(colon(), *iter);
 
                 if(fabs(max(triangle(colon(), 0) - point)) < 1e-6\
                         || fabs(max(triangle(colon(), 1) - point)) < 1e-6
@@ -642,13 +638,12 @@ namespace SBV
                 {
                     continue;
                 }
-
                 matrixr_t bary;
                 if(WKYLIB::barycentric_2D(point, triangle, bary))
                 {
-                    outerComputed[i] = true;
-                    outerSample.insert(sampleOuter[i]);
-                    break;
+                    outerSample.insert(*iter);
+                    iter = sampleOuter.erase(iter);
+                    --iter;
                 }
             }
         }

@@ -84,7 +84,7 @@ namespace SBV
         }
     }
 
-    void KdTreeWrap::getPointsInRange(double xmin, double xmax, double ymin, double ymax, matrixs_t &points) const
+    void KdTreeWrap::getPointsInRange(double xmin, double xmax, double ymin, double ymax, std::list<size_t> &points) const
     {
         KdTreeNode node;
         node.point = matrixr_t(2,1);
@@ -95,11 +95,11 @@ namespace SBV
         std::vector<KdTreeNode> find_results(mTree.size());
         auto end = mTree.find_within_range(node, range, find_results.begin());
 
-        //organize output
-        points.resize(end - find_results.begin(), 1);
-        for(int i = 0; i < points.size(); i++)
+        //organize output       
+        points.clear();
+        for(int i = 0; i < end - find_results.begin(); i++)
         {
-            points[i] = find_results[i].index;
+            points.push_back(find_results[i].index);
         }
     }
 }
