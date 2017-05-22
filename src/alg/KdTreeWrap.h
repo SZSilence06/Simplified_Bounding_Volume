@@ -4,7 +4,6 @@
 #include "Common.h"
 #include <cmath>
 #include <kdtree++/kdtree.hpp>
-#include <list>
 
 namespace SBV
 {
@@ -46,7 +45,7 @@ namespace SBV
 
         void getPointsInPolygon(const matrixr_t& polygon, matrixs_t& points) const;
 
-        void getPointsInRange(double xmin, double xmax, double ymin, double ymax, std::list<size_t>& points) const;
+        void getPointsInRange(double xmin, double xmax, double ymin, double ymax, matrixs_t& points) const;
 
     private:
         KdTreeType mTree;

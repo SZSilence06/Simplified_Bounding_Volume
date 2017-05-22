@@ -587,9 +587,9 @@ namespace SBV
             }
         }
 
-        std::list<size_t> sampleInner;
+        matrixs_t sampleInner;
         mShell.getInnerTree().getPointsInRange(xmin, xmax, ymin, ymax, sampleInner);
-        std::list<size_t> sampleOuter;
+        matrixs_t sampleOuter;
         mShell.getOuterTree().getPointsInRange(xmin, xmax, ymin, ymax, sampleOuter);
 
         for(size_t face : mNeighbourFaces[vert])
@@ -604,14 +604,29 @@ namespace SBV
                 continue;
             }
 
+            /*matrixr_t invA = ones<double>(3, 3);
+            invA(colon(0, 1), colon()) = mTriangulation.vertices(colon(), mTriangulation.triangles(colon(), face));
+            if(inv(invA)) {
+                std::cerr << "warning: degenerated triangle." << std::endl;
+                continue;
+            }
+            matrixr_t barys = invA * mShell.mOuterShell(colon(), sampleOuter);
+            for(int i = 0; i < barys.size(2); i++)
+            {
+                if(min(barys(colon(), i)) >= 1e-6)
+                {
+                    outerSample.insert(i);
+                }
+            }*/
+
             matrixr_t triangle = mTriangulation.vertices(colon(), mTriangulation.triangles(colon(), face));
             triangle(colon(), 0) = mTriangulation.vertices(colon(), a);
             triangle(colon(), 1) = mTriangulation.vertices(colon(), b);
             triangle(colon(), 2) = mTriangulation.vertices(colon(), c);
 
-            for(auto iter = sampleInner.begin(); iter != sampleInner.end(); ++iter)
+            for(int i = 0; i < sampleInner.size(); i++)
             {
-                const matrixr_t& point = mShell.mInnerShell(colon(), *iter);
+                const matrixr_t& point = mShell.mInnerShell(colon(), sampleInner[i]);
 
                 if(fabs(max(triangle(colon(), 0) - point)) < 1e-6
                         || fabs(max(triangle(colon(), 1) - point)) < 1e-6
@@ -622,15 +637,13 @@ namespace SBV
                 matrixr_t bary;
                 if(WKYLIB::barycentric_2D(point, triangle, bary))
                 {
-                    innerSample.insert(*iter);
-                    iter = sampleInner.erase(iter);
-                    --iter;
+                    innerSample.insert(sampleInner[i]);
                 }
             }
 
-            for(auto iter = sampleOuter.begin(); iter != sampleOuter.end(); ++iter)
+            for(int i = 0; i < sampleOuter.size(); i++)
             {
-                const matrixr_t& point = mShell.mOuterShell(colon(), *iter);
+                const matrixr_t& point = mShell.mOuterShell(colon(), sampleOuter[i]);
 
                 if(fabs(max(triangle(colon(), 0) - point)) < 1e-6\
                         || fabs(max(triangle(colon(), 1) - point)) < 1e-6
@@ -641,29 +654,10 @@ namespace SBV
                 matrixr_t bary;
                 if(WKYLIB::barycentric_2D(point, triangle, bary))
                 {
-                    outerSample.insert(*iter);
-                    iter = sampleOuter.erase(iter);
-                    --iter;
+                    outerSample.insert(sampleOuter[i]);
                 }
             }
         }
-
-        /*for(size_t face : mNeighbourFaces[vert]) {
-            matrixr_t invA = ones<double>(3, 3);
-            invA(colon(0, 1), colon()) = mTriangulation.vertices(colon(), mTriangulation.triangles(colon(), face));
-            if(inv(invA)) {
-                std::cerr << "warning: degenerated triangle." << std::endl;
-                continue;
-            }
-            barys = invA*mShell.mOuterShell(colon(), sampleOuter);
-            for(int i = 0; i < barys.size(2); i++)
-            {
-                if(min(barys(colon(), i)) >= 1e-6)
-                {
-                    outerSample.insert(i);
-                }
-            }
-        }*/
     }
 
     bool EdgeCollapse::findCollapsePos(size_t vert, size_t vertCollapseTo, matrixr_t &position, double& out_error)
