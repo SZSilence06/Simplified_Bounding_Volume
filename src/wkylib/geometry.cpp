@@ -282,8 +282,6 @@ namespace WKYLIB {
             throw std::invalid_argument("You can only use 3d matrices in barycentric().");
         }
 
-        bary = matrixr_t(3, 1);
-
         /*const matrixr_t& a = triangle(colon(), 0);
         const matrixr_t& b = triangle(colon(), 1);
         const matrixr_t& c = triangle(colon(), 2);
@@ -320,6 +318,7 @@ namespace WKYLIB {
         const Eigen::Vector3d vu = v.cross(u);
         const Eigen::Vector3d uw = u.cross(w);
         const double denom = 1.0 / vu.norm();
+        bary.resize(3, 1);
         bary[1] = vu.dot(vw) >= 0 ? vw.norm() * denom : -vw.norm() * denom;
         bary[2] = uw.dot(vu) <= 0 ? uw.norm() * denom : -uw.norm() * denom;
         bary[0] = 1 - bary[1] - bary[2];
