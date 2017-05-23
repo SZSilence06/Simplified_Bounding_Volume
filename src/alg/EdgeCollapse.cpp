@@ -4,6 +4,9 @@
 #include <wkylib/geometry.h>
 #include <iostream>
 #include <omp.h>
+#include <hjlib/math/blas_lapack.h>
+#include <zjucad/matrix/lapack.h>
+#include <zjucad/matrix/io.h>
 
 using namespace zjucad::matrix;
 
@@ -553,11 +556,12 @@ namespace SBV
         double ymin = std::numeric_limits<double>::max();
         double ymax = std::numeric_limits<double>::min();
 
+        // AABB
         for(size_t face : mNeighbourFaces[vert])
         {
-            size_t a = getCollapsedVert(mTriangulation.triangles(0, face));
-            size_t b = getCollapsedVert(mTriangulation.triangles(1, face));
-            size_t c = getCollapsedVert(mTriangulation.triangles(2, face));
+            const size_t a = getCollapsedVert(mTriangulation.triangles(0, face));
+            const size_t b = getCollapsedVert(mTriangulation.triangles(1, face));
+            const size_t c = getCollapsedVert(mTriangulation.triangles(2, face));
 
             if(a == b || a == c || b == c)
             {
@@ -604,22 +608,54 @@ namespace SBV
                 continue;
             }
 
-            /*matrixr_t invA = ones<double>(3, 3);
-            invA(colon(0, 1), colon()) = mTriangulation.vertices(colon(), mTriangulation.triangles(colon(), face));
+            matrixr_t invA = ones<double>(3, 3);
+            invA(colon(0, 1), 0) = mTriangulation.vertices(colon(), a);
+            invA(colon(0, 1), 1) = mTriangulation.vertices(colon(), b);
+            invA(colon(0, 1), 2) = mTriangulation.vertices(colon(), c);
+
             if(inv(invA)) {
                 std::cerr << "warning: degenerated triangle." << std::endl;
                 continue;
             }
-            matrixr_t barys = invA * mShell.mOuterShell(colon(), sampleOuter);
-            for(int i = 0; i < barys.size(2); i++)
+            matrixr_t barysInner = invA(colon(), colon(0, 1)) * mShell.mInnerShell(colon(), sampleInner) +
+                    invA(colon(), 2) * ones<double>(1, sampleInner.size());
+            for(int i = 0; i < sampleInner.size(); i++)
             {
-                if(min(barys(colon(), i)) >= 1e-6)
+                if(min(barysInner(colon(), i)) >= 0)
                 {
-                    outerSample.insert(i);
+                    innerSample.insert(sampleInner[i]);
+                }
+            }
+            matrixr_t barysOuter = invA(colon(), colon(0, 1)) * mShell.mOuterShell(colon(), sampleOuter) +
+                    invA(colon(), 2) * ones<double>(1, sampleOuter.size());
+            for(int i = 0; i < sampleOuter.size(); i++)
+            {
+                if(min(barysOuter(colon(), i)) >= 0)
+                {
+                    outerSample.insert(sampleOuter[i]);
+                }
+            }
+
+            /*for(int i = 0; i < sampleInner.size(); i++)
+            {
+                const matrixr_t b = invA(colon(), colon(0, 1))* mShell.mInnerShell(colon(), sampleInner[i])
+                        + invA(colon(), 2);
+                if(min(b) >= 0)
+                {
+                    innerSample.insert(sampleInner[i]);
+                }
+            }
+            for(int i = 0; i < sampleOuter.size(); i++)
+            {
+                const matrixr_t b = invA(colon(), colon(0, 1))* mShell.mOuterShell(colon(), sampleOuter[i])
+                        + invA(colon(), 2);
+                if(min(b) >= 0)
+                {
+                    outerSample.insert(sampleOuter[i]);
                 }
             }*/
 
-            matrixr_t triangle = mTriangulation.vertices(colon(), mTriangulation.triangles(colon(), face));
+            /*matrixr_t triangle = mTriangulation.vertices(colon(), mTriangulation.triangles(colon(), face));
             triangle(colon(), 0) = mTriangulation.vertices(colon(), a);
             triangle(colon(), 1) = mTriangulation.vertices(colon(), b);
             triangle(colon(), 2) = mTriangulation.vertices(colon(), c);
@@ -649,14 +685,14 @@ namespace SBV
                         || fabs(max(triangle(colon(), 1) - point)) < 1e-6
                         || fabs(max(triangle(colon(), 2) - point)) < 1e-6 )
                 {
-                    continue;
+                    //continue;
                 }
                 matrixr_t bary;
                 if(WKYLIB::barycentric_2D(point, triangle, bary))
                 {
                     outerSample.insert(sampleOuter[i]);
-                }
-            }
+               }
+            }*/
         }
     }
 

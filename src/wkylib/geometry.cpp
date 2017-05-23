@@ -8,6 +8,7 @@
 #include <hjlib/math/blas_lapack.h>
 #include <zjucad/matrix/lapack.h>
 #include <zjucad/matrix/io.h>
+#include <zjucad/matrix/itr_matrix.h>
 
 namespace WKYLIB {
     //get 2D angle from 2d coordinate. Range from [0, 2*PI).
@@ -273,62 +274,6 @@ namespace WKYLIB {
         return fabs(sum);
     }
 
-    //Compute barycenter coordinates of the point p on trinangle abc.
-    //return 1 if p is inside the triangle, and 0 instead.
-    int barycentric(const matrixr_t &point, const matrixr_t &triangle, matrixr_t &bary)
-    {
-        if(point.size(1) != 3 || triangle.size(1) != 3)
-        {
-            throw std::invalid_argument("You can only use 3d matrices in barycentric().");
-        }
-
-        /*const matrixr_t& a = triangle(colon(), 0);
-        const matrixr_t& b = triangle(colon(), 1);
-        const matrixr_t& c = triangle(colon(), 2);
-
-        const matrixr_t u = b - a;
-        const matrixr_t v = c - a;
-        const matrixr_t w = point - a;
-        const matrixr_t vw = cross(v, w);
-        const matrixr_t vu = cross(v, u);
-        const matrixr_t uw = cross(u, w);
-        const double denom = 1.0 / norm(vu);
-        bary[1] = dot(vu, vw) >= 0 ? norm(vw) * denom : -norm(vw) * denom;
-        bary[2] = dot(uw, vu) <= 0 ? norm(uw) * denom : -norm(uw) * denom;
-        bary[0] = 1 - bary[1] - bary[2];*/
-
-        Eigen::Vector3d a, b, c, p;
-        a[0] = triangle(0, 0);
-        a[1] = triangle(1, 0);
-        a[2] = triangle(2, 0);
-        b[0] = triangle(0, 1);
-        b[1] = triangle(1, 1);
-        b[2] = triangle(2, 1);
-        c[0] = triangle(0, 2);
-        c[1] = triangle(1, 2);
-        c[2] = triangle(2, 2);
-        p[0] = point[0];
-        p[1] = point[1];
-        p[2] = point[2];
-
-        const Eigen::Vector3d u = b - a;
-        const Eigen::Vector3d v = c - a;
-        const Eigen::Vector3d w = p - a;
-        const Eigen::Vector3d vw = v.cross(w);
-        const Eigen::Vector3d vu = v.cross(u);
-        const Eigen::Vector3d uw = u.cross(w);
-        const double denom = 1.0 / vu.norm();
-        bary.resize(3, 1);
-        bary[1] = vu.dot(vw) >= 0 ? vw.norm() * denom : -vw.norm() * denom;
-        bary[2] = uw.dot(vu) <= 0 ? uw.norm() * denom : -uw.norm() * denom;
-        bary[0] = 1 - bary[1] - bary[2];
-
-        bool result = (bary[0] > 0 || fabs(bary[0]) < 1e-6)
-                && (bary[1] >0 || fabs(bary[1]) < 1e-6)
-                && (bary[2] > 0 || fabs(bary[2]) < 1e-6);
-        return result;
-    }
-
     //Compute barycenter coordinates of the point p on 2d trinangle.
     //return 1 if p is inside the triangle, and 0 instead (or degenerate).
     int barycentric_2D(const matrixr_t &point, const matrixr_t &triangle, matrixr_t &bary)
@@ -338,32 +283,27 @@ namespace WKYLIB {
             throw std::invalid_argument("You can only use 2d matrices in barycentric_2D().");
         }
 
-        /*matrixr_t triangle_3D = ones<double>(3, 3);
+        /*
+        matrix<double> triangle_3D = ones<double>(3, 3);
         triangle_3D(colon(0, 1), colon()) = triangle;
-
         bary = ones<double>(3, 1);
         bary(colon(0, 1)) = point;
 
         if(dgesv(triangle_3D, bary)) {
             std::cerr << "warning: degenerate triangle: " << triangle << std::endl;
             return 0;
-        };*/
+        };
+        return min(bary) >= 0;*/
 
-        if(1){
-        matrixr_t triangle_3D = zeros<double>(3, 3);
+        double temp[9], temp2[3];
+        itr_matrix<double *> triangle_3D(3, 3, temp);
+        triangle_3D = zeros<double>(3, 3);
         triangle_3D(colon(0, 1), colon()) = triangle;
-        matrixr_t point_3D = zeros<double>(3, 1);
+        itr_matrix<double *> point_3D(3, 1, temp2);
+        point_3D = zeros<double>(3, 1);
         point_3D(colon(0, 1)) = point;
-        barycentric(point_3D, triangle_3D, bary);
-        }
 
-        //return min(bary) >= 0;
-        bool result = (bary[0] > 0 || fabs(bary[0]) < 1e-6)
-                && (bary[1] >0 || fabs(bary[1]) < 1e-6)
-                && (bary[2] > 0 || fabs(bary[2]) < 1e-6);
-        return result;
-
-        //return barycentric(point_3D, triangle_3D, bary);
+        return barycentric(point_3D, triangle_3D, bary);
     }
 
     //Tool function used by barycentric_tetra()

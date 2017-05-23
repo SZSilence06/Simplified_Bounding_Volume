@@ -1,4 +1,5 @@
 #include "KernelRegion.h"
+#include "BaryComputer.h"
 #include <wkylib/geometry.h>
 
 using namespace zjucad::matrix;
@@ -179,6 +180,25 @@ namespace SBV
             triangle(colon(), 0) = mPoints(colon(), mLines(0, i));
             triangle(colon(), 1) = mPoints(colon(), mLines(1, i));
             triangle(colon(), 2) = point;
+
+            /*BaryComputer baryComputer(mShell, triangle, mInnerSamples, mOuterSamples);
+            matrixr_t barysInner, barysOuter;
+            baryComputer.computeBary(barysInner, barysOuter);
+            for(int j = 0; j < barysInner.size(2); j++)
+            {
+                if(min(barysInner(colon(), j)) >= 0)
+                {
+                    double f0 = mTriangulation.getFValue(mLines(0, i));
+                    double f1 = mTriangulation.getFValue(mLines(1, i));
+                    double f2 = mTriangulation.getFValue(mPointType);
+
+                    double f = f0 * barysInner(0, i) + f1 * barysInner(1, i) + f2 * barysInner(2, i);
+                    if(f > 0)
+                    {
+                        return true;
+                    }
+                }
+            }*/
 
             for(size_t sample : mInnerSamples)
             {
