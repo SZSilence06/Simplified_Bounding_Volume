@@ -3,7 +3,7 @@
 /tools/CurveConverter/src/CMakeLists.txt.user
 !/.gitignore
 !/.gitattributes
-!/.src
+!/src
 !/test_data
 !/tools
 !/README.md
