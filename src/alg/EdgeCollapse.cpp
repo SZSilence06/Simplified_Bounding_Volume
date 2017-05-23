@@ -68,7 +68,7 @@ namespace SBV
         buildMatrices();
 
         //build edge infos
-//#pragma omp parallel for schedule(dynamic, 1)
+#pragma omp parallel for schedule(dynamic, 1)
         for(int i = 0; i < mTriangulation.vertices.size(2); i++)
         {
             if(mTriangulation.vertType[i] == POINT_BOUNDING_BOX)
@@ -107,8 +107,10 @@ namespace SBV
                 bool found = findCollapsePos(vert, neighbourVert, edgeInfo->position, edgeInfo->error);
                 if(found)
                 {
+                    mtx.lock();
                     mQueue.push(edgeInfo);
                     mRelatedEdgeInfo[vert].push_back(edgeInfo);
+                    mtx.unlock();
                 }
             }
         }
@@ -635,64 +637,6 @@ namespace SBV
                     outerSample.insert(sampleOuter[i]);
                 }
             }
-
-            /*for(int i = 0; i < sampleInner.size(); i++)
-            {
-                const matrixr_t b = invA(colon(), colon(0, 1))* mShell.mInnerShell(colon(), sampleInner[i])
-                        + invA(colon(), 2);
-                if(min(b) >= 0)
-                {
-                    innerSample.insert(sampleInner[i]);
-                }
-            }
-            for(int i = 0; i < sampleOuter.size(); i++)
-            {
-                const matrixr_t b = invA(colon(), colon(0, 1))* mShell.mOuterShell(colon(), sampleOuter[i])
-                        + invA(colon(), 2);
-                if(min(b) >= 0)
-                {
-                    outerSample.insert(sampleOuter[i]);
-                }
-            }*/
-
-            /*matrixr_t triangle = mTriangulation.vertices(colon(), mTriangulation.triangles(colon(), face));
-            triangle(colon(), 0) = mTriangulation.vertices(colon(), a);
-            triangle(colon(), 1) = mTriangulation.vertices(colon(), b);
-            triangle(colon(), 2) = mTriangulation.vertices(colon(), c);
-
-            for(int i = 0; i < sampleInner.size(); i++)
-            {
-                const matrixr_t& point = mShell.mInnerShell(colon(), sampleInner[i]);
-
-                if(fabs(max(triangle(colon(), 0) - point)) < 1e-6
-                        || fabs(max(triangle(colon(), 1) - point)) < 1e-6
-                        || fabs(max(triangle(colon(), 2) - point)) < 1e-6 )
-                {
-                    continue;
-                }
-                matrixr_t bary;
-                if(WKYLIB::barycentric_2D(point, triangle, bary))
-                {
-                    innerSample.insert(sampleInner[i]);
-                }
-            }
-
-            for(int i = 0; i < sampleOuter.size(); i++)
-            {
-                const matrixr_t& point = mShell.mOuterShell(colon(), sampleOuter[i]);
-
-                if(fabs(max(triangle(colon(), 0) - point)) < 1e-6\
-                        || fabs(max(triangle(colon(), 1) - point)) < 1e-6
-                        || fabs(max(triangle(colon(), 2) - point)) < 1e-6 )
-                {
-                    //continue;
-                }
-                matrixr_t bary;
-                if(WKYLIB::barycentric_2D(point, triangle, bary))
-                {
-                    outerSample.insert(sampleOuter[i]);
-               }
-            }*/
         }
     }
 

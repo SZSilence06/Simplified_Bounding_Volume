@@ -162,44 +162,6 @@ namespace SBV
             info.points.push_back(PointInfo(POINT_OUTER, index));
         }
 
-        /*for(int i = 0; i < sampleInner.size(); i++)
-        {
-            const size_t index = sampleInner[i];
-            double f = computeFValue(mShell.mInnerShell(colon(), index), cell);
-            if(f == std::numeric_limits<double>::max())
-            {
-                //the point is outside the tetrahedron
-                continue;
-            }
-            double error = fabs(f + 1);
-            if(maxError < error)
-            {
-                maxError = error;
-                maxErrorPoint = PointInfo(POINT_INNER, index);
-            }
-            mInnerError[index] = fabs(f + 1);
-            info.points.push_back(PointInfo(POINT_INNER, index));
-        }
-
-        for(int i = 0; i < sampleOuter.size(); i++)
-        {
-            const size_t index = sampleOuter[i];
-            double f = computeFValue(mShell.mOuterShell(colon(), index), cell);
-            if(f == std::numeric_limits<double>::max())
-            {
-                //the point is outside the tetrahedron
-                continue;
-            }
-            double error = fabs(f - 1);
-            if(maxError < error)
-            {
-                maxError = error;
-                maxErrorPoint = PointInfo(POINT_OUTER, index);
-            }
-            mOuterError[index] = fabs(f - 1);
-            info.points.push_back(PointInfo(POINT_OUTER, index));
-        }*/
-
         info.maxErrorPoint = maxErrorPoint;
     }
 

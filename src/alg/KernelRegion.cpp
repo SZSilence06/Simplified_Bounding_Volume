@@ -216,42 +216,6 @@ namespace SBV
                     }
                 }
             }
-
-            /*for(size_t sample : mInnerSamples)
-            {
-                matrixr_t bary;
-                if(WKYLIB::barycentric_2D(mShell.mInnerShell(colon(), sample), triangle, bary))
-                {
-                    //the point is inside the tetrahedron
-                    double f0 = mTriangulation.getFValue(mLines(0, i));
-                    double f1 = mTriangulation.getFValue(mLines(1, i));
-                    double f2 = mTriangulation.getFValue(mPointType);
-
-                    double f = f0 * bary[0] + f1 * bary[1] + f2 * bary[2];
-                    if(f > 0)
-                    {
-                        return true;
-                    }
-                }
-            }
-
-            for(size_t sample : mOuterSamples)
-            {
-                matrixr_t bary;
-                if(WKYLIB::barycentric_2D(mShell.mOuterShell(colon(), sample), triangle, bary))
-                {
-                    //the point is inside the tetrahedron
-                    double f0 = mTriangulation.getFValue(mLines(0, i));
-                    double f1 = mTriangulation.getFValue(mLines(1, i));
-                    double f2 = mTriangulation.getFValue(mPointType);
-
-                    double f = f0 * bary[0] + f1 * bary[1] + f2 * bary[2];
-                    if(f < 0)
-                    {
-                        return true;
-                    }
-                }
-            }*/
         }
 
         return false;
