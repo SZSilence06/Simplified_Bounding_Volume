@@ -65,6 +65,7 @@ namespace SBV
         bool checkCondition3(const Cell& cell);
         bool checkClassification(const Cell& cell, const matrixr_t& point, bool isOuter);
         double computeHeight(const Cell& cell);
+        void computeAABB(const Cell& cell, double& xmax, double& xmin, double& ymax, double& ymin);
 
     private:
         const Shell& mShell;

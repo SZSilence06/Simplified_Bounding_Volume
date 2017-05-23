@@ -1,6 +1,8 @@
 #include "Refinement.h"
+#include "BaryComputer.h"
 #include <limits>
 #include <wkylib/geometry.h>
+#include <zjucad/matrix/io.h>
 
 namespace SBV
 {
@@ -96,11 +98,74 @@ namespace SBV
         info.v1 = cell.vertex(1)->info();
         info.v2 = cell.vertex(2)->info();
 
-        double maxError = -std::numeric_limits<double>::max();
+        double xmax, xmin, ymax, ymin;
+        computeAABB(cell, xmax, xmin, ymax, ymin);
+        matrixs_t sampleInner, sampleOuter;
+        mShell.getInnerTree().getPointsInRange(xmin, xmax, ymin, ymax, sampleInner);
+        mShell.getOuterTree().getPointsInRange(xmin, xmax, ymin, ymax, sampleOuter);
+
+        double f0 = mOutput.getFValue(cell.vertex(0)->info().pointType);
+        double f1 = mOutput.getFValue(cell.vertex(1)->info().pointType);
+        double f2 = mOutput.getFValue(cell.vertex(2)->info().pointType);
+
+        double maxError = std::numeric_limits<double>::lowest();
         PointInfo maxErrorPoint;
-        for(int i = 0; i < mShell.mInnerShell.size(2); i++)
+
+        const Point& p0 = cell.vertex(0)->point();
+        const Point& p1 = cell.vertex(1)->point();
+        const Point& p2 = cell.vertex(2)->point();
+        matrixr_t triangle(2, 3);
+        triangle(0, 0) = p0[0];
+        triangle(1, 0) = p0[1];
+        triangle(0, 1) = p1[0];
+        triangle(1, 1) = p1[1];
+        triangle(0, 2) = p2[0];
+        triangle(1, 2) = p2[1];
+
+        BaryComputer baryComputer(mShell, triangle, sampleInner, sampleOuter);
+        matrixr_t barysInner, barysOuter;
+        baryComputer.computeBary(barysInner, barysOuter);
+        for(int i = 0; i < barysInner.size(2); i++)
         {
-            double f = computeFValue(mShell.mInnerShell(colon(), i), cell);
+            const size_t index = sampleInner[i];
+            const matrixr_t& bary = barysInner(colon(), i);
+
+            if(min(bary) <= -1e-6)
+                continue;
+
+            double f = f0 * bary[0] + f1 * bary[1] + f2 * bary[2];
+            double error = fabs(f + 1);
+            if(maxError < error)
+            {
+                maxError = error;
+                maxErrorPoint = PointInfo(POINT_INNER, index);
+            }
+            mInnerError[index] = error;
+            info.points.push_back(PointInfo(POINT_INNER, index));
+        }
+        for(int i = 0; i < barysOuter.size(2); i++)
+        {
+            const size_t index = sampleOuter[i];
+            const matrixr_t& bary = barysOuter(colon(), i);
+
+            if(min(bary) <= -1e-6)
+                continue;
+
+            double f = f0 * bary[0] + f1 * bary[1] + f2 * bary[2];
+            double error = fabs(f - 1);
+            if(maxError < error)
+            {
+                maxError = error;
+                maxErrorPoint = PointInfo(POINT_OUTER, index);
+            }
+            mOuterError[index] = error;
+            info.points.push_back(PointInfo(POINT_OUTER, index));
+        }
+
+        /*for(int i = 0; i < sampleInner.size(); i++)
+        {
+            const size_t index = sampleInner[i];
+            double f = computeFValue(mShell.mInnerShell(colon(), index), cell);
             if(f == std::numeric_limits<double>::max())
             {
                 //the point is outside the tetrahedron
@@ -110,15 +175,16 @@ namespace SBV
             if(maxError < error)
             {
                 maxError = error;
-                maxErrorPoint = PointInfo(POINT_INNER, i);
+                maxErrorPoint = PointInfo(POINT_INNER, index);
             }
-            mInnerError[i] = fabs(f + 1);
-            info.points.push_back(PointInfo(POINT_INNER, i));
+            mInnerError[index] = fabs(f + 1);
+            info.points.push_back(PointInfo(POINT_INNER, index));
         }
 
-        for(int i = 0; i < mShell.mOuterShell.size(2); i++)
+        for(int i = 0; i < sampleOuter.size(); i++)
         {
-            double f = computeFValue(mShell.mOuterShell(colon(), i), cell);
+            const size_t index = sampleOuter[i];
+            double f = computeFValue(mShell.mOuterShell(colon(), index), cell);
             if(f == std::numeric_limits<double>::max())
             {
                 //the point is outside the tetrahedron
@@ -128,13 +194,30 @@ namespace SBV
             if(maxError < error)
             {
                 maxError = error;
-                maxErrorPoint = PointInfo(POINT_OUTER, i);
+                maxErrorPoint = PointInfo(POINT_OUTER, index);
             }
-            mOuterError[i] = fabs(f - 1);
-            info.points.push_back(PointInfo(POINT_OUTER, i));
-        }
+            mOuterError[index] = fabs(f - 1);
+            info.points.push_back(PointInfo(POINT_OUTER, index));
+        }*/
 
         info.maxErrorPoint = maxErrorPoint;
+    }
+
+    void Refinement::computeAABB(const Cell &cell, double &xmax, double &xmin, double &ymax, double &ymin)
+    {
+        const Point& p0 = cell.vertex(0)->point();
+        const Point& p1 = cell.vertex(1)->point();
+        const Point& p2 = cell.vertex(2)->point();
+
+        xmax = std::numeric_limits<double>::lowest();
+        xmin = std::numeric_limits<double>::max();
+        ymax = std::numeric_limits<double>::lowest();
+        ymin = std::numeric_limits<double>::max();
+
+        xmax = std::max(xmax, std::max(std::max(p0[0], p1[0]), p2[0]));
+        xmin = std::min(xmin, std::min(std::min(p0[0], p1[0]), p2[0]));
+        ymax = std::max(ymax, std::max(std::max(p0[1], p1[1]), p2[1]));
+        ymin = std::min(ymin, std::min(std::min(p0[1], p1[1]), p2[1]));
     }
 
     double Refinement::computeFValue(const matrixr_t &point, const Cell &cell)
@@ -187,6 +270,8 @@ namespace SBV
             return mInnerError[point.index];
         case PointType::POINT_OUTER:
             return mOuterError[point.index];
+        case PointType::POINT_UNKNOWN:
+            return std::numeric_limits<double>::max();
         default:
             //this should not be run, otherwise there exists logic error
             throw std::logic_error("In getError(), pointType should be POINT_INNER or POINT_OUTER");
