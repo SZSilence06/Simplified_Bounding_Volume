@@ -1,6 +1,8 @@
 #include "KernelRegion.h"
 #include "BaryComputer.h"
 #include <wkylib/geometry.h>
+#include <iostream>
+#include <zjucad/matrix/io.h>
 
 using namespace zjucad::matrix;
 
@@ -181,7 +183,7 @@ namespace SBV
             triangle(colon(), 1) = mPoints(colon(), mLines(1, i));
             triangle(colon(), 2) = point;
 
-            /*BaryComputer baryComputer(mShell, triangle, mInnerSamples, mOuterSamples);
+            BaryComputer baryComputer(mShell, triangle, mInnerSamples, mOuterSamples);
             matrixr_t barysInner, barysOuter;
             baryComputer.computeBary(barysInner, barysOuter);
             for(int j = 0; j < barysInner.size(2); j++)
@@ -192,15 +194,30 @@ namespace SBV
                     double f1 = mTriangulation.getFValue(mLines(1, i));
                     double f2 = mTriangulation.getFValue(mPointType);
 
-                    double f = f0 * barysInner(0, i) + f1 * barysInner(1, i) + f2 * barysInner(2, i);
+                    double f = f0 * barysInner(0, j) + f1 * barysInner(1, j) + f2 * barysInner(2, j);
                     if(f > 0)
                     {
                         return true;
                     }
                 }
-            }*/
+            }
+            for(int j = 0; j < barysOuter.size(2); j++)
+            {
+                if(min(barysOuter(colon(), j)) >= 0)
+                {
+                    double f0 = mTriangulation.getFValue(mLines(0, i));
+                    double f1 = mTriangulation.getFValue(mLines(1, i));
+                    double f2 = mTriangulation.getFValue(mPointType);
 
-            for(size_t sample : mInnerSamples)
+                    double f = f0 * barysOuter(0, j) + f1 * barysOuter(1, j) + f2 * barysOuter(2, j);
+                    if(f < 0)
+                    {
+                        return true;
+                    }
+                }
+            }
+
+            /*for(size_t sample : mInnerSamples)
             {
                 matrixr_t bary;
                 if(WKYLIB::barycentric_2D(mShell.mInnerShell(colon(), sample), triangle, bary))
@@ -234,7 +251,7 @@ namespace SBV
                         return true;
                     }
                 }
-            }
+            }*/
         }
 
         return false;
