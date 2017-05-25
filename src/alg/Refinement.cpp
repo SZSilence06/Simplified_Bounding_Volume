@@ -101,11 +101,18 @@ namespace SBV
         info.v1 = cell.vertex(1)->info();
         info.v2 = cell.vertex(2)->info();
 
+        double xmax, xmin, ymax, ymin;
+        computeAABB(cell, xmax, xmin, ymax, ymin);
+        std::vector<size_t> sampleInner, sampleOuter;
+        mShell.getInnerTree().getPointsInRange(xmin, xmax, ymin, ymax, sampleInner);
+        mShell.getOuterTree().getPointsInRange(xmin, xmax, ymin, ymax, sampleOuter);
+
         double maxError = std::numeric_limits<double>::lowest();
         PointInfo maxErrorPoint;
-        for(size_t i = 0; i < mShell.mInnerShell.size(); i++)
+        for(size_t i = 0; i < sampleInner.size(); i++)
         {
-            double f = computeFValue(mShell.mInnerShell[i], cell);
+            const size_t index = sampleInner[i];
+            double f = computeFValue(mShell.mInnerShell[index], cell);
             if(f == std::numeric_limits<double>::max())
             {
                 //the point is outside the tetrahedron
@@ -115,15 +122,16 @@ namespace SBV
             if(maxError < error)
             {
                 maxError = error;
-                maxErrorPoint = PointInfo(POINT_INNER, i);
+                maxErrorPoint = PointInfo(POINT_INNER, index);
             }
-            mInnerError[i] = error;
-            info.points.push_back(PointInfo(POINT_INNER, i));
+            mInnerError[index] = error;
+            info.points.push_back(PointInfo(POINT_INNER, index));
         }
 
-        for(size_t i = 0; i < mShell.mOuterShell.size(); i++)
+        for(size_t i = 0; i < sampleOuter.size(); i++)
         {
-            double f = computeFValue(mShell.mOuterShell[i], cell);
+            const size_t index = sampleOuter[i];
+            double f = computeFValue(mShell.mOuterShell[index], cell);
             if(f == std::numeric_limits<double>::max())
             {
                 //the point is outside the tetrahedron
@@ -133,12 +141,29 @@ namespace SBV
             if(maxError < error)
             {
                 maxError = error;
-                maxErrorPoint = PointInfo(POINT_OUTER, i);
+                maxErrorPoint = PointInfo(POINT_OUTER, index);
             }
-            mOuterError[i] = error;
-            info.points.push_back(PointInfo(POINT_OUTER, i));
+            mOuterError[index] = error;
+            info.points.push_back(PointInfo(POINT_OUTER, index));
         }
         info.maxErrorPoint = maxErrorPoint;
+    }
+
+    void Refinement::computeAABB(const Cell &cell, double &xmax, double &xmin, double &ymax, double &ymin)
+    {
+        const DPoint& p0 = cell.vertex(0)->point();
+        const DPoint& p1 = cell.vertex(1)->point();
+        const DPoint& p2 = cell.vertex(2)->point();
+
+        xmax = std::numeric_limits<double>::lowest();
+        xmin = std::numeric_limits<double>::max();
+        ymax = std::numeric_limits<double>::lowest();
+        ymin = std::numeric_limits<double>::max();
+
+        xmax = std::max(xmax, std::max(std::max(p0[0], p1[0]), p2[0]));
+        xmin = std::min(xmin, std::min(std::min(p0[0], p1[0]), p2[0]));
+        ymax = std::max(ymax, std::max(std::max(p0[1], p1[1]), p2[1]));
+        ymin = std::min(ymin, std::min(std::min(p0[1], p1[1]), p2[1]));
     }
 
     //optimize this function causes crash
