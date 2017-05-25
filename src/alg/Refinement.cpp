@@ -151,9 +151,9 @@ namespace SBV
 
     void Refinement::computeAABB(const Cell &cell, double &xmax, double &xmin, double &ymax, double &ymin)
     {
-        const Point& p0 = cell.vertex(0)->point();
-        const Point& p1 = cell.vertex(1)->point();
-        const Point& p2 = cell.vertex(2)->point();
+        const DPoint& p0 = cell.vertex(0)->point();
+        const DPoint& p1 = cell.vertex(1)->point();
+        const DPoint& p2 = cell.vertex(2)->point();
 
         xmax = std::numeric_limits<double>::lowest();
         xmin = std::numeric_limits<double>::max();
