@@ -15,26 +15,22 @@ namespace SBV
 
     void SamplingQuadTree::sample(double xmin, double xmax, double ymin, double ymax)
     {
-        int x = 0;
-        int y = 0;
         int xCount = (xmax - xmin) / mSampleRadius;
         int yCount = (ymax - ymin) / mSampleRadius;
 
-        while(x < xCount && y < yCount)
+//#pragma omp parallel for schedule(dynamic, 1)
+        for(int y = 0; y < yCount; y++)
         {
-            matrixr_t point(2, 1);
-            point[0] = xmin + mSampleRadius * x;
-            point[1] = ymin + mSampleRadius * y;
+            for(int x = 0; x < xCount; x++)
+            {
+                matrixr_t point(2, 1);
+                point[0] = xmin + mSampleRadius * x;
+                point[1] = ymin + mSampleRadius * y;
 
-            if(mKernel.contains(point))
-            {
-                mSamples.push_back(point);
-            }
-            x++;
-            if(x >= xCount)
-            {
-                x = 0;
-                y++;
+                if(mKernel.contains(point))
+                {
+                    mSamples.push_back(point);
+                }
             }
         }
         /*if(isOutsideKernelRegion(xmin, xmax, ymin, ymax))

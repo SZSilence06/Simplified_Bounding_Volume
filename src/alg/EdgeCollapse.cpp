@@ -625,7 +625,9 @@ namespace SBV
             {
                 if(min(barysInner(colon(), i)) >= 0)
                 {
+                    this->mtx.lock();
                     innerSample.insert(sampleInner[i]);
+                    this->mtx.unlock();
                 }
             }
             matrixr_t barysOuter = invA(colon(), colon(0, 1)) * mShell.mOuterShell(colon(), sampleOuter) +
@@ -634,7 +636,9 @@ namespace SBV
             {
                 if(min(barysOuter(colon(), i)) >= 0)
                 {
+                    this->mtx.lock();
                     outerSample.insert(sampleOuter[i]);
+                    this->mtx.unlock();
                 }
             }
         }
