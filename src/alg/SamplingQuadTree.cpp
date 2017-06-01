@@ -3,6 +3,7 @@
 #include "KernelRegion.h"
 #include "eigen3.3/Eigen/Dense"
 #include <iostream>
+#include <mutex>
 
 namespace SBV
 {
@@ -27,26 +28,26 @@ namespace SBV
 #ifdef VER_2D
     void SamplingQuadTree::sample(double xmin, double xmax, double ymin, double ymax)
     {
-        int x = 0;
-        int y = 0;
-        int xCount = (xmax - xmin) / mSampleRadius;
-        int yCount = (ymax - ymin) / mSampleRadius;
+        const int xCount = (xmax - xmin) / mSampleRadius;
+        const int yCount = (ymax - ymin) / mSampleRadius;
 
-        while(x < xCount && y < yCount)
+        std::mutex mtx;
+
+#pragma omp parallel for schedule(dynamic, 1)
+        for(int x = 0; x < xCount; x++)
         {
-            Point point;
-            point[0] = xmin + mSampleRadius * x;
-            point[1] = ymin + mSampleRadius * y;
+            for(int y = 0; y < yCount; y++)
+            {
+                Point point;
+                point[0] = xmin + mSampleRadius * x;
+                point[1] = ymin + mSampleRadius * y;
 
-            if(mKernel.contains(point))
-            {
-                mSamples.push_back(point);
-            }
-            x++;
-            if(x >= xCount)
-            {
-                x = 0;
-                y++;
+                if(mKernel.contains(point))
+                {
+                    mtx.lock();
+                    mSamples.push_back(point);
+                    mtx.unlock();
+                }
             }
         }
     }
