@@ -10,10 +10,17 @@ using namespace zjucad::matrix;
 
 namespace SBV
 {
+#ifdef VER_2D
     Simplifier::Simplifier(Curve &mesh) : mSourceMesh(mesh)
     {
 
     }
+#else
+    Simplifier::Simplifier(Mesh &mesh) : mSourceMesh(mesh)
+    {
+
+    }
+#endif
 
     void Simplifier::simplify()
     {
@@ -21,7 +28,7 @@ namespace SBV
 
         generateShells();
 
-        std::cout << "Start refinement..." << std::endl;
+        /*std::cout << "Start refinement..." << std::endl;
         refine();
 
         std::cout << "Start Boundary collapse..." << std::endl;
@@ -36,14 +43,18 @@ namespace SBV
         mTimerSimplify.end();
 
         if(mNeedGenTempResult)
-            writeSummary();
+            writeSummary();*/
     }
 
     void Simplifier::generateShells()
     {
         std::vector<Point> normals;
 
+#ifdef VER_2D
         WKYLIB::Mesh::computeNormal2D(mSourceMesh.vertices, mSourceMesh.lines, normals);
+#else
+        WKYLIB::Mesh::computeNormal(mSourceMesh.vertices, mSourceMesh.triangles, normals);
+#endif
 
         std::vector<Point> shell;
         shell.reserve(mSourceMesh.vertices.size());
@@ -56,14 +67,14 @@ namespace SBV
 
         std::vector<Point> sampled_shell;
 
-        sample(shell, mSourceMesh.lines, sampled_shell);
+        sample(shell, mSourceMesh.triangles, sampled_shell);
         mShell.mOuterShell.reserve(sampled_shell.size());
         for(size_t i = 0; i < sampled_shell.size(); i++)
         {
             mShell.mOuterShell.push_back(sampled_shell[i]);
         }
 
-        sample(mSourceMesh.vertices, mSourceMesh.lines, sampled_shell);
+        sample(mSourceMesh.vertices, mSourceMesh.triangles, sampled_shell);
         mShell.mInnerShell.reserve(sampled_shell.size());
         for(size_t i = 0; i < sampled_shell.size(); i++)
         {
@@ -106,7 +117,39 @@ namespace SBV
             }
         }
     }
+#else
+    void Simplifier::sample(const std::vector<Point> &vertices, const std::vector<Eigen::Vector3i> &triangles,
+                            std::vector<Point> &output_samples)
+    {
+        output_samples.clear();
+        for(size_t i = 0; i < triangles.size(); i++)
+        {
+            const Point& a = vertices[triangles[i][0]];
+            const Point& b = vertices[triangles[i][1]];
+            const Point& c = vertices[triangles[i][2]];
+
+            Point ab = b - a;
+            Point ac = c - a;
+
+            int sample_count_ab = (int)(ab.norm() / mSampleRadius);
+            int sample_count_ac = (int)(ac.norm() / mSampleRadius);
+
+            ab /= ab.norm();
+            ac /= ac.norm();
+
+            for(int j = 0; j < sample_count_ab; j++)
+            {
+                double baryAB = j / (double)sample_count_ab;
+                int max_sample_ac = sample_count_ac * (1 - baryAB);
+                for(int k = 0; k < max_sample_ac; k++)
+                {
+                    output_samples.push_back(a + mSampleRadius * j * ab + mSampleRadius * k * ac);
+                }
+            }
+        }
+    }
 #endif
+
 
     void Simplifier::refine()
     {
@@ -123,9 +166,13 @@ namespace SBV
             WKYLIB::Mesh::writeCurve2D(mOutputDirectory + "/refined_zero_set.obj", mTriangulation.getZeroSet().vertices,
                                        mTriangulation.getZeroSet().lines);
 #else
+            WKYLIB::Mesh::writeMesh(mOutputDirectory + "/refined_shell.obj", mTriangulation.vertices, mTriangulation.triangles);
+            WKYLIB::Mesh::writeMesh(mOutputDirectory + "/refined_zero_set.obj", mTriangulation.getZeroSet().vertices,
+                                       mTriangulation.getZeroSet().lines);
 #endif
         }
     }
+    /*
 
     void Simplifier::collapseBoundary()
     {
@@ -221,7 +268,7 @@ namespace SBV
         logTimer("Zero Set Collapse(Half Edge) : ", mTimerZeroSetHalfEdge);
         logTimer("Zero Set Collapse(General) : ", mTimerZeroSetGeneral);
         logTimer("Total : ", mTimerSimplify);
-    }
+    }*/
 
     void Simplifier::logTimer(const std::string& prefix, const DebugTimer &timer)
     {

@@ -315,25 +315,26 @@ namespace WKYLIB {
     }
 
     //Tool function used by barycentric_tetra()
-    double ScTP(const matrixr_t &a, const matrixr_t &b, const matrixr_t &c)
+    double ScTP(const Eigen::Vector3d &a, const Eigen::Vector3d &b, const Eigen::Vector3d &c)
     {
         // computes scalar triple product
-        return dot(a, cross(b, c));
+        return a.dot(b.cross(c));
     }
 
     //Compute barycenter coordinates of the point p on tetrahedron.
     //return 1 if p is inside the tetrahedron, and 0 instead.
-    int barycentric_tetra(const matrixr_t &point, const matrixr_t &tetra, matrixr_t &bary)
+    int barycentric_tetra(const Eigen::Vector3d &a, const Eigen::Vector3d &b, const Eigen::Vector3d &c,
+                          const Eigen::Vector3d &d, const Eigen::Vector3d &p, Eigen::Vector4d &bary)
     {
-        matrixr_t vap = point - tetra(colon(), 0);
-        matrixr_t vbp = point - tetra(colon(), 1);
+        Eigen::Vector3d vap = p - a;
+        Eigen::Vector3d vbp = p - b;
 
-        matrixr_t vab = tetra(colon(), 1) - tetra(colon(), 0);
-        matrixr_t vac = tetra(colon(), 2) - tetra(colon(), 0);
-        matrixr_t vad = tetra(colon(), 3) - tetra(colon(), 0);
+        Eigen::Vector3d vab = b - a;
+        Eigen::Vector3d vac = c - a;
+        Eigen::Vector3d vad = d - a;
 
-        matrixr_t vbc = tetra(colon(), 2) - tetra(colon(), 1);
-        matrixr_t vbd = tetra(colon(), 3) - tetra(colon(), 1);
+        Eigen::Vector3d vbc = c - b;
+        Eigen::Vector3d vbd = d - b;
         // ScTP computes the scalar triple product
         double va6 = ScTP(vbp, vbd, vbc);
         double vb6 = ScTP(vap, vac, vad);
@@ -341,7 +342,6 @@ namespace WKYLIB {
         double vd6 = ScTP(vap, vab, vac);
         double v6 = 1 / ScTP(vab, vac, vad);
 
-        bary = matrixr_t(4, 1);
         bary[0] = va6 * v6;
         bary[1] = vb6 * v6;
         bary[2] = vc6 * v6;

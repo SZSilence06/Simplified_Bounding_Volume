@@ -18,6 +18,7 @@ namespace SBV
     class TriangulatedShell
     {
     public:
+#ifdef VER_2D
         struct ZeroSet
         {
             std::vector<Point> vertices;
@@ -25,10 +26,23 @@ namespace SBV
             std::vector<std::pair<size_t, size_t> >  vertPairs;   //recording the corresponding vert pairs of the zero set vertices
             std::vector<size_t> lineFaces;                        //recording the corresponding faces of the zero set lines
         };
+#else
+        struct ZeroSet
+        {
+            std::vector<Point> vertices;
+            std::vector<Eigen::Vector3i> triangles;
+            std::vector<std::pair<size_t, size_t> >  vertPairs;   //recording the corresponding vert pairs of the zero set vertices
+            std::vector<size_t> lineFaces;                        //recording the corresponding faces of the zero set lines
+        };
+#endif
 
     public:
         std::vector<Point> vertices;
+#ifdef VER_2D
         std::vector<Eigen::Vector3i> triangles;
+#else
+        std::vector<Eigen::Vector4i> cells;
+#endif
         std::vector<PointType> vertType;
 
     public:

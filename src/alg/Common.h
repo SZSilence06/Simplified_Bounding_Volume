@@ -4,7 +4,7 @@
 #include <vector>
 #include <eigen3/Eigen/Eigen>
 
-#define VER_2D
+//#define VER_2D
 
 namespace SBV
 {

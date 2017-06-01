@@ -70,7 +70,8 @@ namespace WKYLIB {
 
     //Compute barycenter coordinates of the point p on tetrahedron.
     //return 1 if p is inside the tetrahedron, and 0 instead.
-    int barycentric_tetra(const matrixr_t &point, const matrixr_t &tetra, matrixr_t &bary);
+    int barycentric_tetra(const Eigen::Vector3d &a, const Eigen::Vector3d &b, const Eigen::Vector3d &c,
+                          const Eigen::Vector3d &d, const Eigen::Vector3d &p, Eigen::Vector4d &bary);
 
     //Generate a ray direction, given the coordinate x,y in screen space.
     void generate_ray_dir(const matrixr_t &eye, const matrixr_t& lookAt, const matrixr_t &up,

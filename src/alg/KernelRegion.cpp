@@ -1,6 +1,8 @@
 #include "KernelRegion.h"
 #include <wkylib/geometry.h>
 
+/*
+
 using namespace zjucad::matrix;
 
 namespace SBV
@@ -192,3 +194,5 @@ namespace SBV
         return false;
     }
 }
+
+*/

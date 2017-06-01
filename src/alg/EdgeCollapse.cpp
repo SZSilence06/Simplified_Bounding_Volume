@@ -5,6 +5,8 @@
 #include <iostream>
 #include <omp.h>
 
+/*
+
 namespace SBV
 {
     EdgeCollapse::EdgeCollapse(TriangulatedShell &triangulation, const Shell& shell, Type type, bool isHalfEdge, double sampleRadius)
@@ -546,6 +548,10 @@ namespace SBV
         double xmax = std::numeric_limits<double>::lowest();
         double ymin = std::numeric_limits<double>::max();
         double ymax = std::numeric_limits<double>::lowest();
+#ifndef VER_2D
+        double zmin = std::numeric_limits<double>::max();
+        double zmax = std::numeric_limits<double>::lowest();
+#endif
 
         for(size_t face : mNeighbourFaces[vert])
         {
@@ -578,11 +584,25 @@ namespace SBV
                 {
                     ymin = vert[1];
                 }
+#ifndef VER_2D
+                if(vert[2] > zmax)
+                {
+                    ymax = vert[1];
+                }
+                if(vert[2] < zmin)
+                {
+                    ymin = vert[1];
+                }
+#endif
             }
         }
 
         std::vector<size_t> sampleInner;
+#ifdef VER_2D
         mShell.getInnerTree().getPointsInRange(xmin, xmax, ymin, ymax, sampleInner);
+#else
+        mShell.getInnerTree().getPointsInRange(xmin, xmax, ymin, ymax, zmin, zmax, sampleInner);
+#endif
 
         for(size_t i = 0; i < sampleInner.size(); i++)
         {
@@ -601,8 +621,13 @@ namespace SBV
                 }
 
                 Eigen::Vector3d bary;
+#ifdef VER_2D
                 if(WKYLIB::barycentric_2D(mTriangulation.vertices[a], mTriangulation.vertices[b], mTriangulation.vertices[c],
                                           point, bary))
+#else
+                if(WKYLIB::barycentric(mTriangulation.vertices[a], mTriangulation.vertices[b], mTriangulation.vertices[c],
+                                          point, bary))
+#endif
                 {
                     innerSample.insert(sampleInner[i]);
                     break;
@@ -611,7 +636,11 @@ namespace SBV
         }
 
         std::vector<size_t> sampleOuter;
+#ifdef VER_2D
         mShell.getOuterTree().getPointsInRange(xmin, xmax, ymin, ymax, sampleOuter);
+#else
+        mShell.getOuterTree().getPointsInRange(xmin, xmax, ymin, ymax, zmin, zmax, sampleOuter);
+#endif
 
         for(size_t i = 0; i < sampleOuter.size(); i++)
         {
@@ -630,8 +659,13 @@ namespace SBV
                 }
 
                 Eigen::Vector3d bary;
+#ifdef VER_2D
                 if(WKYLIB::barycentric_2D(mTriangulation.vertices[a], mTriangulation.vertices[b], mTriangulation.vertices[c],
                                           point, bary))
+#else
+                if(WKYLIB::barycentric(mTriangulation.vertices[a], mTriangulation.vertices[b], mTriangulation.vertices[c],
+                                          point, bary))
+#endif
                 {
                     outerSample.insert(sampleOuter[i]);
                     break;
@@ -700,6 +734,10 @@ namespace SBV
             double xmax = std::numeric_limits<double>::min();
             double ymin = std::numeric_limits<double>::max();
             double ymax = std::numeric_limits<double>::min();
+#ifndef VER_2D
+            double zmin = std::numeric_limits<double>::max();
+            double zmax = std::numeric_limits<double>::min();
+#endif
 
             for(size_t i = 0; i < lines.size(); i++)
             {
@@ -731,4 +769,4 @@ namespace SBV
         }
         return found;
     }
-}
+}*/

@@ -1,5 +1,3 @@
-
-
 file(GLOB subheaders *.h )
 file(GLOB subsources *.cpp )
 

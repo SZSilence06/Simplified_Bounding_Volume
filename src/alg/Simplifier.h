@@ -13,7 +13,11 @@ namespace SBV {
     public:
         using DebugTimer = WKYLIB::DebugTimer;
 
+#ifdef VER_2D
         Simplifier(Curve& mesh);
+#else
+        Simplifier(Mesh& mesh);
+#endif
 
         void simplify();
 
@@ -53,8 +57,13 @@ namespace SBV {
     private:
         void genDefaultParams();
         void generateShells();
+#ifdef VER_2D
         void sample(const std::vector<Point> &vertices, const std::vector<Eigen::Vector2i> &lines,
                     std::vector<Point> &output_samples);
+#else
+        void sample(const std::vector<Point> &vertices, const std::vector<Eigen::Vector3i> &triangles,
+                    std::vector<Point> &output_samples);
+#endif
         void refine();
         void collapseBoundary();
         void mutualTessellate();
@@ -64,7 +73,12 @@ namespace SBV {
 
     private:
         std::string mOutputDirectory;
+#ifdef VER_2D
         Curve& mSourceMesh;
+#else
+        Mesh& mSourceMesh;
+#endif
+
         double mMaxDistance = -1;
         double mSampleRadius = -1;
         double mAlpha = 0.2;

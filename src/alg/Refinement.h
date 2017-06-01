@@ -5,9 +5,16 @@
 #include "TriangulatedShell.h"
 #include "Shell.h"
 #include <CGAL/Exact_predicates_inexact_constructions_kernel.h>
+
+#ifdef VER_2D
 #include <CGAL/Triangulation_vertex_base_with_info_2.h>
 #include <CGAL/Triangulation_face_base_with_info_2.h>
 #include <CGAL/Delaunay_triangulation_2.h>
+#else
+#include <CGAL/Triangulation_vertex_base_with_info_3.h>
+#include <CGAL/Triangulation_cell_base_with_info_3.h>
+#include <CGAL/Delaunay_triangulation_3.h>
+#endif
 
 namespace SBV
 {
@@ -41,6 +48,7 @@ namespace SBV
             PointInfo v0, v1, v2;         //vertices of the face, used for judging whether the face is new
         };
 
+#ifdef VER_2D
         using K = CGAL::Exact_predicates_inexact_constructions_kernel;
         using VertexBase = CGAL::Triangulation_vertex_base_with_info_2<PointInfo, K>;
         using CellBase = CGAL::Triangulation_face_base_with_info_2<FaceInfo, K>;
@@ -49,6 +57,16 @@ namespace SBV
         using DPoint = Delaunay::Point;
         using Cell = Delaunay::Face;
         using VertexHandle = Delaunay::Vertex_handle;
+#else
+        using K = CGAL::Exact_predicates_inexact_constructions_kernel;
+        using VertexBase = CGAL::Triangulation_vertex_base_with_info_3<PointInfo, K>;
+        using CellBase = CGAL::Triangulation_cell_base_with_info_3<FaceInfo, K>;
+        using Tds = CGAL::Triangulation_data_structure_3<VertexBase, CellBase>;
+        using Delaunay = CGAL::Delaunay_triangulation_3<K, Tds>;
+        using DPoint = Delaunay::Point;
+        using Cell = Delaunay::Cell;
+        using VertexHandle = Delaunay::Vertex_handle;
+#endif
 
     private:
         void init();
@@ -65,7 +83,11 @@ namespace SBV
         bool checkCondition3(const Cell& cell);
         bool checkClassification(const Cell& cell, const Point& point, bool isOuter);
         double computeHeight(const Cell& cell);
+#ifdef VER_2D
         void computeAABB(const Cell& cell, double& xmax, double& xmin, double& ymax, double& ymin);
+#else
+        void computeAABB(const Cell& cell, double& xmax, double& xmin, double& ymax, double& ymin, double& zmax, double& zmin);
+#endif
 
     private:
         const Shell& mShell;
