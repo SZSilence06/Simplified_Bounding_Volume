@@ -28,10 +28,10 @@ namespace SBV
 
         generateShells();
 
-        /*std::cout << "Start refinement..." << std::endl;
+        std::cout << "Start refinement..." << std::endl;
         refine();
 
-        std::cout << "Start Boundary collapse..." << std::endl;
+        /*std::cout << "Start Boundary collapse..." << std::endl;
         collapseBoundary();
 
         std::cout << "Start mutual tessellation..." << std::endl;
@@ -166,9 +166,9 @@ namespace SBV
             WKYLIB::Mesh::writeCurve2D(mOutputDirectory + "/refined_zero_set.obj", mTriangulation.getZeroSet().vertices,
                                        mTriangulation.getZeroSet().lines);
 #else
-            WKYLIB::Mesh::writeMesh(mOutputDirectory + "/refined_shell.obj", mTriangulation.vertices, mTriangulation.triangles);
+            WKYLIB::Mesh::writeTetra(mOutputDirectory + "/refined_shell.vtk", mTriangulation.vertices, mTriangulation.cells);
             WKYLIB::Mesh::writeMesh(mOutputDirectory + "/refined_zero_set.obj", mTriangulation.getZeroSet().vertices,
-                                       mTriangulation.getZeroSet().lines);
+                                       mTriangulation.getZeroSet().triangles);
 #endif
         }
     }

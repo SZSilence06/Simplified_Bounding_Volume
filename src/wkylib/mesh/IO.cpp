@@ -126,6 +126,31 @@ namespace WKYLIB
             return true;
         }
 
+        bool writeMesh(const std::string &file, const std::vector<Eigen::Vector3d> &vertices,
+                       const std::vector<Eigen::Vector3i> &triangles)
+        {
+            std::ofstream out;
+
+            out.open(file);
+            if(out.fail())
+            {
+                return false;
+            }
+
+            for(size_t i = 0; i < vertices.size(); i++)
+            {
+                out << "v " << vertices[i][0] << " " << vertices[i][1] << " " << vertices[i][2] << std::endl;
+            }
+            for(size_t i = 0; i < triangles.size(); i++)
+            {
+                out << "f " << triangles[i][0] + 1 << " " << triangles[i][1] + 1 << " " << triangles[i][2] + 1 << std::endl;
+            }
+
+            out.close();
+
+            return true;
+        }
+
         bool writeMesh2D(const std::string &file, const std::vector<Eigen::Vector2d> &vertices,
                          const std::vector<Eigen::Vector3i> &triangles)
         {
@@ -148,6 +173,45 @@ namespace WKYLIB
 
             out.close();
 
+            return true;
+        }
+
+        bool writeTetra(const std::string &file, const std::vector<Eigen::Vector3d> &vertices,
+                        const std::vector<Eigen::Vector4i> &tetras)
+        {
+            std::ofstream out;
+
+            out.open(file);
+            if(out.fail())
+            {
+                return false;
+            }
+
+            out << "# vtk DataFile Version 2.0\n TET\nASCII\nDATASET UNSTRUCTURED_GRID\nPOINTS "
+                << vertices.size() << " float" << std::endl;
+            for(size_t i = 0; i < vertices.size(); i++)
+            {
+                out << vertices[i][0] << " " << vertices[i][1] << " " << vertices[i][2] << std::endl;
+            }
+
+            out << "CELLS " << tetras.size() << " " << tetras.size() * 5 << std::endl;
+            for(size_t i = 0; i < tetras.size(); i++)
+            {
+                out << "4";
+                for(int j = 0; j < 4; j++)
+                {
+                    out << " "<< tetras[i][j];
+                }
+                out << std::endl;
+            }
+
+            out << "CELL_TYPES " << tetras.size() << std::endl;
+            for(size_t i = 0; i < tetras.size(); i++)
+            {
+                out << "10" << std::endl;
+            }
+
+            out.close();
             return true;
         }
     }

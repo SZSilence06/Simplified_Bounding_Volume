@@ -44,6 +44,16 @@ namespace WKYLIB
                                   const std::vector<Eigen::Vector2i>& lines);
 
         /**
+         * @brief write triangle mesh to a obj format file.
+         * @param file : output file path.
+         * @param vertices : vertices to output.
+         * @param triangles : triangles to output.
+         * @return true if succeeded, and false otherwise.
+         */
+        WKY_API bool writeMesh(const std::string &file, const std::vector<Eigen::Vector3d> &vertices,
+                                 const std::vector<Eigen::Vector3i> &triangles);
+
+        /**
          * @brief write 2D triangle mesh to a obj format file, with y coordinate set to 0, and z coordinate as y coordinate.
          * @param file : output file path.
          * @param vertices : vertices to output.
@@ -52,6 +62,16 @@ namespace WKYLIB
          */
         WKY_API bool writeMesh2D(const std::string &file, const std::vector<Eigen::Vector2d> &vertices,
                                  const std::vector<Eigen::Vector3i> &triangles);
+
+        /**
+         * @brief write tetrahedron mesh to a vtk format file.
+         * @param file : output file path.
+         * @param vertices : vertices to output.
+         * @param tetras : tetrahedrons to output.
+         * @return true if succeeded, and false otherwise.
+         */
+        WKY_API bool writeTetra(const std::string &file, const std::vector<Eigen::Vector3d> &vertices,
+                                 const std::vector<Eigen::Vector4i> &tetras);
     }
 }
 

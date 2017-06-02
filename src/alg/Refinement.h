@@ -41,12 +41,21 @@ namespace SBV
             }
         };
 
+#ifdef VER_2D
         struct FaceInfo
         {
             std::vector<PointInfo> points;   //points inside the cell.
             PointInfo maxErrorPoint;
             PointInfo v0, v1, v2;         //vertices of the face, used for judging whether the face is new
         };
+#else
+        struct CellInfo
+        {
+            std::vector<PointInfo> points;   //points inside the cell.
+            PointInfo maxErrorPoint;
+            PointInfo v0, v1, v2, v3;         //vertices of the cell, used for judging whether the face is new
+        };
+#endif
 
 #ifdef VER_2D
         using K = CGAL::Exact_predicates_inexact_constructions_kernel;
@@ -60,7 +69,7 @@ namespace SBV
 #else
         using K = CGAL::Exact_predicates_inexact_constructions_kernel;
         using VertexBase = CGAL::Triangulation_vertex_base_with_info_3<PointInfo, K>;
-        using CellBase = CGAL::Triangulation_cell_base_with_info_3<FaceInfo, K>;
+        using CellBase = CGAL::Triangulation_cell_base_with_info_3<CellInfo, K>;
         using Tds = CGAL::Triangulation_data_structure_3<VertexBase, CellBase>;
         using Delaunay = CGAL::Delaunay_triangulation_3<K, Tds>;
         using DPoint = Delaunay::Point;
@@ -88,6 +97,8 @@ namespace SBV
 #else
         void computeAABB(const Cell& cell, double& xmax, double& xmin, double& ymax, double& ymin, double& zmax, double& zmin);
 #endif
+
+        void organizeOutput();
 
     private:
         const Shell& mShell;

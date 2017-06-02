@@ -32,7 +32,7 @@ namespace SBV
             std::vector<Point> vertices;
             std::vector<Eigen::Vector3i> triangles;
             std::vector<std::pair<size_t, size_t> >  vertPairs;   //recording the corresponding vert pairs of the zero set vertices
-            std::vector<size_t> lineFaces;                        //recording the corresponding faces of the zero set lines
+            std::vector<size_t> faceTetras;                        //recording the corresponding faces of the zero set lines
         };
 #endif
 
@@ -65,7 +65,12 @@ namespace SBV
 
         size_t getZeroPointIndex(size_t firstVertex, size_t secondVertex);
         void buildZeroSetExisting();
+
+#ifdef VER_2D
         void tryAddZeroFace(size_t currentTetra, size_t zeroVert1, size_t zeroVert2, std::set<ZeroFace>& zeroFaces);
+#else
+        void tryAddZeroFace(size_t currentTetra, size_t zeroVert1, size_t zeroVert2, size_t zeroVert3, std::set<ZeroFace>& zeroFaces);
+#endif
 
     private:
         ZeroSet mZeroSet;

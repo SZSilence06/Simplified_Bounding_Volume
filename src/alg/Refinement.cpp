@@ -94,7 +94,7 @@ namespace SBV
         mDelaunay.insert(DPoint(xMin, yMax, zMax))->info() = info;
         mDelaunay.insert(DPoint(xMin, yMax, zMin))->info() = info;
         mDelaunay.insert(DPoint(xMin, yMin, zMax))->info() = info;
-        mDelaunay.insert(DPoint(xMax, yMin, zMin))->info() = info;
+        mDelaunay.insert(DPoint(xMin, yMin, zMin))->info() = info;
 #endif
     }
 
@@ -115,17 +115,21 @@ namespace SBV
         {
             Cell& cell = *iter;
             updatePointInCell(cell);
-            double maxErrorInCell = getError(cell.info().maxErrorPoint);
+            const PointInfo& maxErrorPoint = cell.info().maxErrorPoint;
+            if(maxErrorPoint.pointType == POINT_UNKNOWN)
+                continue;
+            double maxErrorInCell = getError(maxErrorPoint);
             if(maxError < maxErrorInCell)
             {
                 maxError = maxErrorInCell;
-                mNextInsertPoint = iter->info().maxErrorPoint;
+                mNextInsertPoint = maxErrorPoint;
             }
         }
     }
 
     void Refinement::updatePointInCell(Cell& cell)
     {
+#ifdef VER_2D
         FaceInfo& info = cell.info();
         if(isNewCell(cell) == false)
         {
@@ -135,6 +139,18 @@ namespace SBV
         info.v0 = cell.vertex(0)->info();
         info.v1 = cell.vertex(1)->info();
         info.v2 = cell.vertex(2)->info();
+#else
+        CellInfo& info = cell.info();
+        if(isNewCell(cell) == false)
+        {
+            return;
+        }
+
+        info.v0 = cell.vertex(0)->info();
+        info.v1 = cell.vertex(1)->info();
+        info.v2 = cell.vertex(2)->info();
+        info.v3 = cell.vertex(3)->info();
+#endif
 
 #ifdef VER_2D
         double xmax, xmin, ymax, ymin;
@@ -358,6 +374,12 @@ namespace SBV
             iterCount++;
             std::cout << "Iteration " << iterCount << " ..." << std::endl;
 
+            if(mNextInsertPoint.pointType == POINT_UNKNOWN)
+            {
+                std::cerr << "[warning] Stop iteration abnormally." << std::endl;
+                break;
+            }
+
             Point point;
             getPointMatrix(mNextInsertPoint, point);
 #ifdef VER_2D
@@ -367,32 +389,29 @@ namespace SBV
 #endif
             updateErrors();
         }
-
         std::cout << "Finished refinement after " << iterCount << " iterations." << std::endl;
+        organizeOutput();
+        return true;
+    }
 
+#ifdef VER_2D
+    void Refinement::organizeOutput()
+    {
         //organize output data
         mOutput.vertices.resize(mDelaunay.number_of_vertices());
-#ifdef VER_2D
         mOutput.triangles.resize(mDelaunay.number_of_faces());
-#else
-        mOutput.triangles.resize(mDelaunay.number_of_cells());
-#endif
         mOutput.vertType.reserve(mDelaunay.number_of_vertices());
         int i = 0;
         for(auto iter = mDelaunay.finite_vertices_begin(); iter != mDelaunay.finite_vertices_end(); ++iter, ++i)
         {
             mOutput.vertices[i][0] = iter->point()[0];
             mOutput.vertices[i][1] = iter->point()[1];
-#ifndef VER_2D
-            mOutput.vertices[i][2] = iter->point()[2];
-#endif
 
             PointInfo& info = iter->info();
             iter->info().indexInDelaunay = i;
             mOutput.vertType.push_back(info.pointType);
         }
         i = 0;
-#ifdef VER_2D
         for(auto iter = mDelaunay.finite_faces_begin(); iter != mDelaunay.finite_faces_end(); ++iter, ++i)
         {
             const PointInfo& info0 = iter->vertex(0)->info();
@@ -403,7 +422,26 @@ namespace SBV
             mOutput.triangles[i][1] = info1.indexInDelaunay;
             mOutput.triangles[i][2] = info2.indexInDelaunay;
         }
+    }
 #else
+    void Refinement::organizeOutput()
+    {
+        //organize output data
+        mOutput.vertices.resize(mDelaunay.number_of_vertices());
+        mOutput.cells.resize(mDelaunay.number_of_cells());
+        mOutput.vertType.reserve(mDelaunay.number_of_vertices());
+        int i = 0;
+        for(auto iter = mDelaunay.finite_vertices_begin(); iter != mDelaunay.finite_vertices_end(); ++iter, ++i)
+        {
+            mOutput.vertices[i][0] = iter->point()[0];
+            mOutput.vertices[i][1] = iter->point()[1];
+            mOutput.vertices[i][2] = iter->point()[2];
+
+            PointInfo& info = iter->info();
+            info.indexInDelaunay = i;
+            mOutput.vertType.push_back(info.pointType);
+        }
+        i = 0;
         for(auto iter = mDelaunay.finite_cells_begin(); iter != mDelaunay.finite_cells_end(); ++iter, ++i)
         {
             const PointInfo& info0 = iter->vertex(0)->info();
@@ -411,15 +449,14 @@ namespace SBV
             const PointInfo& info2 = iter->vertex(2)->info();
             const PointInfo& info3 = iter->vertex(3)->info();
 
-            mOutput.triangles[i][0] = info0.indexInDelaunay;
-            mOutput.triangles[i][1] = info1.indexInDelaunay;
-            mOutput.triangles[i][2] = info2.indexInDelaunay;
-            mOutput.triangles[i][3] = info3.indexInDelaunay;
+            mOutput.cells[i][0] = info0.indexInDelaunay;
+            mOutput.cells[i][1] = info1.indexInDelaunay;
+            mOutput.cells[i][2] = info2.indexInDelaunay;
+            mOutput.cells[i][3] = info3.indexInDelaunay;
         }
+    }
 #endif
 
-        return true;
-    }
 
     bool Refinement::isFinished()
     {
@@ -482,6 +519,7 @@ namespace SBV
         return true;
     }
 
+#ifdef VER_2D
     bool Refinement::isNewCell(const Cell &cell)
     {
         const FaceInfo& info = cell.info();
@@ -493,6 +531,21 @@ namespace SBV
                 &&(p1 == info.v0 || p1 == info.v1 || p1 == info.v2)
                 &&(p2 == info.v0 || p2 == info.v1 || p2 == info.v2));
     }
+#else
+    bool Refinement::isNewCell(const Cell &cell)
+    {
+        const CellInfo& info = cell.info();
+        const PointInfo& p0 = cell.vertex(0)->info();
+        const PointInfo& p1 = cell.vertex(1)->info();
+        const PointInfo& p2 = cell.vertex(2)->info();
+        const PointInfo& p3 = cell.vertex(3)->info();
+
+        return !((p0 == info.v0 || p0 == info.v1 || p0 == info.v2 || p0 == info.v3)
+                &&(p1 == info.v0 || p1 == info.v1 || p1 == info.v2 || p1 == info.v3)
+                &&(p2 == info.v0 || p2 == info.v1 || p2 == info.v2 || p2 == info.v3)
+                &&(p3 == info.v0 || p3 == info.v1 || p3 == info.v2 || p3 == info.v3));
+    }
+#endif
 
     double Refinement::computeHeight(const Cell &cell)
     {
