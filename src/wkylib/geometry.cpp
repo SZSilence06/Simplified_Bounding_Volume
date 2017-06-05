@@ -347,7 +347,7 @@ namespace WKYLIB {
         bary[2] = vc6 * v6;
         bary[3] = vd6 * v6;
 
-        if(fabs(bary[0] + bary[1] + bary[2] + bary[3] - 1) < 1e-6 && bary[0] > 0 && bary[1] > 0 && bary[2] > 0 && bary[3] > 0)
+        if(fabs(bary[0] + bary[1] + bary[2] + bary[3] - 1) < 1e-6 && bary[0] > -1e-6 && bary[1] > -1e-6 && bary[2] > -1e-6 && bary[3] > -1e-6)
         {
             return 1;
         }

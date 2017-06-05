@@ -133,10 +133,11 @@ namespace SBV
                 Eigen::Vector3i face1, face2;
                 face1[0] = getZeroPointIndex(innerVerts[0], outerVerts[0]);
                 face1[1] = getZeroPointIndex(innerVerts[0], outerVerts[1]);
-                face1[2] = getZeroPointIndex(innerVerts[1], outerVerts[0]);
+                face1[2] = getZeroPointIndex(innerVerts[1], outerVerts[1]);
                 face2[0] = getZeroPointIndex(innerVerts[0], outerVerts[0]);
-                face2[1] = getZeroPointIndex(innerVerts[1], outerVerts[0]);
-                face2[2] = getZeroPointIndex(innerVerts[1], outerVerts[1]);
+                face2[1] = getZeroPointIndex(innerVerts[1], outerVerts[1]);
+                face2[2] = getZeroPointIndex(innerVerts[1], outerVerts[0]);
+                mZeroSet.faceTetras.push_back(i);
                 mZeroSet.faceTetras.push_back(i);
                 mZeroSet.triangles.push_back(face1);
                 mZeroSet.triangles.push_back(face2);
