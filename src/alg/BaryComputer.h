@@ -11,24 +11,17 @@ namespace SBV
     class BaryComputer
     {
     public:
-        BaryComputer(const Shell& shell, const matrixr_t& triangle, const matrixs_t& sampleInner, const matrixs_t& sampleOuter);
-        BaryComputer(const Shell& shell, const matrixr_t &triangle, const std::set<size_t> &sampleInner, const std::set<size_t> &sampleOuter);
-
-        void computeBary(matrixr_t& barysInner, matrixr_t& barysOuter);
+      BaryComputer(const matrixr_t& triangle);
+      template <typename M>
+      inline void operator()(const M& pt2d, vec3_t &bary) const {
+        using namespace zjucad::matrix;
+        bary = invA(colon(), colon(0, 1))*pt2d + invA(colon(), 2);
+      }
 
     private:
-        void _computeBary(const matrixs_t& samples, matrixr_t& barys, bool isInner);
         void buildInvA(const matrixr_t& triangle);
-
     private:
-        const Shell& mShell;
         matrixr_t invA;
-        const matrixs_t* sampleInnerPtr = nullptr;
-        const matrixs_t* sampleOuterPtr = nullptr;
-
-        //internal stored samples
-        matrixs_t _sampleInner;
-        matrixs_t _sampleOuter;
     };
 }
 

@@ -23,7 +23,7 @@ namespace SBV
         {
             for(int x = 0; x < xCount; x++)
             {
-                matrixr_t point(2, 1);
+                vec2_t point;
                 point[0] = xmin + mSampleRadius * x;
                 point[1] = ymin + mSampleRadius * y;
 

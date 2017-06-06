@@ -27,7 +27,7 @@ namespace SBV
         {
             size_t firstVert;          //the vert to collapse
             size_t secondVert;         //the vert to collapse to
-            vec2_t position;        //the position to collapse to
+            matrixr_t position;        //the position to collapse to
             double error;         //error for collapsing the edge
             bool isUpdated = false;         // indicating whether this info is out-dated(need to be discarded)
         };
@@ -48,10 +48,10 @@ namespace SBV
         void computeErrorMatrix(size_t vert);
         void addNeighbour(size_t firstVert, size_t secondVert);
         void tryAddCollapseableNeighbour(size_t firstVert, size_t secondVert);
-        double computeError(size_t vert, const vec2_t& point);
+        double computeError(size_t vert, const matrixr_t& point);
         bool isCollapseable(size_t firstVert, size_t secondVert);
-        bool isValidCollapse(size_t firstVert, size_t secondVert, const vec2_t &collapseTo);
-        void collapseEdge(size_t firstVert, size_t secondVert, const vec2_t &collapseTo);
+        bool isValidCollapse(size_t firstVert, size_t secondVert, const matrixr_t &collapseTo);
+        void collapseEdge(size_t firstVert, size_t secondVert, const matrixr_t &collapseTo);
         void updateEdgeInfo(size_t vertCollapsed, size_t vertCollapsedTo);
         void insertEdges(size_t vert);
         void mergeNeighbours(size_t vertCollapsed, size_t vertCollapsedTo);
@@ -62,7 +62,7 @@ namespace SBV
                               std::set<size_t>& innerSample, std::set<size_t>& outerSample);
         void findBoundaryEdge(size_t firstVert, size_t secondVert, std::vector<std::pair<size_t, size_t>>& boundaryEdges);
         void findShellSamples(size_t vert, std::set<size_t>& innerSample, std::set<size_t>& outerSample);
-        bool findCollapsePos(size_t vert, size_t vertCollapseTo, vec2_t& position, double& out_error);
+        bool findCollapsePos(size_t vert, size_t vertCollapseTo, matrixr_t& position, double& out_error);
 
     private:
         TriangulatedShell& mTriangulation;

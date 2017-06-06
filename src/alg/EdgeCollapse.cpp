@@ -1,7 +1,7 @@
 #include "EdgeCollapse.h"
 #include "KernelRegion.h"
 #include "SamplingQuadTree.h"
-#include <wkylib/Geometry/geometry.h>
+#include <wkylib/geometry.h>
 #include <iostream>
 #include <omp.h>
 #include <hjlib/math/blas_lapack.h>
@@ -180,7 +180,7 @@ namespace SBV
         }
     }
 
-    double EdgeCollapse::computeError(size_t vert, const vec2_t &point)
+    double EdgeCollapse::computeError(size_t vert, const matrixr_t &point)
     {
         Eigen::Vector3d p;
         p[0] = point[0];
@@ -331,7 +331,7 @@ namespace SBV
         mTriangulation.triangles = newTriangles;
     }
 
-    void EdgeCollapse::collapseEdge(size_t firstVert, size_t secondVert, const vec2_t &collapseTo)
+    void EdgeCollapse::collapseEdge(size_t firstVert, size_t secondVert, const matrixr_t &collapseTo)
     {
         mTriangulation.vertices(colon(), secondVert) = collapseTo;
         updateEdgeInfo(firstVert, secondVert);
@@ -416,7 +416,7 @@ namespace SBV
         return vert;
     }
 
-    bool EdgeCollapse::isValidCollapse(size_t firstVert, size_t secondVert, const vec2_t &collapseTo)
+    bool EdgeCollapse::isValidCollapse(size_t firstVert, size_t secondVert, const matrixr_t &collapseTo)
     {
         if(testLinkCondition(firstVert, secondVert) == false)
         {
@@ -619,22 +619,20 @@ namespace SBV
                 std::cerr << "warning: degenerated triangle." << std::endl;
                 continue;
             }
-            matrixr_t barysInner = invA(colon(), colon(0, 1)) * mShell.mInnerShell(colon(), sampleInner) +
-                    invA(colon(), 2) * ones<double>(1, sampleInner.size());
             for(int i = 0; i < sampleInner.size(); i++)
             {
-                if(min(barysInner(colon(), i)) >= 0)
+                const vec3_t bary = invA(colon(), colon(0, 1)) * mShell.mInnerShell(colon(), sampleInner[i]) + invA(colon(), 2);
+                if(min(bary) >= 0)
                 {
                     this->mtx.lock();
                     innerSample.insert(sampleInner[i]);
                     this->mtx.unlock();
                 }
             }
-            matrixr_t barysOuter = invA(colon(), colon(0, 1)) * mShell.mOuterShell(colon(), sampleOuter) +
-                    invA(colon(), 2) * ones<double>(1, sampleOuter.size());
             for(int i = 0; i < sampleOuter.size(); i++)
             {
-                if(min(barysOuter(colon(), i)) >= 0)
+                const vec3_t bary = invA(colon(), colon(0, 1)) * mShell.mOuterShell(colon(), sampleOuter[i]) + invA(colon(), 2);
+                if(min(bary) >= 0)
                 {
                     this->mtx.lock();
                     outerSample.insert(sampleOuter[i]);
@@ -644,7 +642,7 @@ namespace SBV
         }
     }
 
-    bool EdgeCollapse::findCollapsePos(size_t vert, size_t vertCollapseTo, vec2_t &position, double& out_error)
+    bool EdgeCollapse::findCollapsePos(size_t vert, size_t vertCollapseTo, matrixr_t &position, double& out_error)
     {
         matrixs_t lines;
         std::set<size_t> innerSample;
@@ -662,7 +660,7 @@ namespace SBV
             {
                 for(size_t sample : innerSample)
                 {
-                    const vec2_t samplePoint = mShell.mInnerShell(colon(), sample);
+                    const matrixr_t samplePoint = mShell.mInnerShell(colon(), sample);
                     if(kernel.contains(samplePoint))
                     {
                         double error = computeError(vert, samplePoint) + computeError(vertCollapseTo, samplePoint);
@@ -707,8 +705,8 @@ namespace SBV
 
             for(int i = 0; i < lines.size(2); i++)
             {
-                const vec2_t& a = mTriangulation.vertices(colon(), lines(0, i));
-                const vec2_t& b = mTriangulation.vertices(colon(), lines(1, i));
+                const matrixr_t& a = mTriangulation.vertices(colon(), lines(0, i));
+                const matrixr_t& b = mTriangulation.vertices(colon(), lines(1, i));
                 xmax = a[0] > xmax ? a[0] : xmax;
                 xmin = a[0] < xmin ? a[0] : xmin;
                 ymax = a[1] > ymax ? a[1] : ymax;

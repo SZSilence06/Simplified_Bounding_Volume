@@ -11,7 +11,7 @@ namespace SBV
     {
         typedef double value_type;
 
-        matrixr_t point;
+        vec2_t point;
         size_t index;
 
         value_type operator[](size_t n) const

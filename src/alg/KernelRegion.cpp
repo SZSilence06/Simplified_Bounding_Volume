@@ -1,5 +1,6 @@
 #include "KernelRegion.h"
 #include "BaryComputer.h"
+#include <wkylib/geometry.h>
 #include <iostream>
 #include <zjucad/matrix/io.h>
 
@@ -93,8 +94,8 @@ namespace SBV
 
         for(int i = 0; i < mPolygon.size() - 1; i++)
         {
-            const vec2_t &a = mPoints(colon(), mPolygon[i]);
-            const vec2_t &b = mPoints(colon(), mPolygon[i + 1]);
+            const matrixr_t &a = mPoints(colon(), mPolygon[i]);
+            const matrixr_t &b = mPoints(colon(), mPolygon[i + 1]);
 
             sum += (a[1] - a[0]) * (b[1] + b[0]);
         }
@@ -107,9 +108,9 @@ namespace SBV
         A.resize(mPolygon.size(), 3);
         for(int i = 0; i < mPolygon.size() - 1; i++)
         {
-            const vec2_t &a = mPoints(colon(), mPolygon[i]);
-            const vec2_t &b = mPoints(colon(), mPolygon[i + 1]);
-            vec2_t ab = b - a;
+            const matrixr_t &a = mPoints(colon(), mPolygon[i]);
+            const matrixr_t &b = mPoints(colon(), mPolygon[i + 1]);
+            matrixr_t ab = b - a;
             ab /= norm(ab);
 
             if(mClockwise)
@@ -182,33 +183,37 @@ namespace SBV
             triangle(colon(), 1) = mPoints(colon(), mLines(1, i));
             triangle(colon(), 2) = point;
 
-            BaryComputer baryComputer(mShell, triangle, mInnerSamples, mOuterSamples);
-            matrixr_t barysInner, barysOuter;
-            baryComputer.computeBary(barysInner, barysOuter);
-            for(int j = 0; j < barysInner.size(2); j++)
+            BaryComputer baryComputer(triangle);
+            std::set<size_t>::const_iterator itr = mInnerSamples.begin();
+            for(int j = 0; j < mInnerSamples.size(); j++, ++itr)
             {
-                if(min(barysInner(colon(), j)) >= 0)
+              vec3_t bary;
+              baryComputer(mShell.mInnerShell(colon(), *itr), bary);
+                if(min(bary) >= 0)
                 {
                     double f0 = mTriangulation.getFValue(mLines(0, i));
                     double f1 = mTriangulation.getFValue(mLines(1, i));
                     double f2 = mTriangulation.getFValue(mPointType);
 
-                    double f = f0 * barysInner(0, j) + f1 * barysInner(1, j) + f2 * barysInner(2, j);
+                    double f = f0 * bary[0] + f1 * bary[1]+ f2 * bary[2];
                     if(f > 0)
                     {
                         return true;
                     }
                 }
             }
-            for(int j = 0; j < barysOuter.size(2); j++)
+            itr = mOuterSamples.begin();
+            for(int j = 0; j < mOuterSamples.size(); j++, ++itr)
             {
-                if(min(barysOuter(colon(), j)) >= 0)
+              vec3_t bary;
+              baryComputer(mShell.mOuterShell(colon(), *itr), bary);
+                if(min(bary) >= 0)
                 {
                     double f0 = mTriangulation.getFValue(mLines(0, i));
                     double f1 = mTriangulation.getFValue(mLines(1, i));
                     double f2 = mTriangulation.getFValue(mPointType);
 
-                    double f = f0 * barysOuter(0, j) + f1 * barysOuter(1, j) + f2 * barysOuter(2, j);
+                    double f = f0 * bary[0] + f1 * bary[1] + f2 * bary[2];
                     if(f < 0)
                     {
                         return true;

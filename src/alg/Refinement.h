@@ -56,14 +56,14 @@ namespace SBV
         void initErrors();
         void updateErrors();
         void updatePointInCell(Cell& cell);
-        double computeFValue(const vec2_t& point, const Cell& cell);
+        double computeFValue(const matrixr_t& point, const Cell& cell);
         double getFValue(const VertexHandle& vh);
         double getError(const PointInfo& point);
-        void getPointMatrix(const PointInfo& point, vec2_t& pointMatrix);
+        void getPointMatrix(const PointInfo& point, matrixr_t& pointMatrix);
         bool isFinished();
         bool isNewCell(const Cell& cell);
         bool checkCondition3(const Cell& cell);
-        bool checkClassification(const Cell& cell, const vec2_t& point, bool isOuter);
+        bool checkClassification(const Cell& cell, const matrixr_t& point, bool isOuter);
         double computeHeight(const Cell& cell);
         void computeAABB(const Cell& cell, double& xmax, double& xmin, double& ymax, double& ymin);
 

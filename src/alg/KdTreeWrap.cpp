@@ -1,4 +1,5 @@
 #include "KdTreeWrap.h"
+#include <wkylib/geometry.h>
 #include <limits>
 #include <algorithm>   //for std::max()
 
