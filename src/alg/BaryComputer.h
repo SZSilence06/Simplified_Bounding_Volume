@@ -23,7 +23,6 @@ namespace SBV
     private:
         const Shell& mShell;
         matrixr_t invA;
-        double invA_data[9];
         const matrixs_t* sampleInnerPtr = nullptr;
         const matrixs_t* sampleOuterPtr = nullptr;
 

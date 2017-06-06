@@ -1,7 +1,7 @@
 #include "EdgeCollapse.h"
 #include "KernelRegion.h"
 #include "SamplingQuadTree.h"
-#include <wkylib/geometry.h>
+#include <wkylib/Geometry/geometry.h>
 #include <iostream>
 #include <omp.h>
 #include <hjlib/math/blas_lapack.h>
@@ -163,13 +163,13 @@ namespace SBV
                 continue;
             }
 
-            const matrixr_t&  posI = mTriangulation.vertices(colon(), i);
+            const vec2_t posI = mTriangulation.vertices(colon(), i);
             auto& neighbour = mCollapseableNeighbours[i];
             for(const size_t& neighbourVert : neighbour)
             {
                 Eigen::Vector3d p;
 
-                matrixr_t a = posI - mTriangulation.vertices(colon(), neighbourVert);
+                vec2_t a = posI - mTriangulation.vertices(colon(), neighbourVert);
                 a = a / norm(a);
                 p[0] = a[1];
                 p[1] = -a[0];
@@ -180,7 +180,7 @@ namespace SBV
         }
     }
 
-    double EdgeCollapse::computeError(size_t vert, const matrixr_t &point)
+    double EdgeCollapse::computeError(size_t vert, const vec2_t &point)
     {
         Eigen::Vector3d p;
         p[0] = point[0];
@@ -331,7 +331,7 @@ namespace SBV
         mTriangulation.triangles = newTriangles;
     }
 
-    void EdgeCollapse::collapseEdge(size_t firstVert, size_t secondVert, const matrixr_t &collapseTo)
+    void EdgeCollapse::collapseEdge(size_t firstVert, size_t secondVert, const vec2_t &collapseTo)
     {
         mTriangulation.vertices(colon(), secondVert) = collapseTo;
         updateEdgeInfo(firstVert, secondVert);
@@ -416,7 +416,7 @@ namespace SBV
         return vert;
     }
 
-    bool EdgeCollapse::isValidCollapse(size_t firstVert, size_t secondVert, const matrixr_t &collapseTo)
+    bool EdgeCollapse::isValidCollapse(size_t firstVert, size_t secondVert, const vec2_t &collapseTo)
     {
         if(testLinkCondition(firstVert, secondVert) == false)
         {
@@ -573,7 +573,7 @@ namespace SBV
 
             for(int i = 0; i < 3; i++)
             {
-                const matrixr_t& vert = mTriangulation.vertices(colon(), getCollapsedVert(mTriangulation.triangles(i, face)));
+                const vec2_t vert = mTriangulation.vertices(colon(), getCollapsedVert(mTriangulation.triangles(i, face)));
                 if(vert[0] > xmax)
                 {
                     xmax = vert[0];
@@ -644,7 +644,7 @@ namespace SBV
         }
     }
 
-    bool EdgeCollapse::findCollapsePos(size_t vert, size_t vertCollapseTo, matrixr_t &position, double& out_error)
+    bool EdgeCollapse::findCollapsePos(size_t vert, size_t vertCollapseTo, vec2_t &position, double& out_error)
     {
         matrixs_t lines;
         std::set<size_t> innerSample;
@@ -662,7 +662,7 @@ namespace SBV
             {
                 for(size_t sample : innerSample)
                 {
-                    const matrixr_t samplePoint = mShell.mInnerShell(colon(), sample);
+                    const vec2_t samplePoint = mShell.mInnerShell(colon(), sample);
                     if(kernel.contains(samplePoint))
                     {
                         double error = computeError(vert, samplePoint) + computeError(vertCollapseTo, samplePoint);
@@ -679,7 +679,7 @@ namespace SBV
             {
                 for(size_t sample : outerSample)
                 {
-                    const matrixr_t samplePoint = mShell.mOuterShell(colon(), sample);
+                    const vec2_t samplePoint = mShell.mOuterShell(colon(), sample);
                     if(kernel.contains(samplePoint))
                     {
                         double error = computeError(vert, samplePoint) + computeError(vertCollapseTo, samplePoint);
@@ -707,8 +707,8 @@ namespace SBV
 
             for(int i = 0; i < lines.size(2); i++)
             {
-                const matrixr_t& a = mTriangulation.vertices(colon(), lines(0, i));
-                const matrixr_t& b = mTriangulation.vertices(colon(), lines(1, i));
+                const vec2_t& a = mTriangulation.vertices(colon(), lines(0, i));
+                const vec2_t& b = mTriangulation.vertices(colon(), lines(1, i));
                 xmax = a[0] > xmax ? a[0] : xmax;
                 xmin = a[0] < xmin ? a[0] : xmin;
                 ymax = a[1] > ymax ? a[1] : ymax;

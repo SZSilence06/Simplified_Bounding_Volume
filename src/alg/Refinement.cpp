@@ -1,8 +1,11 @@
 #include "Refinement.h"
 #include "BaryComputer.h"
 #include <limits>
-#include <wkylib/geometry.h>
+#include <wkylib/Geometry/geometry.h>
 #include <zjucad/matrix/io.h>
+
+using namespace zjucad::matrix;
+using namespace WKYLIB::Geometry;
 
 namespace SBV
 {
@@ -128,7 +131,7 @@ namespace SBV
         for(int i = 0; i < barysInner.size(2); i++)
         {
             const size_t index = sampleInner[i];
-            const matrixr_t& bary = barysInner(colon(), i);
+            const vec3_t bary = barysInner(colon(), i);
 
             if(min(bary) <= -1e-6)
                 continue;
@@ -146,7 +149,7 @@ namespace SBV
         for(int i = 0; i < barysOuter.size(2); i++)
         {
             const size_t index = sampleOuter[i];
-            const matrixr_t& bary = barysOuter(colon(), i);
+            const vec3_t bary = barysOuter(colon(), i);
 
             if(min(bary) <= -1e-6)
                 continue;
@@ -182,7 +185,7 @@ namespace SBV
         ymin = std::min(ymin, std::min(std::min(p0[1], p1[1]), p2[1]));
     }
 
-    double Refinement::computeFValue(const matrixr_t &point, const Cell &cell)
+    double Refinement::computeFValue(const vec2_t &point, const Cell &cell)
     {
         const VertexHandle& vh0 = cell.vertex(0);
         const VertexHandle& vh1 = cell.vertex(1);
@@ -192,16 +195,16 @@ namespace SBV
         Point& p1 = cell.vertex(1)->point();
         Point& p2 = cell.vertex(2)->point();
 
-        matrixr_t triangle(2, 3);
-        triangle(0, 0) = p0[0];
-        triangle(1, 0) = p0[1];
-        triangle(0, 1) = p1[0];
-        triangle(1, 1) = p1[1];
-        triangle(0, 2) = p2[0];
-        triangle(1, 2) = p2[1];
+        vec2_t a, b, c;
+        a[0] = p0[0];
+        a[1] = p0[1];
+        b[0] = p1[0];
+        b[1] = p1[1];
+        c[0] = p2[0];
+        c[1] = p2[1];
 
-        matrixr_t bary;
-        if(WKYLIB::barycentric_2D(point, triangle, bary))
+        vec3_t bary;
+        if(barycentric_2D(a, b, c, point, bary))
         {
             //the point is inside the tetrahedron
             double f0 = getFValue(vh0);
@@ -240,7 +243,7 @@ namespace SBV
         }
     }
 
-    void Refinement::getPointMatrix(const PointInfo &point, matrixr_t &pointMatrix)
+    void Refinement::getPointMatrix(const PointInfo &point, vec2_t &pointMatrix)
     {
         switch(point.pointType)
         {
@@ -264,7 +267,7 @@ namespace SBV
             iterCount++;
             std::cout << "Iteration " << iterCount << " ..." << std::endl;
 
-            matrixr_t point;
+            vec2_t point;
             getPointMatrix(mNextInsertPoint, point);
             mDelaunay.insert(Point(point[0], point[1]))->info() = mNextInsertPoint;
             updateErrors();
@@ -370,7 +373,7 @@ namespace SBV
         const Point& p1 = vh1->point();
         const Point& p2 = vh2->point();
 
-        matrixr_t a(3, 1), b(3, 1), c(3, 1);
+        vec3_t a, b, c;
 
         if(getFValue(vh0) == getFValue(vh1))
         {
@@ -410,8 +413,8 @@ namespace SBV
         }
 
         //compute height from a to bc.
-        matrixr_t ba = a - b;
-        matrixr_t bc = c - b;
+        vec3_t ba = a - b;
+        vec3_t bc = c - b;
         return norm(cross(ba, bc)) / norm(bc);
     }
 
@@ -424,7 +427,7 @@ namespace SBV
         const Point& p1 = vh1->point();
         const Point& p2 = vh2->point();
 
-        matrixr_t a(2, 1), b(2, 1), c(2, 1);
+        vec2_t a, b, c;
         a[0] = p0[0];
         a[1] = p0[1];
         b[0] = p1[0];
@@ -432,11 +435,11 @@ namespace SBV
         c[0] = p2[0];
         c[1] = p2[1];
 
-        matrixr_t center = (a + b + c) / 3.0;
+        vec2_t center = (a + b + c) / 3.0;
         constexpr double k = sqrt(0.7);
-        matrixr_t newA = k * a + (1 - k) * center;
-        matrixr_t newB = k * b + (1 - k) * center;
-        matrixr_t newC = k * c + (1 - k) * center;
+        vec2_t newA = k * a + (1 - k) * center;
+        vec2_t newB = k * b + (1 - k) * center;
+        vec2_t newC = k * c + (1 - k) * center;
 
         const KdTreeWrap& innerTree = mShell.getInnerTree();
         size_t nearA, nearB, nearC;
@@ -476,7 +479,7 @@ namespace SBV
         return true;
     }
 
-    bool Refinement::checkClassification(const Cell &cell, const matrixr_t &point, bool isOuter)
+    bool Refinement::checkClassification(const Cell &cell, const vec2_t &point, bool isOuter)
     {
         const VertexHandle& vh0 = cell.vertex(0);
         const VertexHandle& vh1 = cell.vertex(1);
@@ -485,16 +488,16 @@ namespace SBV
         const Point& p1 = vh1->point();
         const Point& p2 = vh2->point();
 
-        matrixr_t triangle(2, 3);
-        triangle(0, 0) = p0[0];
-        triangle(1, 0) = p0[1];
-        triangle(0, 1) = p1[0];
-        triangle(1, 1) = p1[1];
-        triangle(0, 2) = p2[0];
-        triangle(1, 2) = p2[1];
+        vec2_t a, b, c;
+        a[0] = p0[0];
+        a[1] = p0[1];
+        b[0] = p1[0];
+        b[1] = p1[1];
+        c[0] = p2[0];
+        c[1] = p2[1];
 
-        matrixr_t bary;
-        WKYLIB::barycentric_2D(point, triangle, bary);
+        vec3_t bary;
+        barycentric_2D(a, b, c, point, bary);
         double fvalue = getFValue(vh0) * bary[0] + getFValue(vh1) * bary[1] + getFValue(vh2) * bary[2];
         bool result;
         if(isOuter)

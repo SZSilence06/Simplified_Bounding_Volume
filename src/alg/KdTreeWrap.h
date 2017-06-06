@@ -43,8 +43,6 @@ namespace SBV
 
         size_t getNearestPoint(const matrixr_t& point) const;
 
-        void getPointsInPolygon(const matrixr_t& polygon, matrixs_t& points) const;
-
         void getPointsInRange(double xmin, double xmax, double ymin, double ymax, matrixs_t& points) const;
 
     private:

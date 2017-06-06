@@ -16,8 +16,8 @@ namespace SBV
                      const std::set<size_t>& innerSample, const std::set<size_t>& outerSample,
                      const TriangulatedShell& triangulation, PointType collapsedPointType);
 
-        bool contains(const matrixr_t& point) const;
-        bool isInvalidRegion(const matrixr_t& point) const;
+        bool contains(const vec2_t& point) const;
+        bool isInvalidRegion(const vec2_t& point) const;
 
     private:                      
         void buildAdjacency();

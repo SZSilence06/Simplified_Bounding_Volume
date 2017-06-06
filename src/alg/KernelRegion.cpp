@@ -1,6 +1,5 @@
 #include "KernelRegion.h"
 #include "BaryComputer.h"
-#include <wkylib/geometry.h>
 #include <iostream>
 #include <zjucad/matrix/io.h>
 
@@ -94,8 +93,8 @@ namespace SBV
 
         for(int i = 0; i < mPolygon.size() - 1; i++)
         {
-            const matrixr_t &a = mPoints(colon(), mPolygon[i]);
-            const matrixr_t &b = mPoints(colon(), mPolygon[i + 1]);
+            const vec2_t &a = mPoints(colon(), mPolygon[i]);
+            const vec2_t &b = mPoints(colon(), mPolygon[i + 1]);
 
             sum += (a[1] - a[0]) * (b[1] + b[0]);
         }
@@ -108,9 +107,9 @@ namespace SBV
         A.resize(mPolygon.size(), 3);
         for(int i = 0; i < mPolygon.size() - 1; i++)
         {
-            const matrixr_t &a = mPoints(colon(), mPolygon[i]);
-            const matrixr_t &b = mPoints(colon(), mPolygon[i + 1]);
-            matrixr_t ab = b - a;
+            const vec2_t &a = mPoints(colon(), mPolygon[i]);
+            const vec2_t &b = mPoints(colon(), mPolygon[i + 1]);
+            vec2_t ab = b - a;
             ab /= norm(ab);
 
             if(mClockwise)
@@ -153,9 +152,9 @@ namespace SBV
         }*/
     }
 
-    bool KernelRegion::contains(const matrixr_t &point) const
+    bool KernelRegion::contains(const vec2_t &point) const
     {
-        matrixr_t homo(3, 1);
+        vec3_t homo;
         homo[0] = point[0];
         homo[1] = point[1];
         homo[2] = 1;
@@ -174,7 +173,7 @@ namespace SBV
         return true;
     }
 
-    bool KernelRegion::isInvalidRegion(const matrixr_t &point) const
+    bool KernelRegion::isInvalidRegion(const vec2_t &point) const
     {
         for(int i = 0; i < mLines.size(2); i++)
         {
