@@ -11,10 +11,10 @@ namespace WKYLIB
         }
 
         QuadTree::QuadTree(double xMin, double xMax, double yMin, double yMax, int maxDepth)
-            : mXMax(xMax),
-              mXMin(xMin),
-              mYMax(yMax),
+            : mXMin(xMin),
+              mXMax(xMax),
               mYMin(yMin),
+              mYMax(yMax),
               mMaxDepth(maxDepth)
         {
             mRoot = new QuadTreeNode();
@@ -105,11 +105,11 @@ namespace WKYLIB
         }
 
         QuadTree::QuadTreeNode::QuadTreeNode(double xMin, double xMax, double yMin, double yMax, QuadTreeNode *parent)
-            : parent(parent),
+            : xMin(xMin),
               xMax(xMax),
-              xMin(xMin),
+              yMin(yMin),
               yMax(yMax),
-              yMin(yMin),  
+              parent(parent),
               depth(parent->depth + 1)
         {
 
@@ -168,7 +168,7 @@ namespace WKYLIB
             {
                 return NODE_LB;
             }
-            if(parent->lt == node)
+            if(parent->lt = node)
             {
                 return NODE_LT;
             }

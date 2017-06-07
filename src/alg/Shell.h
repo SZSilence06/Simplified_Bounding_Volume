@@ -9,8 +9,8 @@ namespace SBV
     class Shell
     {
     public:
-        std::vector<Point> mInnerShell;
-        std::vector<Point> mOuterShell;
+        matrixr_t mInnerShell;
+        matrixr_t mOuterShell;
 
     public:
         void buildKdTree();

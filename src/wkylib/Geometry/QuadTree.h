@@ -58,11 +58,11 @@ namespace  WKYLIB
         protected:
             QuadTreeNode* mRoot = nullptr;
 
-            double mXMax = 0;
-            double mXMin = 0;
-            double mYMax = 0;
-            double mYMin = 0;
-            double mMaxDepth = 0;
+            double mXMax;
+            double mXMin;
+            double mYMax;
+            double mYMin;
+            double mMaxDepth;
 
             friend class QuadTreeIterator;
         };

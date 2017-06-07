@@ -16,7 +16,6 @@
 #include <jtflib/mesh/io.h>
 #include <wkylib/CmdLine.h>
 #include <wkylib/mesh/IO.h>
-#include <wkylib/Geometry/Util.h>
 #include <wkylib/debug_util.h>
 #include "alg/Simplifier.h"
 
@@ -28,7 +27,6 @@ bool g_genTempResult = false;
 double g_alpha = std::numeric_limits<double>::max();
 
 using namespace WKYLIB;
-using namespace zjucad::matrix;
 
 void displayHelp()
 {
@@ -166,7 +164,6 @@ int main(int argc, char**argv)
 {
     parseCmdLines(argc, argv);
 
-#ifdef VER_2D
     SBV::Curve curve;
     if(WKYLIB::Mesh::readCurve2D(g_inputMeshPath, curve.vertices, curve.lines) == false)
     {
@@ -174,36 +171,9 @@ int main(int argc, char**argv)
         return 0;
     }
 
-#else
-    SBV::Mesh mesh;
-    matrix<double> points;
-    matrix<size_t> triangles;
-    if(jtf::mesh::load_obj(g_inputMeshPath.c_str(), triangles, points))
-    {
-        std::cout << "Fail to load mesh: " + g_inputMeshPath << std::endl;
-        return 0;
-    }
-    for(int i = 0; i < points.size(2); i++)
-    {
-        Eigen::Vector3d p;
-        WKYLIB::Geometry::zju_vector3d_to_eigen(points(colon(), i), p);
-        mesh.vertices.push_back(p);
-    }
-    for(int i = 0; i < triangles.size(2); i++)
-    {
-        Eigen::Vector3i t;
-        WKYLIB::Geometry::zju_vector3d_to_eigen(triangles(colon(), i), t);
-        mesh.triangles.push_back(t);
-    }
-#endif
-
     genDefaultParams();
 
-#ifdef VER_2D
     SBV::Simplifier simplifier(curve);
-#else
-    SBV::Simplifier simplifier(mesh);
-#endif
     simplifier.setOutputDirectory(g_outputPath);
     simplifier.setMaxDistance(g_maxDistance);
     simplifier.setSampleRadius(g_sampleRadius);

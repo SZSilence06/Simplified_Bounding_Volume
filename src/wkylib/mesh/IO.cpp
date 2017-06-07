@@ -8,7 +8,7 @@ namespace WKYLIB
 {
     namespace Mesh
     {
-        bool writePoints(const std::string &file, const std::vector<Eigen::Vector3d> &points)
+        bool writePoints(const std::string &file, const matrixr_t &points)
         {
             std::ofstream out;
 
@@ -19,20 +19,20 @@ namespace WKYLIB
             }
 
             out << "# vtk DataFile Version 2.0\n TET\nASCII\nDATASET UNSTRUCTURED_GRID\nPOINTS "
-                << points.size() << " float" << std::endl;
-            for(size_t i = 0; i < points.size(); i++)
+                << points.size(2) << " float" << std::endl;
+            for(int i = 0; i < points.size(2); i++)
             {
-                out << points[i][0] << " " << points[i][1] << " " << points[i][2] << std::endl;
+                out << points(0, i) << " " << points(1, i) << " " << points(2, i) << std::endl;
             }
 
-            out << "CELLS " << points.size() << " " << points.size() * 2 << std::endl;
-            for(size_t i = 0; i < points.size(); i++)
+            out << "CELLS " << points.size(2) << " " << points.size() * 2 << std::endl;
+            for(int i = 0; i < points.size(2); i++)
             {
                 out << "1 " << i << std::endl;
             }
 
-            out << "CELL_TYPES " << points.size() << std::endl;
-            for(size_t i = 0; i < points.size(); i++)
+            out << "CELL_TYPES " << points.size(2) << std::endl;
+            for(int i = 0; i < points.size(2); i++)
             {
                 out << "1" << std::endl;
             }
@@ -42,21 +42,25 @@ namespace WKYLIB
             return true;
         }
 
-        bool writePoints2D(const std::string &file, const std::vector<Eigen::Vector2d> &points)
+        bool writePoints2D(const std::string &file, const matrixr_t &points)
         {
-            std::vector<Eigen::Vector3d> points_3D(points.size());
-            for(size_t i = 0; i < points_3D.size(); i++)
+            if(points.size(1) != 2)
             {
-                points_3D[i][0] = points[i][0];
-                points_3D[i][1] = 0;
-                points_3D[i][2] = points[i][1];
+                throw std::invalid_argument("You can only use 2d matrices in writePoints2D().");
+            }
+
+            matrixr_t points_3D(3, points.size(2));
+            for(int i = 0; i < points.size(2); i++)
+            {
+                points_3D(0, i) = points(0, i);
+                points_3D(1, i) = 0;
+                points_3D(2, i) = points(1, i);
             }
             return writePoints(file, points_3D);
         }
 
 
-        bool readCurve2D(const std::string& file, std::vector<Eigen::Vector2d>& vertices,
-                         std::vector<Eigen::Vector2i>& lines)
+        bool readCurve2D(const std::string& file, matrixr_t& vertices, matrixs_t& lines)
         {
             std::ifstream in;
 
@@ -66,8 +70,8 @@ namespace WKYLIB
                 return false;
             }
 
-            vertices.clear();
-            lines.clear();
+            std::vector<matrixr_t> curve;
+            std::vector<matrixs_t> seg;
             while(in)
             {
                 char buf[1024];
@@ -82,28 +86,45 @@ namespace WKYLIB
                     double a, b, c;
                     ss >> a >> b >> c;
 
-                    Eigen::Vector2d vert;
+                    matrixr_t vert(2,1);
                     vert[0] = a;
                     vert[1] = c;
-                    vertices.push_back(vert);
+                    curve.push_back(vert);
                 }
                 else if(sign == 'l')
                 {
                     int a, b;
                     ss >> a >> b;
 
-                    Eigen::Vector2i line;
+                    matrixs_t line(2, 1);
                     line[0] = a - 1;
                     line[1] = b - 1;
-                    lines.push_back(line);
+                    seg.push_back(line);
                 }
             }
+
+            vertices.resize(2, curve.size());
+            for(int i = 0; i < curve.size(); i++)
+            {
+                vertices(colon(), i) = curve[i];
+            }
+
+            lines.resize(2, seg.size());
+            for(int i = 0; i < seg.size(); i++)
+            {
+                lines(colon(), i) = seg[i];
+            }
+
             return true;
         }
 
-        bool writeCurve2D(const std::string& file, const std::vector<Eigen::Vector2d>& vertices,
-                          const std::vector<Eigen::Vector2i>& lines)
+        bool writeCurve2D(const std::string& file, const matrixr_t& vertices, const matrixs_t& lines)
         {
+            if(vertices.size(1) != 2 || lines.size(1) != 2)
+            {
+                throw std::invalid_argument("You can only use 2d matrices in writeCurve2D().");
+            }
+
             std::ofstream out;
 
             out.open(file);
@@ -112,13 +133,13 @@ namespace WKYLIB
                 return false;
             }
 
-            for(size_t i = 0; i < vertices.size(); i++)
+            for(int i = 0; i < vertices.size(2); i++)
             {
-                out << "v " << vertices[i][0] << " 0 " << vertices[i][1] << std::endl;
+                out << "v " << vertices(0, i) << " 0 " << vertices(1, i) << std::endl;
             }
-            for(size_t i = 0; i < lines.size(); i++)
+            for(int i = 0; i < lines.size(2); i++)
             {
-                out << "l " << lines[i][0] + 1 << " " << lines[i][1] + 1 << std::endl;
+                out << "l " << lines(0, i) + 1 << " " << lines(1, i) + 1 << std::endl;
             }
 
             out.close();
@@ -126,9 +147,13 @@ namespace WKYLIB
             return true;
         }
 
-        bool writeMesh(const std::string &file, const std::vector<Eigen::Vector3d> &vertices,
-                       const std::vector<Eigen::Vector3i> &triangles)
+        bool writeMesh2D(const std::string &file, const matrixr_t &vertices, const matrixs_t &triangles)
         {
+            if(vertices.size(1) != 2 || triangles.size(1) != 3)
+            {
+                throw std::invalid_argument("You can only use 2d matrix for 'vertices' and 3d matrix for 'trianlges' in writeMesh2D().");
+            }
+
             std::ofstream out;
 
             out.open(file);
@@ -137,81 +162,17 @@ namespace WKYLIB
                 return false;
             }
 
-            for(size_t i = 0; i < vertices.size(); i++)
+            for(int i = 0; i < vertices.size(2); i++)
             {
-                out << "v " << vertices[i][0] << " " << vertices[i][1] << " " << vertices[i][2] << std::endl;
+                out << "v " << vertices(0, i) << " 0 " << vertices(1, i) << std::endl;
             }
-            for(size_t i = 0; i < triangles.size(); i++)
+            for(int i = 0; i < triangles.size(2); i++)
             {
-                out << "f " << triangles[i][0] + 1 << " " << triangles[i][1] + 1 << " " << triangles[i][2] + 1 << std::endl;
-            }
-
-            out.close();
-
-            return true;
-        }
-
-        bool writeMesh2D(const std::string &file, const std::vector<Eigen::Vector2d> &vertices,
-                         const std::vector<Eigen::Vector3i> &triangles)
-        {
-            std::ofstream out;
-
-            out.open(file);
-            if(out.fail())
-            {
-                return false;
-            }
-
-            for(size_t i = 0; i < vertices.size(); i++)
-            {
-                out << "v " << vertices[i][0] << " 0 " << vertices[i][1] << std::endl;
-            }
-            for(size_t i = 0; i < triangles.size(); i++)
-            {
-                out << "f " << triangles[i][0] + 1 << " " << triangles[i][1] + 1 << " " << triangles[i][2] + 1 << std::endl;
+                out << "f " << triangles(0, i) + 1 << " " << triangles(1, i) + 1 << " " << triangles(2, i) + 1 << std::endl;
             }
 
             out.close();
 
-            return true;
-        }
-
-        bool writeTetra(const std::string &file, const std::vector<Eigen::Vector3d> &vertices,
-                        const std::vector<Eigen::Vector4i> &tetras)
-        {
-            std::ofstream out;
-
-            out.open(file);
-            if(out.fail())
-            {
-                return false;
-            }
-
-            out << "# vtk DataFile Version 2.0\n TET\nASCII\nDATASET UNSTRUCTURED_GRID\nPOINTS "
-                << vertices.size() << " float" << std::endl;
-            for(size_t i = 0; i < vertices.size(); i++)
-            {
-                out << vertices[i][0] << " " << vertices[i][1] << " " << vertices[i][2] << std::endl;
-            }
-
-            out << "CELLS " << tetras.size() << " " << tetras.size() * 5 << std::endl;
-            for(size_t i = 0; i < tetras.size(); i++)
-            {
-                out << "4";
-                for(int j = 0; j < 4; j++)
-                {
-                    out << " "<< tetras[i][j];
-                }
-                out << std::endl;
-            }
-
-            out << "CELL_TYPES " << tetras.size() << std::endl;
-            for(size_t i = 0; i < tetras.size(); i++)
-            {
-                out << "10" << std::endl;
-            }
-
-            out.close();
             return true;
         }
     }

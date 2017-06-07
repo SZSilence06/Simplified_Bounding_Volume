@@ -12,21 +12,23 @@ namespace SBV
     class KernelRegion
     {
     public:
-        KernelRegion(const std::vector<Eigen::Vector2i>& lines, const Shell& shell,
+        KernelRegion(const matrixr_t& points, const matrixs_t& lines, const Shell& shell,
                      const std::set<size_t>& innerSample, const std::set<size_t>& outerSample,
                      const TriangulatedShell& triangulation, PointType collapsedPointType);
 
-        bool contains(const Point& point) const;
-        bool isInvalidRegion(const Point& point) const;
+        bool contains(const vec2_t& point) const;
+        bool isInvalidRegion(const vec2_t& point) const;
 
     private:                      
         void buildAdjacency();
         void buildPolygonSequence();
         bool isClockwise();
         void construct();
+        void findShellSamples();
 
     private:
-        const std::vector<Eigen::Vector2i>& mLines;
+        const matrixr_t& mPoints;
+        const matrixs_t& mLines;
         const Shell& mShell;
         const std::set<size_t>& mInnerSamples;
         const std::set<size_t>& mOuterSamples;
@@ -37,7 +39,7 @@ namespace SBV
         std::map<size_t, std::vector<size_t> > mAdjacency;
         std::vector<size_t> mPolygon;   //recording the polygon verts, in a cycled sequence.
 
-        Eigen::MatrixXd A;
+        matrixr_t A;
 
         friend class SamplingQuadTree;
     };

@@ -1,16 +1,18 @@
 #include "KernelRegion.h"
+#include "BaryComputer.h"
 #include <wkylib/geometry.h>
-
-/*
+#include <iostream>
+#include <zjucad/matrix/io.h>
 
 using namespace zjucad::matrix;
 
 namespace SBV
 {
-    KernelRegion::KernelRegion(const std::vector<Eigen::Vector2i>& lines, const Shell& shell,
+    KernelRegion::KernelRegion(const matrixr_t &points, const matrixs_t &lines, const Shell& shell,
                                const std::set<size_t>& innerSample, const std::set<size_t>& outerSample,
                                const TriangulatedShell& triangulation, PointType collapsedPointType)
-        : mLines(lines),
+        : mPoints(points),
+          mLines(lines),
           mShell(shell),
           mInnerSamples(innerSample),
           mOuterSamples(outerSample),
@@ -29,10 +31,10 @@ namespace SBV
     void KernelRegion::buildAdjacency()
     {
         //build adjacency list of the vertices.
-        for(size_t i = 0; i < mLines.size(); i++)
+        for(int i = 0; i < mLines.size(2); i++)
         {
-            size_t a = mLines[i][0];
-            size_t b = mLines[i][1];
+            size_t a = mLines(0, i);
+            size_t b = mLines(1, i);
 
             auto iterA = mAdjacency.find(a);
             auto iterB = mAdjacency.find(b);
@@ -90,10 +92,10 @@ namespace SBV
         //judging whether the polygon is clockwise or counter-clockwise.
         double sum = 0;
 
-        for(size_t i = 0; i < mPolygon.size() - 1; i++)
+        for(int i = 0; i < mPolygon.size() - 1; i++)
         {
-            const Point &a = mTriangulation.vertices[mPolygon[i]];
-            const Point &b = mTriangulation.vertices[mPolygon[i + 1]];
+            const matrixr_t &a = mPoints(colon(), mPolygon[i]);
+            const matrixr_t &b = mPoints(colon(), mPolygon[i + 1]);
 
             sum += (a[1] - a[0]) * (b[1] + b[0]);
         }
@@ -104,12 +106,12 @@ namespace SBV
     void KernelRegion::construct()
     {
         A.resize(mPolygon.size(), 3);
-        for(size_t i = 0; i < mPolygon.size(); i++)
+        for(int i = 0; i < mPolygon.size() - 1; i++)
         {
-            const Point &a = mTriangulation.vertices[mPolygon[i]];
-            const Point &b = mTriangulation.vertices[mPolygon[(i + 1) % mPolygon.size()]];
-            Point ab = b - a;
-            ab /= ab.norm();
+            const matrixr_t &a = mPoints(colon(), mPolygon[i]);
+            const matrixr_t &b = mPoints(colon(), mPolygon[i + 1]);
+            matrixr_t ab = b - a;
+            ab /= norm(ab);
 
             if(mClockwise)
             {
@@ -126,13 +128,38 @@ namespace SBV
         }
     }
 
-    bool KernelRegion::contains(const Point &point) const
+    void KernelRegion::findShellSamples()
     {
-        Eigen::Vector3d homo(3, 1);
+        /*mInnerSamples.clear();
+        mOuterSamples.clear();
+
+        matrixr_t polygon(2, mLines.size(2));
+        for(int i = 0; i < mLines.size(2); i++)
+        {
+            polygon(colon(), i) = mPoints(colon(), mPolygon[i]);
+        }
+
+        matrixs_t points;
+        mShell.getInnerTree().getPointsInPolygon(polygon, points);
+        for(int i = 0; i < points.size(2); i++)
+        {
+            mInnerSamples.insert(points[i]);
+        }
+
+        mShell.getOuterTree().getPointsInPolygon(polygon, points);
+        for(int i = 0; i < points.size(2); i++)
+        {
+            mOuterSamples.insert(points[i]);
+        }*/
+    }
+
+    bool KernelRegion::contains(const vec2_t &point) const
+    {
+        vec3_t homo;
         homo[0] = point[0];
         homo[1] = point[1];
         homo[2] = 1;
-        Eigen::VectorXd result = A * homo;
+        matrixr_t result = A * homo;
         for(int i = 0; i < result.size(); i++)
         {
             if(result[i] > 0)
@@ -147,39 +174,43 @@ namespace SBV
         return true;
     }
 
-    bool KernelRegion::isInvalidRegion(const Point &point) const
+    bool KernelRegion::isInvalidRegion(const vec2_t &point) const
     {
-        for(size_t i = 0; i < mLines.size(); i++)
+        for(int i = 0; i < mLines.size(2); i++)
         {
-            const Point& a = mTriangulation.vertices[mLines[i][0]];
-            const Point& b = mTriangulation.vertices[mLines[i][1]];
+            matrixr_t triangle(2, 3);
+            triangle(colon(), 0) = mPoints(colon(), mLines(0, i));
+            triangle(colon(), 1) = mPoints(colon(), mLines(1, i));
+            triangle(colon(), 2) = point;
 
-            for(size_t sample : mInnerSamples)
+            BaryComputer baryComputer(triangle);
+            std::set<size_t>::const_iterator itr = mInnerSamples.begin();
+            for(int j = 0; j < mInnerSamples.size(); j++, ++itr)
             {
-                Eigen::Vector3d bary;
-                if(WKYLIB::barycentric_2D(a, b, point, mShell.mInnerShell[sample], bary))
+              vec3_t bary;
+              baryComputer(mShell.mInnerShell(colon(), *itr), bary);
+                if(min(bary) >= 0)
                 {
-                    //the point is inside the tetrahedron
-                    double f0 = mTriangulation.getFValue(mLines[i][0]);
-                    double f1 = mTriangulation.getFValue(mLines[i][1]);
+                    double f0 = mTriangulation.getFValue(mLines(0, i));
+                    double f1 = mTriangulation.getFValue(mLines(1, i));
                     double f2 = mTriangulation.getFValue(mPointType);
 
-                    double f = f0 * bary[0] + f1 * bary[1] + f2 * bary[2];
+                    double f = f0 * bary[0] + f1 * bary[1]+ f2 * bary[2];
                     if(f > 0)
                     {
                         return true;
                     }
                 }
             }
-
-            for(size_t sample : mOuterSamples)
+            itr = mOuterSamples.begin();
+            for(int j = 0; j < mOuterSamples.size(); j++, ++itr)
             {
-                Eigen::Vector3d bary;
-                if(WKYLIB::barycentric_2D(a, b, point, mShell.mOuterShell[sample], bary))
+              vec3_t bary;
+              baryComputer(mShell.mOuterShell(colon(), *itr), bary);
+                if(min(bary) >= 0)
                 {
-                    //the point is inside the tetrahedron
-                    double f0 = mTriangulation.getFValue(mLines[i][0]);
-                    double f1 = mTriangulation.getFValue(mLines[i][1]);
+                    double f0 = mTriangulation.getFValue(mLines(0, i));
+                    double f1 = mTriangulation.getFValue(mLines(1, i));
                     double f2 = mTriangulation.getFValue(mPointType);
 
                     double f = f0 * bary[0] + f1 * bary[1] + f2 * bary[2];
@@ -194,5 +225,3 @@ namespace SBV
         return false;
     }
 }
-
-*/

@@ -4,8 +4,11 @@
 #include <wkylib/geometry.h>
 #include <iostream>
 #include <omp.h>
+#include <hjlib/math/blas_lapack.h>
+#include <zjucad/matrix/lapack.h>
+#include <zjucad/matrix/io.h>
 
-/*
+using namespace zjucad::matrix;
 
 namespace SBV
 {
@@ -16,8 +19,8 @@ namespace SBV
           mIsHalfEdge(isHalfEdge),
           mSampleRadius(sampleRadius)
     {
-        mCollapseTo.reserve(triangulation.vertices.size());
-        for(size_t i = 0; i < triangulation.vertices.size(); i++)
+        mCollapseTo.reserve(triangulation.vertices.size(2));
+        for(int i = 0; i < triangulation.vertices.size(2); i++)
         {
             mCollapseTo.push_back(i);
         }
@@ -27,17 +30,17 @@ namespace SBV
 
     void EdgeCollapse::buildEdgeInfo()
     {
-        mCollapseableNeighbours.resize(mTriangulation.vertices.size());
-        mNeighbours.resize(mTriangulation.vertices.size());
-        mNeighbourFaces.resize(mTriangulation.vertices.size());
-        mRelatedEdgeInfo.resize(mTriangulation.vertices.size());
+        mCollapseableNeighbours.resize(mTriangulation.vertices.size(2));
+        mNeighbours.resize(mTriangulation.vertices.size(2));
+        mNeighbourFaces.resize(mTriangulation.vertices.size(2));
+        mRelatedEdgeInfo.resize(mTriangulation.vertices.size(2));
 
         //build vertices neighbour info
-        for(size_t i = 0; i < mTriangulation.triangles.size(); i++)
+        for(int i = 0; i < mTriangulation.triangles.size(2); i++)
         {
-            size_t a = mTriangulation.triangles[i][0];
-            size_t b = mTriangulation.triangles[i][1];
-            size_t c = mTriangulation.triangles[i][2];
+            size_t a = mTriangulation.triangles(0, i);
+            size_t b = mTriangulation.triangles(1, i);
+            size_t c = mTriangulation.triangles(2, i);
 
             addNeighbour(a, b);
             addNeighbour(a, c);
@@ -66,7 +69,7 @@ namespace SBV
 
         //build edge infos
 #pragma omp parallel for schedule(dynamic, 1)
-        for(size_t i = 0; i < mTriangulation.vertices.size(); i++)
+        for(int i = 0; i < mTriangulation.vertices.size(2); i++)
         {
             if(mTriangulation.vertType[i] == POINT_BOUNDING_BOX)
             {
@@ -88,7 +91,7 @@ namespace SBV
                 std::shared_ptr<EdgeInfo> edgeInfo(new EdgeInfo());
                 edgeInfo->firstVert = vert;
                 edgeInfo->secondVert = neighbourVert;
-                edgeInfo->position = mTriangulation.vertices[neighbourVert];
+                edgeInfo->position = mTriangulation.vertices(colon(), neighbourVert);
                 edgeInfo->error = computeError(vert, edgeInfo->position) + computeError(neighbourVert, edgeInfo->position);
 
                 mtx.lock();
@@ -147,12 +150,12 @@ namespace SBV
     void EdgeCollapse::buildMatrices()
     {
         //initialize error matrices to zero
-        for(size_t i = 0; i < mTriangulation.vertices.size(); i++)
+        for(int i = 0; i < mTriangulation.vertices.size(2); i++)
         {
             mQ.push_back(Eigen::Matrix3d::Zero());
         }
 
-        for(size_t i = 0; i < mTriangulation.vertices.size(); i++)
+        for(int i = 0; i < mTriangulation.vertices.size(2); i++)
         {
             if(mTriangulation.vertType[i] == POINT_BOUNDING_BOX)
             {
@@ -160,14 +163,14 @@ namespace SBV
                 continue;
             }
 
-            const Point&  posI = mTriangulation.vertices[i];
+            const vec2_t posI = mTriangulation.vertices(colon(), i);
             auto& neighbour = mCollapseableNeighbours[i];
             for(const size_t& neighbourVert : neighbour)
             {
                 Eigen::Vector3d p;
 
-                Point a = posI - mTriangulation.vertices[neighbourVert];
-                a = a / a.norm();
+                vec2_t a = posI - mTriangulation.vertices(colon(), neighbourVert);
+                a = a / norm(a);
                 p[0] = a[1];
                 p[1] = -a[0];
                 p[2] = posI[1] * a[0] - posI[0] * a[1];
@@ -177,7 +180,7 @@ namespace SBV
         }
     }
 
-    double EdgeCollapse::computeError(size_t vert, const Point &point)
+    double EdgeCollapse::computeError(size_t vert, const matrixr_t &point)
     {
         Eigen::Vector3d p;
         p[0] = point[0];
@@ -207,7 +210,7 @@ namespace SBV
                 continue;
             }
 
-            if(!isValidCollapse(edgeInfo->firstVert, edgeInfo->secondVert, mTriangulation.vertices[edgeInfo->secondVert]))
+            if(!isValidCollapse(edgeInfo->firstVert, edgeInfo->secondVert, mTriangulation.vertices(colon(), edgeInfo->secondVert)))
             {
                 continue;
             }
@@ -223,15 +226,15 @@ namespace SBV
     void EdgeCollapse::organizeOutput()
     {
         std::vector<int> finalIndex;   //recording the final vert index of the original vertices
-        finalIndex.reserve(mTriangulation.vertices.size());
-        for(size_t i = 0; i < mTriangulation.vertices.size(); i++)
+        finalIndex.reserve(mTriangulation.vertices.size(2));
+        for(int i = 0; i < mTriangulation.vertices.size(2); i++)
         {
             finalIndex.push_back(-1);
         }
 
         //compute output vertices count
         size_t newVertCount = 0;
-        for(size_t i = 0; i < mTriangulation.vertices.size(); i++)
+        for(int i = 0; i < mTriangulation.vertices.size(2); i++)
         {
             if(mCollapseTo[i] == i)
             {
@@ -239,10 +242,10 @@ namespace SBV
             }
         }
 
-        std::vector<Point> newVertices(newVertCount);
+        matrixr_t newVertices(2, newVertCount);
 
         //organize new vertices
-        for(size_t i = 0, j = 0; i < mTriangulation.vertices.size(); i++)
+        for(int i = 0, j = 0; i < mTriangulation.vertices.size(2); i++)
         {
             size_t collapsedVert = getCollapsedVert(i);
             if(finalIndex[i] >= 0)
@@ -260,32 +263,32 @@ namespace SBV
             if(collapsedVert == i)
             {
                 //the vertex is not collapsed, so no change needed
-                newVertices[j++] = mTriangulation.vertices[i];
+                newVertices(colon(), j++) = mTriangulation.vertices(colon(), i);
             }
             else
             {
                 finalIndex[collapsedVert] = j;
-                newVertices[j++] = mTriangulation.vertices[collapsedVert];
+                newVertices(colon(), j++) = mTriangulation.vertices(colon(), collapsedVert);
             }
         }
 
         //update F value
-        for(size_t i = 0; i < mTriangulation.vertices.size(); i++)
+        for(int i = 0; i < mTriangulation.vertices.size(2); i++)
         {
             mTriangulation.vertType[finalIndex[i]] = mTriangulation.vertType[i];
         }
         mTriangulation.vertType.erase(mTriangulation.vertType.begin() + newVertCount, mTriangulation.vertType.end());
 
         //organize new triangles, remove duplicate
-        std::vector<Eigen::Vector3i> newTriangleVector;
-        for(size_t i = 0; i < mTriangulation.triangles.size(); i++)
+        std::vector<matrixs_t> newTriangleVector;
+        for(int i = 0; i < mTriangulation.triangles.size(2); i++)
         {
             bool isDuplicated = false;
             std::set<size_t> triangle;
 
-            size_t a = finalIndex[mTriangulation.triangles[i][0]];
-            size_t b = finalIndex[mTriangulation.triangles[i][1]];
-            size_t c = finalIndex[mTriangulation.triangles[i][2]];
+            size_t a = finalIndex[mTriangulation.triangles(0, i)];
+            size_t b = finalIndex[mTriangulation.triangles(1, i)];
+            size_t c = finalIndex[mTriangulation.triangles(2, i)];
 
             if(a == b || a == c || b == c)
             {
@@ -296,7 +299,7 @@ namespace SBV
             triangle.insert(a);
             triangle.insert(b);
             triangle.insert(c);
-            for(size_t j = 0; j < newTriangleVector.size(); j++)
+            for(int j = 0; j < newTriangleVector.size(); j++)
             {
                 std::set<size_t> oldTriangle;
                 oldTriangle.insert(newTriangleVector[j][0]);
@@ -310,7 +313,7 @@ namespace SBV
             }
             if(isDuplicated == false)
             {
-                Eigen::Vector3i tri;
+                matrixs_t tri(3, 1);
                 tri[0] = a;
                 tri[1] = b;
                 tri[2] = c;
@@ -318,13 +321,19 @@ namespace SBV
             }
         }
 
+        matrixs_t newTriangles(3, newTriangleVector.size());
+        for(int i = 0; i < newTriangleVector.size(); i++)
+        {
+            newTriangles(colon(), i) = newTriangleVector[i];
+        }
+
         mTriangulation.vertices = newVertices;
-        mTriangulation.triangles = newTriangleVector;
+        mTriangulation.triangles = newTriangles;
     }
 
-    void EdgeCollapse::collapseEdge(size_t firstVert, size_t secondVert, const Point &collapseTo)
+    void EdgeCollapse::collapseEdge(size_t firstVert, size_t secondVert, const matrixr_t &collapseTo)
     {
-        mTriangulation.vertices[secondVert] = collapseTo;
+        mTriangulation.vertices(colon(), secondVert) = collapseTo;
         updateEdgeInfo(firstVert, secondVert);
     }
 
@@ -407,19 +416,19 @@ namespace SBV
         return vert;
     }
 
-    bool EdgeCollapse::isValidCollapse(size_t firstVert, size_t secondVert, const Point &collapseTo)
+    bool EdgeCollapse::isValidCollapse(size_t firstVert, size_t secondVert, const matrixr_t &collapseTo)
     {
         if(testLinkCondition(firstVert, secondVert) == false)
         {
             return false;
         }
 
-        std::vector<Eigen::Vector2i> lines;
+        matrixs_t lines;
         std::set<size_t> innerSample;
         std::set<size_t> outerSample;
         buildOneRingArea(firstVert, secondVert, lines, innerSample, outerSample);
 
-        KernelRegion kernel(lines, mShell, innerSample, outerSample,
+        KernelRegion kernel(mTriangulation.vertices, lines, mShell, innerSample, outerSample,
                             mTriangulation, mTriangulation.vertType[firstVert]);
         if(kernel.contains(collapseTo) == false)
         {
@@ -458,7 +467,7 @@ namespace SBV
             bool isFace = false;
             for(auto& face : mNeighbourFaces[firstVert])
             {
-                Eigen::Vector3i f = mTriangulation.triangles[face];
+                matrixs_t f = mTriangulation.triangles(colon(), face);
                 size_t a = getCollapsedVert(f[0]);
                 size_t b = getCollapsedVert(f[1]);
                 size_t c = getCollapsedVert(f[2]);
@@ -489,7 +498,7 @@ namespace SBV
         return true;
     }
 
-    void EdgeCollapse::buildOneRingArea(size_t firstVert, size_t secondVert, std::vector<Eigen::Vector2i>& lines,
+    void EdgeCollapse::buildOneRingArea(size_t firstVert, size_t secondVert, matrixs_t& lines,
                                             std::set<size_t>& innerSample, std::set<size_t>& outerSample)
     {
         std::vector<std::pair<size_t, size_t> > boundaryEdges;
@@ -498,12 +507,12 @@ namespace SBV
         findShellSamples(firstVert, innerSample, outerSample);
         findShellSamples(secondVert, innerSample, outerSample);
 
-        lines.resize(boundaryEdges.size());
+        lines.resize(2, boundaryEdges.size());
         int i = 0;
         for(std::pair<size_t, size_t>& edge : boundaryEdges)
         {
-            lines[i][0] = edge.first;
-            lines[i][1] = edge.second;
+            lines(0, i) = edge.first;
+            lines(1, i) = edge.second;
             i++;
         }
     }
@@ -512,9 +521,9 @@ namespace SBV
     {
         for(size_t face : mNeighbourFaces[firstVert])
         {
-            size_t a = getCollapsedVert(mTriangulation.triangles[face][0]);
-            size_t b = getCollapsedVert(mTriangulation.triangles[face][1]);
-            size_t c = getCollapsedVert(mTriangulation.triangles[face][2]);
+            size_t a = getCollapsedVert(mTriangulation.triangles(0, face));
+            size_t b = getCollapsedVert(mTriangulation.triangles(1, face));
+            size_t c = getCollapsedVert(mTriangulation.triangles(2, face));
 
             if(a == b || a == c || b == c)
             {
@@ -545,19 +554,16 @@ namespace SBV
     void EdgeCollapse::findShellSamples(size_t vert, std::set<size_t> &innerSample, std::set<size_t> &outerSample)
     {
         double xmin = std::numeric_limits<double>::max();
-        double xmax = std::numeric_limits<double>::lowest();
+        double xmax = std::numeric_limits<double>::min();
         double ymin = std::numeric_limits<double>::max();
-        double ymax = std::numeric_limits<double>::lowest();
-#ifndef VER_2D
-        double zmin = std::numeric_limits<double>::max();
-        double zmax = std::numeric_limits<double>::lowest();
-#endif
+        double ymax = std::numeric_limits<double>::min();
 
+        // AABB
         for(size_t face : mNeighbourFaces[vert])
         {
-            size_t a = getCollapsedVert(mTriangulation.triangles[face][0]);
-            size_t b = getCollapsedVert(mTriangulation.triangles[face][1]);
-            size_t c = getCollapsedVert(mTriangulation.triangles[face][2]);
+            const size_t a = getCollapsedVert(mTriangulation.triangles(0, face));
+            const size_t b = getCollapsedVert(mTriangulation.triangles(1, face));
+            const size_t c = getCollapsedVert(mTriangulation.triangles(2, face));
 
             if(a == b || a == c || b == c)
             {
@@ -567,7 +573,7 @@ namespace SBV
 
             for(int i = 0; i < 3; i++)
             {
-                const Point& vert = mTriangulation.vertices[getCollapsedVert(mTriangulation.triangles[face][i])];
+                const vec2_t vert = mTriangulation.vertices(colon(), getCollapsedVert(mTriangulation.triangles(i, face)));
                 if(vert[0] > xmax)
                 {
                     xmax = vert[0];
@@ -584,106 +590,68 @@ namespace SBV
                 {
                     ymin = vert[1];
                 }
-#ifndef VER_2D
-                if(vert[2] > zmax)
-                {
-                    ymax = vert[1];
-                }
-                if(vert[2] < zmin)
-                {
-                    ymin = vert[1];
-                }
-#endif
             }
         }
 
-        std::vector<size_t> sampleInner;
-#ifdef VER_2D
+        matrixs_t sampleInner;
         mShell.getInnerTree().getPointsInRange(xmin, xmax, ymin, ymax, sampleInner);
-#else
-        mShell.getInnerTree().getPointsInRange(xmin, xmax, ymin, ymax, zmin, zmax, sampleInner);
-#endif
+        matrixs_t sampleOuter;
+        mShell.getOuterTree().getPointsInRange(xmin, xmax, ymin, ymax, sampleOuter);
 
-        for(size_t i = 0; i < sampleInner.size(); i++)
+        for(size_t face : mNeighbourFaces[vert])
         {
-            const Point& point = mShell.mInnerShell[sampleInner[i]];
+            size_t a = getCollapsedVert(mTriangulation.triangles(0, face));
+            size_t b = getCollapsedVert(mTriangulation.triangles(1, face));
+            size_t c = getCollapsedVert(mTriangulation.triangles(2, face));
 
-            for(size_t face : mNeighbourFaces[vert])
+            if(a == b || a == c || b == c)
             {
-                size_t a = getCollapsedVert(mTriangulation.triangles[face][0]);
-                size_t b = getCollapsedVert(mTriangulation.triangles[face][1]);
-                size_t c = getCollapsedVert(mTriangulation.triangles[face][2]);
+                //the face is collapsed, or the sample point is the vert of triangle
+                continue;
+            }
 
-                if(a == b || a == c || b == c)
-                {
-                    //the face is collapsed
-                    continue;
-                }
+            matrixr_t invA = ones<double>(3, 3);
+            invA(colon(0, 1), 0) = mTriangulation.vertices(colon(), a);
+            invA(colon(0, 1), 1) = mTriangulation.vertices(colon(), b);
+            invA(colon(0, 1), 2) = mTriangulation.vertices(colon(), c);
 
-                Eigen::Vector3d bary;
-#ifdef VER_2D
-                if(WKYLIB::barycentric_2D(mTriangulation.vertices[a], mTriangulation.vertices[b], mTriangulation.vertices[c],
-                                          point, bary))
-#else
-                if(WKYLIB::barycentric(mTriangulation.vertices[a], mTriangulation.vertices[b], mTriangulation.vertices[c],
-                                          point, bary))
-#endif
+            if(inv(invA)) {
+                std::cerr << "warning: degenerated triangle." << std::endl;
+                continue;
+            }
+            for(int i = 0; i < sampleInner.size(); i++)
+            {
+                const vec3_t bary = invA(colon(), colon(0, 1)) * mShell.mInnerShell(colon(), sampleInner[i]) + invA(colon(), 2);
+                if(min(bary) >= 0)
                 {
+                    this->mtx.lock();
                     innerSample.insert(sampleInner[i]);
-                    break;
+                    this->mtx.unlock();
                 }
             }
-        }
-
-        std::vector<size_t> sampleOuter;
-#ifdef VER_2D
-        mShell.getOuterTree().getPointsInRange(xmin, xmax, ymin, ymax, sampleOuter);
-#else
-        mShell.getOuterTree().getPointsInRange(xmin, xmax, ymin, ymax, zmin, zmax, sampleOuter);
-#endif
-
-        for(size_t i = 0; i < sampleOuter.size(); i++)
-        {
-            const Point& point = mShell.mOuterShell[sampleOuter[i]];
-
-            for(size_t face : mNeighbourFaces[vert])
+            for(int i = 0; i < sampleOuter.size(); i++)
             {
-                size_t a = getCollapsedVert(mTriangulation.triangles[face][0]);
-                size_t b = getCollapsedVert(mTriangulation.triangles[face][1]);
-                size_t c = getCollapsedVert(mTriangulation.triangles[face][2]);
-
-                if(a == b || a == c || b == c)
+                const vec3_t bary = invA(colon(), colon(0, 1)) * mShell.mOuterShell(colon(), sampleOuter[i]) + invA(colon(), 2);
+                if(min(bary) >= 0)
                 {
-                    //the face is collapsed
-                    continue;
-                }
-
-                Eigen::Vector3d bary;
-#ifdef VER_2D
-                if(WKYLIB::barycentric_2D(mTriangulation.vertices[a], mTriangulation.vertices[b], mTriangulation.vertices[c],
-                                          point, bary))
-#else
-                if(WKYLIB::barycentric(mTriangulation.vertices[a], mTriangulation.vertices[b], mTriangulation.vertices[c],
-                                          point, bary))
-#endif
-                {
+                    this->mtx.lock();
                     outerSample.insert(sampleOuter[i]);
-                    break;
+                    this->mtx.unlock();
                 }
             }
         }
     }
 
-    bool EdgeCollapse::findCollapsePos(size_t vert, size_t vertCollapseTo, Point &position, double& out_error)
+    bool EdgeCollapse::findCollapsePos(size_t vert, size_t vertCollapseTo, matrixr_t &position, double& out_error)
     {
-        std::vector<Eigen::Vector2i> lines;
+        matrixs_t lines;
         std::set<size_t> innerSample;
         std::set<size_t> outerSample;
         bool found = false;
         buildOneRingArea(vert, vertCollapseTo, lines, innerSample, outerSample);
 
-        KernelRegion kernel(lines, mShell, innerSample, outerSample,
-                            mTriangulation, mTriangulation.vertType[vert]);
+        KernelRegion kernel(mTriangulation.vertices, lines, mShell, innerSample, outerSample,
+                                 mTriangulation, mTriangulation.vertType[vert]);
         out_error = std::numeric_limits<double>::max();
 
         if(mType == BOUNDARY)
@@ -692,7 +660,7 @@ namespace SBV
             {
                 for(size_t sample : innerSample)
                 {
-                    const Point& samplePoint = mShell.mInnerShell[sample];
+                    const matrixr_t samplePoint = mShell.mInnerShell(colon(), sample);
                     if(kernel.contains(samplePoint))
                     {
                         double error = computeError(vert, samplePoint) + computeError(vertCollapseTo, samplePoint);
@@ -709,7 +677,7 @@ namespace SBV
             {
                 for(size_t sample : outerSample)
                 {
-                    const Point& samplePoint = mShell.mOuterShell[sample];
+                    const vec2_t samplePoint = mShell.mOuterShell(colon(), sample);
                     if(kernel.contains(samplePoint))
                     {
                         double error = computeError(vert, samplePoint) + computeError(vertCollapseTo, samplePoint);
@@ -734,15 +702,11 @@ namespace SBV
             double xmax = std::numeric_limits<double>::min();
             double ymin = std::numeric_limits<double>::max();
             double ymax = std::numeric_limits<double>::min();
-#ifndef VER_2D
-            double zmin = std::numeric_limits<double>::max();
-            double zmax = std::numeric_limits<double>::min();
-#endif
 
-            for(size_t i = 0; i < lines.size(); i++)
+            for(int i = 0; i < lines.size(2); i++)
             {
-                const Point& a = mTriangulation.vertices[lines[i][0]];
-                const Point& b = mTriangulation.vertices[lines[i][1]];
+                const matrixr_t& a = mTriangulation.vertices(colon(), lines(0, i));
+                const matrixr_t& b = mTriangulation.vertices(colon(), lines(1, i));
                 xmax = a[0] > xmax ? a[0] : xmax;
                 xmin = a[0] < xmin ? a[0] : xmin;
                 ymax = a[1] > ymax ? a[1] : ymax;
@@ -755,7 +719,7 @@ namespace SBV
 
             SamplingQuadTree tree(kernel, xmax, xmin, ymax, ymin, mSampleRadius);
             auto& samples = tree.getSamples();
-            for(size_t i = 0; i < samples.size(); i++)
+            for(int i = 0; i < samples.size(); i++)
             {
                 auto& point = samples[i];
                 double error = computeError(vert, point) + computeError(vertCollapseTo, point);
@@ -769,4 +733,4 @@ namespace SBV
         }
         return found;
     }
-}*/
+}
