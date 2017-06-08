@@ -49,63 +49,68 @@ namespace SBV
            return;
         }
         mZeroSet.vertPairs.clear();
-        mZeroSet.lineFaces.clear();
-        int zeroFaceCount = 0;
-        for(int i = 0; i < triangles.size(2); i++)
-        {
-            size_t v0 = triangles(0, i);
-            size_t v1 = triangles(1, i);
-            size_t v2 = triangles(2, i);
-
-            if(getSign(v0) == getSign(v1) && getSign(v0) == getSign(v2))
-            {
-                //F value sign of the vertices are same, so no zero-set in this triangle
-                continue;
-            }
-
-            zeroFaceCount++;
-        }
+        mZeroSet.faceTetras.clear();
 
         //build zero face connection
-        mZeroSet.lines.resize(2, zeroFaceCount);
-
-        for(int i = 0, j = 0; i < triangles.size(2); i++)
+        std::vector<matrixs_t> triangleVector;
+        for(int i = 0; i < cells.size(2); i++)
         {
-            size_t v0 = triangles(0, i);
-            size_t v1 = triangles(1, i);
-            size_t v2 = triangles(2, i);
+            size_t v0 = cells(0, i);
+            size_t v1 = cells(1, i);
+            size_t v2 = cells(2, i);
+            size_t v3 = cells(3, i);
 
-            if(getSign(v0) == getSign(v1) && getSign(v0) == getSign(v2))
+            if(getSign(v0) == getSign(v1) && getSign(v0) == getSign(v2) && getSign(v0) == getSign(v3))
             {
                 //F value sign of the vertices are same, so no zero-set in this triangle
                 continue;
             }
 
-            if(getSign(v0) == getSign(v1))
+            std::vector<size_t> innerVerts, outerVerts;
+            for(int j = 0; j < 4; j++)
             {
-                mZeroSet.lines(0, j) = getZeroPointIndex(v0, v2);
-                mZeroSet.lines(1, j) = getZeroPointIndex(v1, v2);
+                getSign(cells(j, i)) < 0 ? innerVerts.push_back(cells(j, i)) : outerVerts.push_back(cells(j, i));
             }
-            else if(getSign(v0) == getSign(v2))
+
+            if(innerVerts.size() == 2 && outerVerts.size() == 2)
             {
-                mZeroSet.lines(0, j) = getZeroPointIndex(v0, v1);
-                mZeroSet.lines(1, j) = getZeroPointIndex(v1, v2);
-            }
-            else if(getSign(v1) == getSign(v2))
-            {
-                mZeroSet.lines(0, j) = getZeroPointIndex(v0, v1);
-                mZeroSet.lines(1, j) = getZeroPointIndex(v0, v2);
+                matrixs_t tri1(3, 1), tri2(3, 1);
+                tri1[0] = getZeroPointIndex(innerVerts[0], outerVerts[0]);
+                tri1[1] = getZeroPointIndex(innerVerts[0], outerVerts[1]);
+                tri1[2] = getZeroPointIndex(innerVerts[1], outerVerts[1]);
+                tri2[0] = getZeroPointIndex(innerVerts[0], outerVerts[0]);
+                tri2[1] = getZeroPointIndex(innerVerts[1], outerVerts[1]);
+                tri2[2] = getZeroPointIndex(innerVerts[1], outerVerts[0]);
+                triangleVector.push_back(tri1);
+                triangleVector.push_back(tri2);
             }
             else
             {
-                throw std::runtime_error("cannot find valid zero point when building zero sets.");
+                matrixs_t tri(3, 1);
+                if(innerVerts.size() == 3)
+                {
+                    tri[0] = getZeroPointIndex(innerVerts[0], outerVerts[0]);
+                    tri[1] = getZeroPointIndex(innerVerts[1], outerVerts[0]);
+                    tri[2] = getZeroPointIndex(innerVerts[2], outerVerts[0]);
+                }
+                else
+                {
+                    tri[0] = getZeroPointIndex(innerVerts[0], outerVerts[0]);
+                    tri[1] = getZeroPointIndex(innerVerts[0], outerVerts[1]);
+                    tri[2] = getZeroPointIndex(innerVerts[0], outerVerts[2]);
+                }
+                triangleVector.push_back(tri);
             }
-            mZeroSet.lineFaces.push_back(i);
-            j++;
+        }
+
+        mZeroSet.triangles.resize(3, triangleVector.size());
+        for(int i = 0; i < triangleVector.size(); i++)
+        {
+            mZeroSet.triangles(colon(), i) = triangleVector[i];
         }
 
         //build zero point positions
-        mZeroSet.vertices.resize(2, mZeroSet.vertPairs.size());
+        mZeroSet.vertices.resize(3, mZeroSet.vertPairs.size());
         for(int i = 0; i< mZeroSet.vertPairs.size(); i++)
         {
             auto& vertPair = mZeroSet.vertPairs[i];
@@ -115,7 +120,7 @@ namespace SBV
 
     void TriangulatedShell::buildZeroSetExisting()
     {
-        mZeroSet.lineFaces.clear();
+        /*mZeroSet.faceTetras.clear();
 
         std::vector<matrixr_t> zeroVerts;
         for(int i = 0; i < vertices.size(2); i++)
@@ -169,7 +174,7 @@ namespace SBV
             }
             mZeroSet.lineFaces.push_back(face.tetra);
             i++;
-        }
+        }*/
     }
 
     void TriangulatedShell::tryAddZeroFace(size_t currentTetra, size_t zeroVert1, size_t zeroVert2,
@@ -201,7 +206,7 @@ namespace SBV
 
     void TriangulatedShell::mutualTessellate()
     {
-        hasZeroSet = true;
+        /*hasZeroSet = true;
         std::vector<matrixs_t> newTriangles;
         for(int i = 0; i < triangles.size(2); i++)
         {
@@ -289,6 +294,6 @@ namespace SBV
         for(int i = 0; i < mZeroSet.vertices.size(2); i++)
         {
             vertType.push_back(POINT_ZERO);
-        }
+        }*/
     }
 }

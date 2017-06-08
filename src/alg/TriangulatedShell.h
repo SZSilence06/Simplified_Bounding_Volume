@@ -21,14 +21,14 @@ namespace SBV
         struct ZeroSet
         {
             matrixr_t vertices;
-            matrixs_t lines;
+            matrixr_t triangles;
             std::vector<std::pair<size_t, size_t> >  vertPairs;   //recording the corresponding vert pairs of the zero set vertices
-            std::vector<size_t> lineFaces;                        //recording the corresponding faces of the zero set lines
+            std::vector<size_t> faceTetras;                        //recording the corresponding tetras of the zero set triangles
         };
 
     public:
         matrixr_t vertices;
-        matrixs_t triangles;
+        matrixs_t cells;
         std::vector<PointType> vertType;
 
     public:

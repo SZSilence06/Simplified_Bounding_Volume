@@ -26,10 +26,12 @@ namespace SBV
 
     void Refinement::computeBoundingBox()
     {
-        double xMax = std::numeric_limits<double>::min();
+        double xMax = std::numeric_limits<double>::lowest();
         double xMin = std::numeric_limits<double>::max();
-        double yMax = std::numeric_limits<double>::min();
+        double yMax = std::numeric_limits<double>::lowest();
         double yMin = std::numeric_limits<double>::max();
+        double zMax = std::numeric_limits<double>::lowest();
+        double zMin = std::numeric_limits<double>::max();
 
         for(int i = 0; i < mShell.mOuterShell.size(2); i++)
         {
@@ -49,20 +51,34 @@ namespace SBV
             {
                 yMin = mShell.mOuterShell(1, i);
             }
+            if(zMax < mShell.mOuterShell(2, i))
+            {
+                zMax = mShell.mOuterShell(2, i);
+            }
+            if(zMin > mShell.mOuterShell(2, i))
+            {
+                zMin = mShell.mOuterShell(2, i);
+            }
         }
 
         xMin *= 1.1;
         xMax *= 1.1;
         yMin *= 1.1;
         yMax *= 1.1;
+        zMin *= 1.1;
+        zMax *= 1.1;
 
         PointInfo info;
         info.pointType = PointType::POINT_BOUNDING_BOX;
 
-        mDelaunay.insert(Point(xMax, yMax))->info() = info;
-        mDelaunay.insert(Point(xMax, yMin))->info() = info;
-        mDelaunay.insert(Point(xMin, yMax))->info() = info;
-        mDelaunay.insert(Point(xMin, yMin))->info() = info;
+        mDelaunay.insert(Point(xMax, yMax, zMax))->info() = info;
+        mDelaunay.insert(Point(xMax, yMax, zMin))->info() = info;
+        mDelaunay.insert(Point(xMax, yMin, zMax))->info() = info;
+        mDelaunay.insert(Point(xMax, yMin, zMin))->info() = info;
+        mDelaunay.insert(Point(xMin, yMax, zMax))->info() = info;
+        mDelaunay.insert(Point(xMin, yMax, zMin))->info() = info;
+        mDelaunay.insert(Point(xMin, yMin, zMax))->info() = info;
+        mDelaunay.insert(Point(xMin, yMin, zMin))->info() = info;
     }
 
     void Refinement::initErrors()
@@ -74,7 +90,7 @@ namespace SBV
     void Refinement::updateErrors()
     {
         double maxError = -std::numeric_limits<double>::max();
-        for(auto iter = mDelaunay.finite_faces_begin(); iter != mDelaunay.finite_faces_end(); ++iter)
+        for(auto iter = mDelaunay.finite_cells_begin(); iter != mDelaunay.finite_cells_end(); ++iter)
         {
             updatePointInCell(*iter);
             double maxErrorInCell = getError(iter->info().maxErrorPoint);
@@ -88,7 +104,7 @@ namespace SBV
 
     void Refinement::updatePointInCell(Cell& cell)
     {
-        FaceInfo& info = cell.info();
+        CellInfo& info = cell.info();
         if(isNewCell(cell) == false)
         {
             return;
@@ -97,42 +113,42 @@ namespace SBV
         info.v0 = cell.vertex(0)->info();
         info.v1 = cell.vertex(1)->info();
         info.v2 = cell.vertex(2)->info();
+        info.v3 = cell.vertex(3)->info();
 
-        double xmax, xmin, ymax, ymin;
-        computeAABB(cell, xmax, xmin, ymax, ymin);
+        double xmax, xmin, ymax, ymin, zmax, zmin;
+        computeAABB(cell, xmax, xmin, ymax, ymin, zmax, zmin);
         matrixs_t sampleInner, sampleOuter;
-        mShell.getInnerTree().getPointsInRange(xmin, xmax, ymin, ymax, sampleInner);
-        mShell.getOuterTree().getPointsInRange(xmin, xmax, ymin, ymax, sampleOuter);
+        mShell.getInnerTree().getPointsInRange(xmin, xmax, ymin, ymax, zmin, zmax, sampleInner);
+        mShell.getOuterTree().getPointsInRange(xmin, xmax, ymin, ymax, zmin, zmax, sampleOuter);
 
         double f0 = mOutput.getFValue(cell.vertex(0)->info().pointType);
         double f1 = mOutput.getFValue(cell.vertex(1)->info().pointType);
         double f2 = mOutput.getFValue(cell.vertex(2)->info().pointType);
+        double f3 = mOutput.getFValue(cell.vertex(3)->info().pointType);
 
         double maxError = std::numeric_limits<double>::lowest();
         PointInfo maxErrorPoint;
 
-        const Point& p0 = cell.vertex(0)->point();
-        const Point& p1 = cell.vertex(1)->point();
-        const Point& p2 = cell.vertex(2)->point();
-        matrixr_t triangle(2, 3);
-        triangle(0, 0) = p0[0];
-        triangle(1, 0) = p0[1];
-        triangle(0, 1) = p1[0];
-        triangle(1, 1) = p1[1];
-        triangle(0, 2) = p2[0];
-        triangle(1, 2) = p2[1];
+        matrixr_t tetra(3, 4);
+        for(int i = 0; i < 4; i++)
+        {
+            for(int j = 0; j < 3; j++)
+            {
+                tetra(j, i) = cell.vertex(i)->point()[j];
+            }
+        }
 
-        BaryComputer baryComputer(triangle);
+        BaryComputer baryComputer(tetra);
         for(int i = 0; i < sampleInner.size(); i++)
         {
             const size_t index = sampleInner[i];
-            vec3_t bary;
+            vec4_t bary;
             baryComputer(mShell.mInnerShell(colon(), index), bary);
 
             if(min(bary) <= -1e-6)
                 continue;
 
-            double f = f0 * bary[0] + f1 * bary[1] + f2 * bary[2];
+            double f = f0 * bary[0] + f1 * bary[1] + f2 * bary[2] + f3 * bary[3];
             double error = fabs(f + 1);
             if(maxError < error)
             {
@@ -145,13 +161,13 @@ namespace SBV
         for(int i = 0; i < sampleOuter.size(); i++)
         {
             const size_t index = sampleOuter[i];
-            vec3_t bary;
+            vec4_t bary;
             baryComputer(mShell.mOuterShell(colon(), index), bary);
 
             if(min(bary) <= -1e-6)
                 continue;
 
-            double f = f0 * bary[0] + f1 * bary[1] + f2 * bary[2];
+            double f = f0 * bary[0] + f1 * bary[1] + f2 * bary[2] + f3 * bary[3];
             double error = fabs(f - 1);
             if(maxError < error)
             {
@@ -165,59 +181,27 @@ namespace SBV
         info.maxErrorPoint = maxErrorPoint;
     }
 
-    void Refinement::computeAABB(const Cell &cell, double &xmax, double &xmin, double &ymax, double &ymin)
+    void Refinement::computeAABB(const Cell &cell, double &xmax, double &xmin, double &ymax, double &ymin, double& zmax, double& zmin)
     {
         const Point& p0 = cell.vertex(0)->point();
         const Point& p1 = cell.vertex(1)->point();
         const Point& p2 = cell.vertex(2)->point();
+        const Point& p3 = cell.vertex(3)->point();
 
         xmax = std::numeric_limits<double>::lowest();
         xmin = std::numeric_limits<double>::max();
         ymax = std::numeric_limits<double>::lowest();
         ymin = std::numeric_limits<double>::max();
+        zmax = std::numeric_limits<double>::lowest();
+        zmin = std::numeric_limits<double>::max();
 
-        xmax = std::max(xmax, std::max(std::max(p0[0], p1[0]), p2[0]));
-        xmin = std::min(xmin, std::min(std::min(p0[0], p1[0]), p2[0]));
-        ymax = std::max(ymax, std::max(std::max(p0[1], p1[1]), p2[1]));
-        ymin = std::min(ymin, std::min(std::min(p0[1], p1[1]), p2[1]));
+        xmax = std::max(std::max(std::max(p0[0], p1[0]), p2[0]), p3[0]);
+        xmin = std::min(std::min(std::min(p0[0], p1[0]), p2[0]), p3[0]);
+        ymax = std::max(std::max(std::max(p0[1], p1[1]), p2[1]), p3[1]);
+        ymin = std::min(std::min(std::min(p0[1], p1[1]), p2[1]), p3[1]);
+        zmax = std::max(std::max(std::max(p0[2], p1[2]), p2[2]), p3[2]);
+        zmin = std::min(std::min(std::min(p0[2], p1[2]), p2[2]), p3[2]);
     }
-
-    double Refinement::computeFValue(const matrixr_t &point, const Cell &cell)
-    {
-        const VertexHandle& vh0 = cell.vertex(0);
-        const VertexHandle& vh1 = cell.vertex(1);
-        const VertexHandle& vh2 = cell.vertex(2);
-
-        Point& p0 = cell.vertex(0)->point();
-        Point& p1 = cell.vertex(1)->point();
-        Point& p2 = cell.vertex(2)->point();
-
-        matrixr_t triangle(2, 3);
-        triangle(0, 0) = p0[0];
-        triangle(1, 0) = p0[1];
-        triangle(0, 1) = p1[0];
-        triangle(1, 1) = p1[1];
-        triangle(0, 2) = p2[0];
-        triangle(1, 2) = p2[1];
-
-        matrixr_t bary;
-        if(WKYLIB::barycentric_2D(point, triangle, bary))
-        {
-            //the point is inside the tetrahedron
-            double f0 = getFValue(vh0);
-            double f1 = getFValue(vh1);
-            double f2 = getFValue(vh2);
-
-            double ans = f0 * bary[0] + f1 * bary[1] + f2 * bary[2];
-            //assert(ans < 1 || fabs(ans-1) < 1e-3);
-            //assert(ans > -1 || fabs(ans+1) < 1e-3);
-            return ans;
-        }
-
-        //the point is outside the tetrahedron, so returns an error
-        return std::numeric_limits<double>::max();
-    }
-
     double Refinement::getFValue(const VertexHandle& vh)
     {
         const PointInfo& info = vh->info();
@@ -266,36 +250,39 @@ namespace SBV
 
             matrixr_t point;
             getPointMatrix(mNextInsertPoint, point);
-            mDelaunay.insert(Point(point[0], point[1]))->info() = mNextInsertPoint;
+            mDelaunay.insert(Point(point[0], point[1], point[2]))->info() = mNextInsertPoint;
             updateErrors();
         }
 
         std::cout << "Finished refinement after " << iterCount << " iterations." << std::endl;
 
         //organize output data
-        mOutput.vertices.resize(2, mDelaunay.number_of_vertices());
-        mOutput.triangles.resize(3, mDelaunay.number_of_faces());
+        mOutput.vertices.resize(3, mDelaunay.number_of_vertices());
+        mOutput.cells.resize(4, mDelaunay.number_of_cells());
         mOutput.vertType.reserve(mDelaunay.number_of_vertices());
         int i = 0;
         for(auto iter = mDelaunay.finite_vertices_begin(); iter != mDelaunay.finite_vertices_end(); ++iter, ++i)
         {
             mOutput.vertices(0, i) = iter->point()[0];
             mOutput.vertices(1, i) = iter->point()[1];
+            mOutput.vertices(2, i) = iter->point()[2];
 
             PointInfo& info = iter->info();
             iter->info().indexInDelaunay = i;
             mOutput.vertType.push_back(info.pointType);
         }
         i = 0;
-        for(auto iter = mDelaunay.finite_faces_begin(); iter != mDelaunay.finite_faces_end(); ++iter, ++i)
+        for(auto iter = mDelaunay.finite_cells_begin(); iter != mDelaunay.finite_cells_end(); ++iter, ++i)
         {
             const PointInfo& info0 = iter->vertex(0)->info();
             const PointInfo& info1 = iter->vertex(1)->info();
             const PointInfo& info2 = iter->vertex(2)->info();
+            const PointInfo& info3 = iter->vertex(3)->info();
 
-            mOutput.triangles(0, i) = info0.indexInDelaunay;
-            mOutput.triangles(1, i) = info1.indexInDelaunay;
-            mOutput.triangles(2, i) = info2.indexInDelaunay;
+            mOutput.cells(0, i) = info0.indexInDelaunay;
+            mOutput.cells(1, i) = info1.indexInDelaunay;
+            mOutput.cells(2, i) = info2.indexInDelaunay;
+            mOutput.cells(3, i) = info3.indexInDelaunay;
         }
 
         return true;
@@ -321,14 +308,15 @@ namespace SBV
         }
 
         //check for condition 2 and 3.
-        for(auto iter = mDelaunay.finite_faces_begin(); iter != mDelaunay.finite_faces_end(); ++iter)
+        for(auto iter = mDelaunay.finite_cells_begin(); iter != mDelaunay.finite_cells_end(); ++iter)
         {
             const Cell& cell = *iter;
             const VertexHandle& vh0 = cell.vertex(0);
             const VertexHandle& vh1 = cell.vertex(1);
             const VertexHandle& vh2 = cell.vertex(2);
+            const VertexHandle& vh3 = cell.vertex(3);
 
-            if(getFValue(vh0) == getFValue(vh1) && getFValue(vh0) == getFValue(vh2))
+            if(getFValue(vh0) == getFValue(vh1) && getFValue(vh0) == getFValue(vh2) && getFValue(vh0) == getFValue(vh3))
             {
                 continue;
             }
@@ -351,14 +339,16 @@ namespace SBV
 
     bool Refinement::isNewCell(const Cell &cell)
     {
-        const FaceInfo& info = cell.info();
+        const CellInfo& info = cell.info();
         const PointInfo& p0 = cell.vertex(0)->info();
         const PointInfo& p1 = cell.vertex(1)->info();
         const PointInfo& p2 = cell.vertex(2)->info();
+        const PointInfo& p3 = cell.vertex(3)->info();
 
-        return !((p0 == info.v0 || p0 == info.v1 || p0 == info.v2)
-                &&(p1 == info.v0 || p1 == info.v1 || p1 == info.v2)
-                &&(p2 == info.v0 || p2 == info.v1 || p2 == info.v2));
+        return !((p0 == info.v0 || p0 == info.v1 || p0 == info.v2 || p0 == info.v3)
+                &&(p1 == info.v0 || p1 == info.v1 || p1 == info.v2 || p1 == info.v3)
+                &&(p2 == info.v0 || p2 == info.v1 || p2 == info.v2 || p2 == info.v3)
+                &&(p3 == info.v0 || p3 == info.v1 || p3 == info.v2 || p3 == info.v3));
     }
 
     double Refinement::computeHeight(const Cell &cell)
@@ -417,85 +407,69 @@ namespace SBV
 
     bool Refinement::checkCondition3(const Cell &cell)
     {
-        const VertexHandle& vh0 = cell.vertex(0);
-        const VertexHandle& vh1 = cell.vertex(1);
-        const VertexHandle& vh2 = cell.vertex(2);
-        const Point& p0 = vh0->point();
-        const Point& p1 = vh1->point();
-        const Point& p2 = vh2->point();
+        matrixr_t tetra(3, 4);
+        for(int i = 0; i < 4; i++)
+        {
+            for(int j = 0; j < 3; j++)
+            {
+                tetra(j, i) = cell.vertex(i)->point()[j];
+            }
+        }
 
-        matrixr_t a(2, 1), b(2, 1), c(2, 1);
-        a[0] = p0[0];
-        a[1] = p0[1];
-        b[0] = p1[0];
-        b[1] = p1[1];
-        c[0] = p2[0];
-        c[1] = p2[1];
+        BaryComputer baryComputer(tetra);
 
-        matrixr_t center = (a + b + c) / 3.0;
-        constexpr double k = sqrt(0.7);
-        matrixr_t newA = k * a + (1 - k) * center;
-        matrixr_t newB = k * b + (1 - k) * center;
-        matrixr_t newC = k * c + (1 - k) * center;
+        matrixr_t center = (tetra(colon(), 0) + tetra(colon(), 1) + tetra(colon(), 2) + tetra(colon(), 3)) / 4.0;
+        constexpr double k = cbrt(0.7);
 
+        matrixr_t newVerts[4];
+        for(int i = 0; i < 4; i++)
+        {
+            newVerts[i] = k * tetra(colon(), i) + (1 - k) * center;
+        }
+
+        //check inner verts classification
         const KdTreeWrap& innerTree = mShell.getInnerTree();
-        size_t nearA, nearB, nearC;
-        nearA = innerTree.getNearestPoint(newA);
-        nearB = innerTree.getNearestPoint(newB);
-        nearC = innerTree.getNearestPoint(newC);
-        if(checkClassification(cell, mShell.mInnerShell(colon(), nearA), false) == false)
+        size_t nearVerts[4];
+        for(int i = 0; i < 4; i++)
         {
-            return false;
-        }
-        if(checkClassification(cell, mShell.mInnerShell(colon(), nearB), false) == false)
-        {
-            return false;
-        }
-        if(checkClassification(cell, mShell.mInnerShell(colon(), nearC), false) == false)
-        {
-            return false;
+            nearVerts[i] = innerTree.getNearestPoint(newVerts[i]);
         }
 
+        for(int i = 0; i < 4; i++)
+        {
+            if(checkClassification(cell, baryComputer, mShell.mInnerShell(colon(), nearVerts[i]), false) == false)
+            {
+                return false;
+            }
+        }
+
+        //check outer verts classification
         const KdTreeWrap& outerTree = mShell.getOuterTree();
-        nearA = outerTree.getNearestPoint(newA);
-        nearB = outerTree.getNearestPoint(newB);
-        nearC = outerTree.getNearestPoint(newC);
-        if(checkClassification(cell, mShell.mOuterShell(colon(), nearA), true) == false)
+        for(int i = 0; i < 4; i++)
         {
-            return false;
+            nearVerts[i] = outerTree.getNearestPoint(newVerts[i]);
         }
-        if(checkClassification(cell, mShell.mOuterShell(colon(), nearB), true) == false)
+
+        for(int i = 0; i < 4; i++)
         {
-            return false;
-        }
-        if(checkClassification(cell, mShell.mOuterShell(colon(), nearC), true) == false)
-        {
-            return false;
+            if(checkClassification(cell, baryComputer, mShell.mOuterShell(colon(), nearVerts[i]), true) == false)
+            {
+                return false;
+            }
         }
 
         return true;
     }
 
-    bool Refinement::checkClassification(const Cell &cell, const matrixr_t &point, bool isOuter)
+    bool Refinement::checkClassification(const Cell& cell, const BaryComputer &baryComputer, const matrixr_t &point, bool isOuter)
     {
         const VertexHandle& vh0 = cell.vertex(0);
         const VertexHandle& vh1 = cell.vertex(1);
         const VertexHandle& vh2 = cell.vertex(2);
-        const Point& p0 = vh0->point();
-        const Point& p1 = vh1->point();
-        const Point& p2 = vh2->point();
-
-        matrixr_t triangle(2, 3);
-        triangle(0, 0) = p0[0];
-        triangle(1, 0) = p0[1];
-        triangle(0, 1) = p1[0];
-        triangle(1, 1) = p1[1];
-        triangle(0, 2) = p2[0];
-        triangle(1, 2) = p2[1];
-
-        matrixr_t bary;
-        WKYLIB::barycentric_2D(point, triangle, bary);
-        double fvalue = getFValue(vh0) * bary[0] + getFValue(vh1) * bary[1] + getFValue(vh2) * bary[2];
+        const VertexHandle& vh3 = cell.vertex(3);
+        vec4_t bary;
+        baryComputer(point, bary);
+        double fvalue = getFValue(vh0) * bary[0] + getFValue(vh1) * bary[1] + getFValue(vh2) * bary[2] + getFValue(vh3) * bary[3];
         bool result;
         if(isOuter)
         {

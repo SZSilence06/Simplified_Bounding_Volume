@@ -1,4 +1,4 @@
-#ifndef WKY_EDGE_COLLAPSE_H
+/*#ifndef WKY_EDGE_COLLAPSE_H
 #define WKY_EDGE_COLLAPSE_H
 
 #include <queue>
@@ -85,4 +85,4 @@ namespace SBV
     };
 }
 
-#endif
+#endif*/

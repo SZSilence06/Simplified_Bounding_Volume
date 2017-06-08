@@ -26,13 +26,13 @@ namespace SBV
         return result.first->index;
     }
 
-    void KdTreeWrap::getPointsInRange(double xmin, double xmax, double ymin, double ymax, matrixs_t &points) const
+    void KdTreeWrap::getPointsInRange(double xmin, double xmax, double ymin, double ymax, double zmin, double zmax, matrixs_t &points) const
     {
         KdTreeNode node;
-        node.point = matrixr_t(2,1);
         node.point[0] = (xmax + xmin) / 2;
         node.point[1] = (ymax + ymin) / 2;
-        double range = std::max(node[0] - xmin, node[1] - ymin);
+        node.point[2] = (zmax + zmin) / 2;
+        double range = std::max(std::max(node[0] - xmin, node[1] - ymin), node[2] - zmin);
 
         std::vector<KdTreeNode> find_results(mTree.size());
         auto end = mTree.find_within_range(node, range, find_results.begin());

@@ -175,5 +175,44 @@ namespace WKYLIB
 
             return true;
         }
+
+        bool writeTetra(const std::string& file, const matrixr_t& vertices, const matrixs_t& cells)
+        {
+            std::ofstream out;
+
+            out.open(file);
+            if(out.fail())
+            {
+                return false;
+            }
+
+            out << "# vtk DataFile Version 2.0\n TET\nASCII\nDATASET UNSTRUCTURED_GRID\nPOINTS "
+                << vertices.size(2) << " float" << std::endl;
+            for(int i = 0; i < vertices.size(2); i++)
+            {
+                out << vertices(0, i) << " " << vertices(1, i) << " " << vertices(2, i) << std::endl;
+            }
+
+            out << "CELLS " << cells.size(2) << " " << cells.size() * 5 << std::endl;
+            for(int i = 0; i < cells.size(2); i++)
+            {
+                out << "4";
+                for(int j = 0; j < 4; j++)
+                {
+                    out << " " << cells(j, i);
+                }
+                out << std::endl;
+            }
+
+            out << "CELL_TYPES " << cells.size(2) << std::endl;
+            for(int i = 0; i < cells.size(2); i++)
+            {
+                out << "10" << std::endl;
+            }
+
+            out.close();
+
+            return true;
+        }
     }
 }

@@ -13,7 +13,7 @@ namespace SBV {
     public:
         using DebugTimer = WKYLIB::DebugTimer;
 
-        Simplifier(Curve& mesh);
+        Simplifier(Mesh& mesh);
 
         void simplify();
 
@@ -63,7 +63,7 @@ namespace SBV {
 
     private:
         std::string mOutputDirectory;
-        Curve& mSourceMesh;
+        Mesh& mSourceMesh;
         double mMaxDistance = -1;
         double mSampleRadius = -1;
         double mAlpha = 0.2;

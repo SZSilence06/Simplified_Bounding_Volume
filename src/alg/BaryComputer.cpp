@@ -8,14 +8,14 @@ using namespace zjucad::matrix;
 
 namespace SBV
 {
-  BaryComputer::BaryComputer(const matrixr_t &triangle)
+    BaryComputer::BaryComputer(const matrixr_t &tetra)
     {
-        buildInvA(triangle);
+        buildInvA(tetra);
     }
-    void BaryComputer::buildInvA(const matrixr_t &triangle)
+    void BaryComputer::buildInvA(const matrixr_t &tetra)
     {
-        this->invA = ones<double>(3, 3);
-        this->invA(colon(0, 1), colon()) = triangle;
+        this->invA = ones<double>(4, 4);
+        this->invA(colon(0, 2), colon()) = tetra;
         if(inv(invA)) {
             std::cerr << "warning: degenerated triangle." << std::endl;
         }

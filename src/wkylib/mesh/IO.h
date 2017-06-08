@@ -49,6 +49,15 @@ namespace WKYLIB
          * @return true if succeeded, and false otherwise.
          */
         WKY_API bool writeMesh2D(const std::string& file, const matrixr_t& vertices, const matrixs_t& triangles);
+
+        /**
+         * @brief write tetrahedral mesh to a vtk format file.
+         * @param file : output file path.
+         * @param vertices : vertices to output.
+         * @param cells : tetrahedrons to output.
+         * @return true if succeeded, and false otherwise.
+         */
+        WKY_API bool writeTetra(const std::string& file, const matrixr_t& vertices, const matrixs_t& cells);
     }
 }
 

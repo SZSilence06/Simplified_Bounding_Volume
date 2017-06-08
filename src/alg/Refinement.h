@@ -5,12 +5,14 @@
 #include "TriangulatedShell.h"
 #include "Shell.h"
 #include <CGAL/Exact_predicates_inexact_constructions_kernel.h>
-#include <CGAL/Triangulation_vertex_base_with_info_2.h>
-#include <CGAL/Triangulation_face_base_with_info_2.h>
-#include <CGAL/Delaunay_triangulation_2.h>
+#include <CGAL/Triangulation_vertex_base_with_info_3.h>
+#include <CGAL/Triangulation_cell_base_with_info_3.h>
+#include <CGAL/Delaunay_triangulation_3.h>
 
 namespace SBV
 {
+    class BaryComputer;
+
     class Refinement
     {      
     public:
@@ -34,20 +36,20 @@ namespace SBV
             }
         };
 
-        struct FaceInfo
+        struct CellInfo
         {
             std::vector<PointInfo> points;   //points inside the cell.
             PointInfo maxErrorPoint;
-            PointInfo v0, v1, v2;         //vertices of the face, used for judging whether the face is new
+            PointInfo v0, v1, v2, v3;         //vertices of the face, used for judging whether the face is new
         };
 
         using K = CGAL::Exact_predicates_inexact_constructions_kernel;
-        using VertexBase = CGAL::Triangulation_vertex_base_with_info_2<PointInfo, K>;
-        using CellBase = CGAL::Triangulation_face_base_with_info_2<FaceInfo, K>;
-        using Tds = CGAL::Triangulation_data_structure_2<VertexBase, CellBase>;
-        using Delaunay = CGAL::Delaunay_triangulation_2<K, Tds>;
+        using VertexBase = CGAL::Triangulation_vertex_base_with_info_3<PointInfo, K>;
+        using CellBase = CGAL::Triangulation_cell_base_with_info_3<CellInfo, K>;
+        using Tds = CGAL::Triangulation_data_structure_3<VertexBase, CellBase>;
+        using Delaunay = CGAL::Delaunay_triangulation_3<K, Tds>;
         using Point = Delaunay::Point;
-        using Cell = Delaunay::Face;
+        using Cell = Delaunay::Cell;
         using VertexHandle = Delaunay::Vertex_handle;
 
     private:
@@ -56,16 +58,15 @@ namespace SBV
         void initErrors();
         void updateErrors();
         void updatePointInCell(Cell& cell);
-        double computeFValue(const matrixr_t& point, const Cell& cell);
         double getFValue(const VertexHandle& vh);
         double getError(const PointInfo& point);
         void getPointMatrix(const PointInfo& point, matrixr_t& pointMatrix);
         bool isFinished();
         bool isNewCell(const Cell& cell);
         bool checkCondition3(const Cell& cell);
-        bool checkClassification(const Cell& cell, const matrixr_t& point, bool isOuter);
+        bool checkClassification(const Cell& cell, const BaryComputer& baryComputer, const matrixr_t& point, bool isOuter);
         double computeHeight(const Cell& cell);
-        void computeAABB(const Cell& cell, double& xmax, double& xmin, double& ymax, double& ymin);
+        void computeAABB(const Cell& cell, double& xmax, double& xmin, double& ymax, double& ymin, double& zmax, double& zmin);
 
     private:
         const Shell& mShell;

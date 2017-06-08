@@ -187,7 +187,7 @@ namespace SBV
             std::set<size_t>::const_iterator itr = mInnerSamples.begin();
             for(int j = 0; j < mInnerSamples.size(); j++, ++itr)
             {
-              vec3_t bary;
+              vec4_t bary;
               baryComputer(mShell.mInnerShell(colon(), *itr), bary);
                 if(min(bary) >= 0)
                 {
@@ -205,7 +205,7 @@ namespace SBV
             itr = mOuterSamples.begin();
             for(int j = 0; j < mOuterSamples.size(); j++, ++itr)
             {
-              vec3_t bary;
+              vec4_t bary;
               baryComputer(mShell.mOuterShell(colon(), *itr), bary);
                 if(min(bary) >= 0)
                 {

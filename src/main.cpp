@@ -164,8 +164,8 @@ int main(int argc, char**argv)
 {
     parseCmdLines(argc, argv);
 
-    SBV::Curve curve;
-    if(WKYLIB::Mesh::readCurve2D(g_inputMeshPath, curve.vertices, curve.lines) == false)
+    SBV::Mesh mesh;
+    if(jtf::mesh::load_obj(g_inputMeshPath.c_str(), mesh.triangles, mesh.vertices))
     {
         std::cout << "Fail to load mesh: " + g_inputMeshPath << std::endl;
         return 0;
@@ -173,7 +173,7 @@ int main(int argc, char**argv)
 
     genDefaultParams();
 
-    SBV::Simplifier simplifier(curve);
+    SBV::Simplifier simplifier(mesh);
     simplifier.setOutputDirectory(g_outputPath);
     simplifier.setMaxDistance(g_maxDistance);
     simplifier.setSampleRadius(g_sampleRadius);

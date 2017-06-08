@@ -1,4 +1,4 @@
-#include "EdgeCollapse.h"
+/*#include "EdgeCollapse.h"
 #include "KernelRegion.h"
 #include "SamplingQuadTree.h"
 #include <wkylib/geometry.h>
@@ -733,4 +733,4 @@ namespace SBV
         }
         return found;
     }
-}
+}*/
