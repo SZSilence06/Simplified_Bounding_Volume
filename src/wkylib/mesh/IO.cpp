@@ -193,7 +193,7 @@ namespace WKYLIB
                 out << vertices(0, i) << " " << vertices(1, i) << " " << vertices(2, i) << std::endl;
             }
 
-            out << "CELLS " << cells.size(2) << " " << cells.size() * 5 << std::endl;
+            out << "CELLS " << cells.size(2) << " " << cells.size(2) * 5 << std::endl;
             for(int i = 0; i < cells.size(2); i++)
             {
                 out << "4";

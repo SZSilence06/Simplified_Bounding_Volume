@@ -85,11 +85,13 @@ namespace SBV
     {
         mInnerError.resize(mShell.mInnerShell.size(2), 0);
         mOuterError.resize(mShell.mOuterShell.size(2), 0);
+        mInnerExists.resize(mShell.mInnerShell.size(2), false);
+        mOuterExists.resize(mShell.mOuterShell.size(2), false);
     }
 
     void Refinement::updateErrors()
     {
-        double maxError = -std::numeric_limits<double>::max();
+        double maxError = std::numeric_limits<double>::lowest();
         for(auto iter = mDelaunay.finite_cells_begin(); iter != mDelaunay.finite_cells_end(); ++iter)
         {
             updatePointInCell(*iter);
@@ -188,13 +190,6 @@ namespace SBV
         const Point& p2 = cell.vertex(2)->point();
         const Point& p3 = cell.vertex(3)->point();
 
-        xmax = std::numeric_limits<double>::lowest();
-        xmin = std::numeric_limits<double>::max();
-        ymax = std::numeric_limits<double>::lowest();
-        ymin = std::numeric_limits<double>::max();
-        zmax = std::numeric_limits<double>::lowest();
-        zmin = std::numeric_limits<double>::max();
-
         xmax = std::max(std::max(std::max(p0[0], p1[0]), p2[0]), p3[0]);
         xmin = std::min(std::min(std::min(p0[0], p1[0]), p2[0]), p3[0]);
         ymax = std::max(std::max(std::max(p0[1], p1[1]), p2[1]), p3[1]);
@@ -248,6 +243,25 @@ namespace SBV
             iterCount++;
             std::cout << "Iteration " << iterCount << " ..." << std::endl;
 
+            switch (mNextInsertPoint.pointType) {
+            case POINT_INNER:
+                if(mInnerExists[mNextInsertPoint.index])
+                {
+                    std::cerr << "warning : Inserting repeated inner shell point. index " << mNextInsertPoint.index << std::endl;
+                }
+                mInnerExists[mNextInsertPoint.index] = true;
+                break;
+            case POINT_OUTER:
+                if(mOuterExists[mNextInsertPoint.index])
+                {
+                    std::cerr << "warning : Inserting repeated outer shell point. index " << mNextInsertPoint.index << std::endl;
+                }
+                mOuterExists[mNextInsertPoint.index] = true;
+                break;
+            default:
+                break;
+            }
+
             matrixr_t point;
             getPointMatrix(mNextInsertPoint, point);
             mDelaunay.insert(Point(point[0], point[1], point[2]))->info() = mNextInsertPoint;
@@ -255,7 +269,11 @@ namespace SBV
         }
 
         std::cout << "Finished refinement after " << iterCount << " iterations." << std::endl;
+        organizeOutput();
+    }
 
+    void Refinement::organizeOutput()
+    {
         //organize output data
         mOutput.vertices.resize(3, mDelaunay.number_of_vertices());
         mOutput.cells.resize(4, mDelaunay.number_of_cells());
@@ -284,8 +302,6 @@ namespace SBV
             mOutput.cells(2, i) = info2.indexInDelaunay;
             mOutput.cells(3, i) = info3.indexInDelaunay;
         }
-
-        return true;
     }
 
     bool Refinement::isFinished()

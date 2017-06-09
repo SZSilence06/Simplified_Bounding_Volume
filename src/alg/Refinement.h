@@ -24,8 +24,8 @@ namespace SBV
         struct PointInfo
         {
             PointType pointType = POINT_UNKNOWN;
-            size_t index = -1;    //index in the original shell samples.
-            size_t indexInDelaunay = -1;    //index in the delaunay triangulation
+            int index = -1;    //index in the original shell samples.
+            int indexInDelaunay = -1;    //index in the delaunay triangulation
 
             PointInfo() {}
             PointInfo(PointType pointType, size_t index) : pointType(pointType), index(index) {}
@@ -58,6 +58,7 @@ namespace SBV
         void initErrors();
         void updateErrors();
         void updatePointInCell(Cell& cell);
+        void organizeOutput();
         double getFValue(const VertexHandle& vh);
         double getError(const PointInfo& point);
         void getPointMatrix(const PointInfo& point, matrixr_t& pointMatrix);
@@ -76,6 +77,8 @@ namespace SBV
 
         std::vector<double> mInnerError;    //error for samples on inner shell
         std::vector<double> mOuterError;    //error for samples on outer shell
+        std::vector<bool> mInnerExists;
+        std::vector<bool> mOuterExists;
 
         PointInfo mNextInsertPoint;         //next point to insert(with maximum error)
 
