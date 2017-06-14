@@ -11,4 +11,4 @@ This program uses these open-source libraries:
 * zjucad sdk
 * vcglib
 
-Thanks to Rodolphe Vaillant for the <a href="http://rodolphe-vaillant.fr/?e=37">poisson sampling code</a>.
+Thanks to Rodolphe Vaillant for the <a href="http://rodolphe-vaillant.fr/?e=37">poisson-disk sampling code</a>.
