@@ -1,6 +1,7 @@
 #include "Simplifier.h"
 #include "Refinement.h"
 #include "EdgeCollapse.h"
+#include "Sampler.h"
 #include <wkylib/mesh/MeshUtil.h>
 #include <wkylib/mesh/IO.h>
 #include <wkylib/debug_util.h>
@@ -10,9 +11,26 @@ using namespace zjucad::matrix;
 
 namespace SBV
 {
+    void uniformSpherical(vec3_t& p)
+    {
+        while(true)
+        {
+            double x1 = rand() * (2.0 / RAND_MAX) - 1;
+            double x2 = rand() * (2.0 / RAND_MAX) - 1;
+            double temp = x1*x1 + x2*x2;
+            if(temp < 1)
+            {
+                p[0] = 2 * x1 * sqrt(1 - temp);
+                p[1] = 2 * x2 * sqrt(1 - temp);
+                p[2] = 1 - 2 * temp;
+                break;
+            }
+        }
+    }
+
     Simplifier::Simplifier(Mesh &mesh) : mSourceMesh(mesh)
     {
-
+        srand(time(0));
     }
 
     void Simplifier::simplify()
@@ -51,34 +69,39 @@ namespace SBV
             shell(colon(), i) = vertex + normals(colon(), i) * mMaxDistance;
         }
 
-        std::vector<matrixr_t> sampled_shell;
+        sample(shell, mSourceMesh.triangles, mShell.mOuterShell);
+        sample(mSourceMesh.vertices, mSourceMesh.triangles, mShell.mInnerShell);
 
-        sample(shell, mSourceMesh.triangles, sampled_shell);
-        mShell.mOuterShell.resize(3, sampled_shell.size());
-        for(int i = 0; i < mShell.mOuterShell.size(2); i++)
+        /*mShell.mInnerShell.resize(3, 10000);
+        mShell.mOuterShell.resize(3, 15000);
+        for(int i = 0; i < 10000; i++)
         {
-            mShell.mOuterShell(colon(), i) = sampled_shell[i];
+            vec3_t p;
+            uniformSpherical(p);
+            mShell.mInnerShell(colon(), i) = p;
         }
-
-        sample(mSourceMesh.vertices, mSourceMesh.triangles, sampled_shell);
-        mShell.mInnerShell.resize(3, sampled_shell.size());
-        for(int i = 0; i < mShell.mInnerShell.size(2); i++)
+        for(int i = 0; i < 15000; i++)
         {
-            mShell.mInnerShell(colon(), i) = sampled_shell[i];
-        }
+            vec3_t p;
+            uniformSpherical(p);
+            p *= 1.1;
+            mShell.mOuterShell(colon(), i) = p;
+        }*/
 
         mShell.buildKdTree();
 
         if(mNeedGenTempResult)
         {
+            //jtf::mesh::save_obj((mOutputDirectory + "/outer_shell.obj").c_str(), mSourceMesh.triangles, shell);
             WKYLIB::Mesh::writePoints(mOutputDirectory + "/inner_shell.vtk", mShell.mInnerShell);
             WKYLIB::Mesh::writePoints(mOutputDirectory + "/outer_shell.vtk", mShell.mOuterShell);
         }
     }
 
-    void Simplifier::sample(const matrixr_t &vertices, const matrixs_t &triangles, std::vector<matrixr_t> &output_samples)
+    void Simplifier::sample(const matrixr_t &vertices, const matrixs_t &triangles, matrixr_t &output_samples)
     {
-        output_samples.clear();
+        Sampler::poisson(vertices, triangles, mSampleRadius, output_samples);
+        /*output_samples.clear();
         for(int i = 0; i < triangles.size(2); i++)
         {
             const matrixr_t& a = vertices(colon(), triangles(0, i));
@@ -96,16 +119,16 @@ namespace SBV
             double sample_count_ab = normAB / mSampleRadius;
             double sample_count_ac = normAC / mSampleRadius;
 
-            for(int i = 0; i <= sample_count_ab; i++)
+            for(int i = 1; i <= sample_count_ab; i++)
             {
                 double baryAB = i / sample_count_ab;
                 int max_sample_ac = (1 - baryAB) * sample_count_ac;
-                for(int j = 0; j < max_sample_ac; j++)
+                for(int j = 1; j < max_sample_ac; j++)
                 {
                     output_samples.push_back(a + mSampleRadius * i * ab + mSampleRadius * j * ac);
                 }
             }
-        }
+        }*/
     }
 
     void Simplifier::refine()

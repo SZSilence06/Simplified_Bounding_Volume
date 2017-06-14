@@ -9,3 +9,6 @@ This program uses these open-source libraries:
 * CGAL
 * libkdtree++
 * zjucad sdk
+* vcglib
+
+Thanks to Rodolphe Vaillant for the <a href="http://rodolphe-vaillant.fr/?e=37">poisson sampling code</a>.

@@ -8,6 +8,7 @@ namespace WKYLIB
     {
         void computeNormal(const matrixr_t &vertices, const matrixs_t &triangles, matrixr_t &normals)
         {
+            normals.resize(3, vertices.size(2));
             matrixr_t vnSum = zeros(3, vertices.size(2));
             for(int i = 0; i < triangles.size(2); i++){
                 const matrixr_t& a = vertices(colon(),triangles(0,i));
@@ -32,6 +33,7 @@ namespace WKYLIB
             {
                 throw std::invalid_argument("You can only use 2d matrices for computeNormal2D");
             }
+            normals.resize(2, vertices.size(2));
             matrixr_t vnSum = zeros(2, vertices.size(2));
             for(int i = 0; i < lines.size(2); i++){
                 const matrixr_t& a = vertices(colon(), lines(0,i));

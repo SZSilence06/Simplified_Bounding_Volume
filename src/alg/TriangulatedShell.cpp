@@ -75,12 +75,29 @@ namespace SBV
             if(innerVerts.size() == 2 && outerVerts.size() == 2)
             {
                 matrixs_t tri1(3, 1), tri2(3, 1);
-                tri1[0] = getZeroPointIndex(innerVerts[0], outerVerts[0]);
-                tri1[1] = getZeroPointIndex(innerVerts[0], outerVerts[1]);
-                tri1[2] = getZeroPointIndex(innerVerts[1], outerVerts[1]);
-                tri2[0] = getZeroPointIndex(innerVerts[0], outerVerts[0]);
-                tri2[1] = getZeroPointIndex(innerVerts[1], outerVerts[1]);
-                tri2[2] = getZeroPointIndex(innerVerts[1], outerVerts[0]);
+                const vec3_t a = (vertices(colon(), innerVerts[0]) + vertices(colon(), outerVerts[0])) / 2;
+                const vec3_t b = (vertices(colon(), innerVerts[0]) + vertices(colon(), outerVerts[1])) / 2;
+                const vec3_t c = (vertices(colon(), innerVerts[1]) + vertices(colon(), outerVerts[1])) / 2;
+                const vec3_t d = (vertices(colon(), innerVerts[1]) + vertices(colon(), outerVerts[0])) / 2;
+
+                if(norm(a - c) < norm(b - d))
+                {
+                    tri1[0] = getZeroPointIndex(innerVerts[0], outerVerts[0]);
+                    tri1[1] = getZeroPointIndex(innerVerts[0], outerVerts[1]);
+                    tri1[2] = getZeroPointIndex(innerVerts[1], outerVerts[1]);
+                    tri2[0] = getZeroPointIndex(innerVerts[0], outerVerts[0]);
+                    tri2[1] = getZeroPointIndex(innerVerts[1], outerVerts[1]);
+                    tri2[2] = getZeroPointIndex(innerVerts[1], outerVerts[0]);
+                }
+                else
+                {
+                    tri1[0] = getZeroPointIndex(innerVerts[0], outerVerts[0]);
+                    tri1[1] = getZeroPointIndex(innerVerts[0], outerVerts[1]);
+                    tri1[2] = getZeroPointIndex(innerVerts[1], outerVerts[0]);
+                    tri2[0] = getZeroPointIndex(innerVerts[0], outerVerts[1]);
+                    tri2[1] = getZeroPointIndex(innerVerts[1], outerVerts[0]);
+                    tri2[2] = getZeroPointIndex(innerVerts[1], outerVerts[1]);
+                }
                 triangleVector.push_back(tri1);
                 triangleVector.push_back(tri2);
             }

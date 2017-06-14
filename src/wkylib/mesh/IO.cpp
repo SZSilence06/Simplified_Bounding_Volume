@@ -25,7 +25,7 @@ namespace WKYLIB
                 out << points(0, i) << " " << points(1, i) << " " << points(2, i) << std::endl;
             }
 
-            out << "CELLS " << points.size(2) << " " << points.size() * 2 << std::endl;
+            out << "CELLS " << points.size(2) << " " << points.size(2) * 2 << std::endl;
             for(int i = 0; i < points.size(2); i++)
             {
                 out << "1 " << i << std::endl;

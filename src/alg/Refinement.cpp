@@ -144,6 +144,9 @@ namespace SBV
         for(int i = 0; i < sampleInner.size(); i++)
         {
             const size_t index = sampleInner[i];
+            if(mInnerExists[index])
+                continue;
+
             vec4_t bary;
             baryComputer(mShell.mInnerShell(colon(), index), bary);
 
@@ -163,6 +166,9 @@ namespace SBV
         for(int i = 0; i < sampleOuter.size(); i++)
         {
             const size_t index = sampleOuter[i];
+            if(mOuterExists[index])
+                continue;
+
             vec4_t bary;
             baryComputer(mShell.mOuterShell(colon(), index), bary);
 
@@ -212,7 +218,7 @@ namespace SBV
         case PointType::POINT_OUTER:
             return mOuterError[point.index];
         case PointType::POINT_UNKNOWN:
-            return std::numeric_limits<double>::max();
+            return std::numeric_limits<double>::lowest();
         default:
             //this should not be run, otherwise there exists logic error
             throw std::logic_error("In getError(), pointType should be POINT_INNER or POINT_OUTER");
@@ -241,25 +247,28 @@ namespace SBV
         while(!isFinished() && iterCount <= (mShell.mInnerShell.size(2) + mShell.mOuterShell.size(2)))
         {
             iterCount++;
-            std::cout << "Iteration " << iterCount << " ..." << std::endl;
+            if(iterCount %100 == 0)
+                std::cout << "Iteration " << iterCount << " ..." << std::endl;
 
-            switch (mNextInsertPoint.pointType) {
-            case POINT_INNER:
+            if(mNextInsertPoint.pointType == POINT_INNER)
+            {
                 if(mInnerExists[mNextInsertPoint.index])
                 {
                     std::cerr << "warning : Inserting repeated inner shell point. index " << mNextInsertPoint.index << std::endl;
+                    break;
                 }
                 mInnerExists[mNextInsertPoint.index] = true;
-                break;
-            case POINT_OUTER:
+                mInnerError[mNextInsertPoint.index] = 0;
+            }
+            else if(mNextInsertPoint.pointType == POINT_OUTER)
+            {
                 if(mOuterExists[mNextInsertPoint.index])
                 {
                     std::cerr << "warning : Inserting repeated outer shell point. index " << mNextInsertPoint.index << std::endl;
+                    break;
                 }
                 mOuterExists[mNextInsertPoint.index] = true;
-                break;
-            default:
-                break;
+                mOuterError[mNextInsertPoint.index] = 0;
             }
 
             matrixr_t point;
@@ -324,7 +333,8 @@ namespace SBV
         }
 
         //check for condition 2 and 3.
-        for(auto iter = mDelaunay.finite_cells_begin(); iter != mDelaunay.finite_cells_end(); ++iter)
+        int i = 0;
+        for(auto iter = mDelaunay.finite_cells_begin(); iter != mDelaunay.finite_cells_end(); ++iter, ++i)
         {
             const Cell& cell = *iter;
             const VertexHandle& vh0 = cell.vertex(0);
