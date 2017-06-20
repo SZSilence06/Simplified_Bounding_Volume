@@ -8,12 +8,20 @@ namespace WKYLIB
     namespace Mesh
     {
         /**
-         * @brief write points to a vtk format file.
+         * @brief write points to a file. supported formats: vtk, pcd, obj.
          * @param file : output file path.
          * @param points : points to write. 
          * @return true if succeeded, and false otherwise.
          */
         WKY_API bool writePoints(const std::string& file, const matrixr_t& points);
+
+        /**
+         * @brief write points and normals to a file. supported formats: obj.
+         * @param file : output file path.
+         * @param points : points to write.
+         * @return true if succeeded, and false otherwise.
+         */
+        WKY_API bool writePointsAndNormals(const std::string& file, const matrixr_t& points, const matrixr_t& normals);
 
         /**
          * @brief write 2d points to a vtk format file, with y coordinate set to 0, and z coordinate as y coordinate.

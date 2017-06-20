@@ -7,6 +7,12 @@ include_directories(${CGAL_INCLUDE_DIRS})
 find_package(Eigen3 REQUIRED)
 include_directories(${EIGEN3_INCLUDE_DIRS})
 
+find_package(PCL REQUIRED COMPONENTS common io surface features search filters)
+include_directories(${PCL_INCLUDE_DIRS})
+link_directories(${PCL_LIBRARY_DIRS})
+
+add_definitions(${PCL_DEFINITIONS})
+
 find_package(OpenMP)
 if(OPENMP_FOUND)
     set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${OpenMP_C_FLAGS}")
@@ -23,4 +29,5 @@ target_link_libraries(alg
     External
     lapack
     ${CGAL_LIBRARY}
-    ${GMP_LIBRARIES})
+    ${GMP_LIBRARIES}
+    ${PCL_LIBRARIES})

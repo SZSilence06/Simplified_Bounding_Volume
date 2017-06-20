@@ -8,7 +8,7 @@ namespace WKYLIB
 {
     namespace Mesh
     {
-        bool writePoints(const std::string &file, const matrixr_t &points)
+        bool writePoints_vtk(const std::string &file, const matrixr_t &points)
         {
             std::ofstream out;
 
@@ -40,6 +40,106 @@ namespace WKYLIB
             out.close();
 
             return true;
+        }
+
+        bool writePoints_pcd(const std::string &file, const matrixr_t &points)
+        {
+            std::ofstream out;
+            out.open(file);
+            if(out.fail())
+            {
+                return false;
+            }
+
+            out << "VERSION .7" << std::endl;
+            out << "FIELDS x y z" << std::endl;
+            out << "SIZE 4 4 4" << std::endl;
+            out << "TYPE F F F" << std::endl;
+            out << "COUNT 1 1 1" << std::endl;
+            out << "WIDTH " << points.size(2) << std::endl;
+            out << "HEIGHT 1" << std::endl;
+            out << "VIEWPOINT 0 0 0 1 0 0 0" << std::endl;
+            out << "POINTS " << points.size(2) << std::endl;
+            out << "DATA ascii" << std::endl;
+
+            for(int i = 0; i < points.size(2); i++)
+            {
+                out << points(0, i) << " " << points(1, i) << " " << points(2, i) << std::endl;
+            }
+
+            out.close();
+
+            return true;
+        }
+
+        bool writePoints_obj(const std::string &file, const matrixr_t &points)
+        {
+            std::ofstream out;
+            out.open(file);
+            if(out.fail())
+            {
+                return false;
+            }
+
+            for(int i = 0; i < points.size(2); i++)
+            {
+                out << "v " << points(0, i) << " " << points(1, i) << " " << points(2, i) << std::endl;
+            }
+
+            out.close();
+
+            return true;
+        }
+
+        bool writePoints(const std::string &file, const matrixr_t &points)
+        {
+            std::string ext = file.substr(file.find_last_of('.') + 1);
+            if(ext == "vtk")
+            {
+                return writePoints_vtk(file, points);
+            }
+            if(ext == "pcd")
+            {
+                return writePoints_pcd(file, points);
+            }
+            if(ext == "obj")
+            {
+                return writePoints_obj(file, points);
+            }
+            return false;
+        }
+
+        bool writePointsAndNormals_obj(const std::string &file, const matrixr_t &points, const matrixr_t& normals)
+        {
+            std::ofstream out;
+            out.open(file);
+            if(out.fail())
+            {
+                return false;
+            }
+
+            for(int i = 0; i < points.size(2); i++)
+            {
+                out << "v " << points(0, i) << " " << points(1, i) << " " << points(2, i) << std::endl;
+            }
+            for(int i = 0; i < normals.size(2); i++)
+            {
+                out << "vn " << normals(0, i) << " " << normals(1, i) << " " << normals(2, i) << std::endl;
+            }
+
+            out.close();
+
+            return true;
+        }
+
+        bool writePointsAndNormals(const std::string &file, const matrixr_t &points, const matrixr_t& normals)
+        {
+            std::string ext = file.substr(file.find_last_of('.') + 1);
+            if(ext == "obj")
+            {
+                return writePointsAndNormals_obj(file, points, normals);
+            }
+            return false;
         }
 
         bool writePoints2D(const std::string &file, const matrixr_t &points)

@@ -1,6 +1,7 @@
 /*
 /src/CMakeLists.txt.user
 /tools/CurveConverter/src/CMakeLists.txt.user
+/tools/build-PoissonReconstruct-qt5-Release
 !/.gitignore
 !/.gitattributes
 !/src

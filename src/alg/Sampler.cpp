@@ -6,7 +6,7 @@ using namespace Utils_sampling;
 
 namespace SBV
 {
-    void Sampler::poisson(const matrixr_t &vertices, const matrixs_t &triangles, double radius, matrixr_t &samples)
+    void Sampler::poisson(const matrixr_t &vertices, const matrixs_t &triangles, double radius, matrixr_t &samples, matrixr_t& sample_normals)
     {
         std::vector<Vec3> verts;
         for(int i = 0; i < vertices.size(2); i++)
@@ -48,6 +48,14 @@ namespace SBV
             samples(0, i) = out_samples[i].x;
             samples(1, i) = out_samples[i].y;
             samples(2, i) = out_samples[i].z;
+        }
+
+        sample_normals.resize(3, out_sample_normals.size());
+        for(int i = 0; i < out_samples.size(); i++)
+        {
+            sample_normals(0, i) = out_sample_normals[i].x;
+            sample_normals(1, i) = out_sample_normals[i].y;
+            sample_normals(2, i) = out_sample_normals[i].z;
         }
     }
 }

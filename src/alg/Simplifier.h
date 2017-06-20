@@ -53,7 +53,7 @@ namespace SBV {
     private:
         void genDefaultParams();
         void generateShells();
-        void sample(const matrixr_t& vertices, const matrixs_t& triangles, matrixr_t& output_samples);
+        void sample(const matrixr_t& vertices, const matrixs_t& triangles, matrixr_t& output_samples, matrixr_t& normals);
         void refine();
         void collapseBoundary();
         void mutualTessellate();

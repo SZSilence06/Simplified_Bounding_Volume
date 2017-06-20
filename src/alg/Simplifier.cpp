@@ -1,4 +1,5 @@
 #include "Simplifier.h"
+#include "ShellGenerator.h"
 #include "Refinement.h"
 #include "EdgeCollapse.h"
 #include "Sampler.h"
@@ -69,26 +70,14 @@ namespace SBV
             shell(colon(), i) = vertex + normals(colon(), i) * mMaxDistance;
         }
 
-        sample(shell, mSourceMesh.triangles, mShell.mOuterShell);
-        sample(mSourceMesh.vertices, mSourceMesh.triangles, mShell.mInnerShell);
-
-        /*mShell.mInnerShell.resize(3, 10000);
-        mShell.mOuterShell.resize(3, 15000);
-        for(int i = 0; i < 10000; i++)
-        {
-            vec3_t p;
-            uniformSpherical(p);
-            mShell.mInnerShell(colon(), i) = p;
-        }
-        for(int i = 0; i < 15000; i++)
-        {
-            vec3_t p;
-            uniformSpherical(p);
-            p *= 1.1;
-            mShell.mOuterShell(colon(), i) = p;
-        }*/
+        matrixr_t innerNormal, outerNormal;
+        sample(shell, mSourceMesh.triangles, mShell.mOuterShell, outerNormal);
+        sample(mSourceMesh.vertices, mSourceMesh.triangles, mShell.mInnerShell, innerNormal);
 
         mShell.buildKdTree();
+
+        //ShellGenerator generator(mSourceMesh.vertices, mSourceMesh.triangles);
+        //generator.generate(mMaxDistance, mSampleRadius, mShell);
 
         if(mNeedGenTempResult)
         {
@@ -98,9 +87,9 @@ namespace SBV
         }
     }
 
-    void Simplifier::sample(const matrixr_t &vertices, const matrixs_t &triangles, matrixr_t &output_samples)
+    void Simplifier::sample(const matrixr_t &vertices, const matrixs_t &triangles, matrixr_t &output_samples, matrixr_t& output_normals)
     {
-        Sampler::poisson(vertices, triangles, mSampleRadius, output_samples);
+        Sampler::poisson(vertices, triangles, mSampleRadius, output_samples, output_normals);
         /*output_samples.clear();
         for(int i = 0; i < triangles.size(2); i++)
         {

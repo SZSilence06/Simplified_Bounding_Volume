@@ -8,7 +8,8 @@ namespace SBV
     class Sampler
     {
     public:
-        static void poisson(const matrixr_t& vertices, const matrixs_t& triangles, double radius, matrixr_t& samples);
+        static void poisson(const matrixr_t& vertices, const matrixs_t& triangles, double radius,
+                            matrixr_t& samples, matrixr_t& sample_normals);
     };
 }
 

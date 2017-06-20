@@ -40,7 +40,7 @@ namespace SBV
         {
             std::vector<PointInfo> points;   //points inside the cell.
             PointInfo maxErrorPoint;
-            PointInfo v0, v1, v2, v3;         //vertices of the face, used for judging whether the face is new
+            bool isNew = true;
         };
 
         using K = CGAL::Exact_predicates_inexact_constructions_kernel;
@@ -63,7 +63,6 @@ namespace SBV
         double getError(const PointInfo& point);
         void getPointMatrix(const PointInfo& point, matrixr_t& pointMatrix);
         bool isFinished();
-        bool isNewCell(const Cell& cell);
         bool checkCondition3(const Cell& cell);
         bool checkClassification(const Cell& cell, const BaryComputer& baryComputer, const matrixr_t& point, bool isOuter);
         double computeHeight(const Cell& cell);

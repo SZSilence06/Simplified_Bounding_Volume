@@ -4,6 +4,10 @@
 #include <wkylib/geometry.h>
 #include <zjucad/matrix/io.h>
 
+int bad_cell = -1;
+bool is_outer = false;
+int bad_sample_index = -1;
+
 namespace SBV
 {
     Refinement::Refinement(const Shell& shell, TriangulatedShell &output,
@@ -107,15 +111,12 @@ namespace SBV
     void Refinement::updatePointInCell(Cell& cell)
     {
         CellInfo& info = cell.info();
-        if(isNewCell(cell) == false)
+        if(info.isNew == false)
         {
             return;
         }
 
-        info.v0 = cell.vertex(0)->info();
-        info.v1 = cell.vertex(1)->info();
-        info.v2 = cell.vertex(2)->info();
-        info.v3 = cell.vertex(3)->info();
+        info.isNew = false;
 
         double xmax, xmin, ymax, ymin, zmax, zmin;
         computeAABB(cell, xmax, xmin, ymax, ymin, zmax, zmin);
@@ -278,6 +279,9 @@ namespace SBV
         }
 
         std::cout << "Finished refinement after " << iterCount << " iterations." << std::endl;
+        std::cout << "bad cell " << bad_cell << std::endl << "bad classification";
+        is_outer ? std::cout << " outer " : std::cout << " inner ";
+        std::cout << bad_sample_index << std::endl;
         organizeOutput();
     }
 
@@ -316,7 +320,13 @@ namespace SBV
     bool Refinement::isFinished()
     {
         //check for condition 1.
-        for(int i = 0; i < mInnerError.size(); i++)
+        if(mNextInsertPoint.pointType == POINT_UNKNOWN)
+            return false;
+
+        if(getError(mNextInsertPoint) > 1 - mAlpha)
+            return false;
+
+        /*for(int i = 0; i < mInnerError.size(); i++)
         {
             if(mInnerError[i] > 1 - mAlpha)
             {
@@ -330,7 +340,7 @@ namespace SBV
             {
                 return false;
             }
-        }
+        }*/
 
         //check for condition 2 and 3.
         int i = 0;
@@ -356,25 +366,12 @@ namespace SBV
 
             if(checkCondition3(cell) == false)
             {
+                bad_cell = i;
                 return false;
             }
         }
 
         return true;
-    }
-
-    bool Refinement::isNewCell(const Cell &cell)
-    {
-        const CellInfo& info = cell.info();
-        const PointInfo& p0 = cell.vertex(0)->info();
-        const PointInfo& p1 = cell.vertex(1)->info();
-        const PointInfo& p2 = cell.vertex(2)->info();
-        const PointInfo& p3 = cell.vertex(3)->info();
-
-        return !((p0 == info.v0 || p0 == info.v1 || p0 == info.v2 || p0 == info.v3)
-                &&(p1 == info.v0 || p1 == info.v1 || p1 == info.v2 || p1 == info.v3)
-                &&(p2 == info.v0 || p2 == info.v1 || p2 == info.v2 || p2 == info.v3)
-                &&(p3 == info.v0 || p3 == info.v1 || p3 == info.v2 || p3 == info.v3));
     }
 
     double Refinement::computeHeight(const Cell &cell)
@@ -465,6 +462,8 @@ namespace SBV
         {
             if(checkClassification(cell, baryComputer, mShell.mInnerShell(colon(), nearVerts[i]), false) == false)
             {
+                bad_sample_index = nearVerts[i];
+                is_outer = false;
                 return false;
             }
         }
@@ -480,6 +479,8 @@ namespace SBV
         {
             if(checkClassification(cell, baryComputer, mShell.mOuterShell(colon(), nearVerts[i]), true) == false)
             {
+                bad_sample_index = nearVerts[i];
+                is_outer = true;
                 return false;
             }
         }
@@ -499,11 +500,11 @@ namespace SBV
         bool result;
         if(isOuter)
         {
-            result = fvalue > mAlpha;
+            result = fvalue > 0;
         }
         else
         {
-            result = fvalue < -mAlpha;
+            result = fvalue < 0;
         }
         return result;
     }
