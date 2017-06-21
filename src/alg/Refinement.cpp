@@ -3,6 +3,7 @@
 #include <limits>
 #include <wkylib/geometry.h>
 #include <zjucad/matrix/io.h>
+#include <CGAL/Kernel/global_functions_3.h>
 
 int bad_cell = -1;
 bool is_outer = false;
@@ -251,30 +252,14 @@ namespace SBV
             if(iterCount %100 == 0)
                 std::cout << "Iteration " << iterCount << " ..." << std::endl;
 
-            if(mNextInsertPoint.pointType == POINT_INNER)
+            if(mBadCell)
             {
-                if(mInnerExists[mNextInsertPoint.index])
-                {
-                    std::cerr << "warning : Inserting repeated inner shell point. index " << mNextInsertPoint.index << std::endl;
-                    break;
-                }
-                mInnerExists[mNextInsertPoint.index] = true;
-                mInnerError[mNextInsertPoint.index] = 0;
-            }
-            else if(mNextInsertPoint.pointType == POINT_OUTER)
-            {
-                if(mOuterExists[mNextInsertPoint.index])
-                {
-                    std::cerr << "warning : Inserting repeated outer shell point. index " << mNextInsertPoint.index << std::endl;
-                    break;
-                }
-                mOuterExists[mNextInsertPoint.index] = true;
-                mOuterError[mNextInsertPoint.index] = 0;
+                if(resolveBadCell())
+                    continue;
             }
 
-            matrixr_t point;
-            getPointMatrix(mNextInsertPoint, point);
-            mDelaunay.insert(Point(point[0], point[1], point[2]))->info() = mNextInsertPoint;
+            VertexHandle vh;
+            insertPoint(mNextInsertPoint, vh);
             updateErrors();
         }
 
@@ -326,27 +311,11 @@ namespace SBV
         if(getError(mNextInsertPoint) > 1 - mAlpha)
             return false;
 
-        /*for(int i = 0; i < mInnerError.size(); i++)
-        {
-            if(mInnerError[i] > 1 - mAlpha)
-            {
-                return false;
-            }
-        }
-
-        for(int i = 0; i < mOuterError.size(); i++)
-        {
-            if(mOuterError[i] > 1 - mAlpha)
-            {
-                return false;
-            }
-        }*/
-
         //check for condition 2 and 3.
         int i = 0;
         for(auto iter = mDelaunay.finite_cells_begin(); iter != mDelaunay.finite_cells_end(); ++iter, ++i)
         {
-            const Cell& cell = *iter;
+            Cell& cell = *iter;
             const VertexHandle& vh0 = cell.vertex(0);
             const VertexHandle& vh1 = cell.vertex(1);
             const VertexHandle& vh2 = cell.vertex(2);
@@ -357,15 +326,16 @@ namespace SBV
                 continue;
             }
 
-            /*
-            //condition 2
-            if(computeHeight(cell) < 2 * mSampleRadius / mAlpha)
-            {
-                return false;
-            }*/
+            if(cell.info().isJudged)
+                continue;
 
-            if(checkCondition3(cell) == false)
+            if(cell.info().notResolvable)
+                continue;
+
+            if(isBadCell(cell))
             {
+                mBadCell = &cell;
+                cell.info().isBad = true;
                 bad_cell = i;
                 return false;
             }
@@ -374,61 +344,76 @@ namespace SBV
         return true;
     }
 
-    double Refinement::computeHeight(const Cell &cell)
+    bool Refinement::isBadCell(Cell &cell)
     {
-        const VertexHandle& vh0 = cell.vertex(0);
-        const VertexHandle& vh1 = cell.vertex(1);
-        const VertexHandle& vh2 = cell.vertex(2);
-        const Point& p0 = vh0->point();
-        const Point& p1 = vh1->point();
-        const Point& p2 = vh2->point();
+        //condition 2
+        //if(computeHeight(cell) < 2 * mSampleRadius / mAlpha)
+        //{
+        //    return true;
+        //}
 
-        matrixr_t a(3, 1), b(3, 1), c(3, 1);
-
-        if(getFValue(vh0) == getFValue(vh1))
+        if(checkCondition3(cell) == false)
         {
-            a[0] = p2[0];
-            a[1] = p2[1];
-            a[2] = 1;
-            b[0] = p0[0];
-            b[1] = p0[1];
-            b[2] = 1;
-            c[0] = p1[0];
-            c[1] = p1[1];
-            c[2] = 1;
+            return true;
         }
-        else if(getFValue(vh0) == getFValue(vh2))
-        {
-            a[0] = p1[0];
-            a[1] = p1[1];
-            a[2] = 1;
-            b[0] = p0[0];
-            b[1] = p0[1];
-            b[2] = 1;
-            c[0] = p2[0];
-            c[1] = p2[1];
-            c[2] = 1;
-        }
-        else if(getFValue(vh1) == getFValue(vh2))
-        {
-            a[0] = p0[0];
-            a[1] = p0[1];
-            a[2] = 1;
-            b[0] = p1[0];
-            b[1] = p1[1];
-            b[2] = 1;
-            c[0] = p2[0];
-            c[1] = p2[1];
-            c[2] = 1;
-        }
-
-        //compute height from a to bc.
-        matrixr_t ba = a - b;
-        matrixr_t bc = c - b;
-        return norm(cross(ba, bc)) / norm(bc);
+        return false;
     }
 
-    bool Refinement::checkCondition3(const Cell &cell)
+    double Refinement::computeHeight(const Cell &cell)
+    {
+        std::vector<Point> innerVerts, outerVerts;
+        for(int i = 0; i < 4; i++)
+        {
+            getFValue(cell.vertex(i)) < 0 ? innerVerts.push_back(cell.vertex(i)->point()) : outerVerts.push_back(cell.vertex(i)->point());
+        }
+
+        vec3_t a, b, c, d;
+        if(innerVerts.size() == 1 || innerVerts.size() == 3)
+        {
+            if(innerVerts.size() == 1)
+            {
+                for(int j = 0; j < 3; j++)
+                    a[j] = innerVerts[0][j];
+                for(int j = 0; j < 3; j++)
+                    b[j] = outerVerts[0][j];
+                for(int j = 0; j < 3; j++)
+                    c[j] = outerVerts[1][j];
+                for(int j = 0; j < 3; j++)
+                    d[j] = outerVerts[2][j];
+            }
+            else
+            {
+                for(int j = 0; j < 3; j++)
+                    a[j] = outerVerts[0][j];
+                for(int j = 0; j < 3; j++)
+                    b[j] = innerVerts[0][j];
+                for(int j = 0; j < 3; j++)
+                    c[j] = innerVerts[1][j];
+                for(int j = 0; j < 3; j++)
+                    d[j] = innerVerts[2][j];
+            }
+            vec3_t bc = c - b;
+            vec3_t bd = d - b;
+            vec3_t h = cross(bc, bd);
+            h /= norm(h);
+            vec3_t ab = b - a;
+            return fabs(dot(ab, h));
+        }
+        for(int j = 0; j < 3; j++)
+            a[j] = innerVerts[0][j];
+        for(int j = 0; j < 3; j++)
+            b[j] = innerVerts[1][j];
+        for(int j = 0; j < 3; j++)
+            c[j] = outerVerts[0][j];
+        for(int j = 0; j < 3; j++)
+            d[j] = outerVerts[1][j];
+        vec3_t n = cross(a - b, c - d);
+        n /= norm(n);
+        vec3_t ac = c - a;
+        return fabs(dot(ac, n));
+    }
+
+    bool Refinement::checkCondition3(Cell &cell)
     {
         matrixr_t tetra(3, 4);
         for(int i = 0; i < 4; i++)
@@ -485,6 +470,7 @@ namespace SBV
             }
         }
 
+        cell.info().isJudged = true;
         return true;
     }
 
@@ -507,5 +493,92 @@ namespace SBV
             result = fvalue < 0;
         }
         return result;
+    }
+
+    bool Refinement::resolveBadCell()
+    {
+        Point circumcenter = CGAL::circumcenter(mBadCell->vertex(0)->point(), mBadCell->vertex(1)->point(),
+                                                mBadCell->vertex(2)->point(), mBadCell->vertex(3)->point());
+        vec3_t center;
+        center[0] = circumcenter[0];
+        center[1] = circumcenter[1];
+        center[2] = circumcenter[2];
+
+        size_t innerNearest = mShell.getInnerTree().getNearestPoint(center);
+        size_t outerNearest = mShell.getOuterTree().getNearestPoint(center);
+        vec3_t innerP = mShell.mInnerShell(colon(), innerNearest);
+        vec3_t outerP = mShell.mOuterShell(colon(), outerNearest);
+
+        PointInfo info;
+        if(norm(innerP - center) < norm(outerP - center))
+        {
+            info.pointType = POINT_INNER;
+            info.index = innerNearest;
+        }
+        else
+        {
+            info.pointType = POINT_OUTER;
+            info.index = outerNearest;
+        }
+
+        VertexHandle vertInserted;
+        if(insertPoint(info, vertInserted) == false)
+        {
+            //the vertex to insert already exists, so our trial failed
+            mBadCell->info().notResolvable = true;
+            mBadCell = nullptr;
+            return false;
+        }
+
+        //test whether the cell has been modified
+        for(auto iter = mDelaunay.finite_cells_begin(); iter != mDelaunay.finite_cells_end(); ++iter)
+        {
+            Cell& cell = *iter;
+            if(iter->info().isBad && iter->info().notResolvable == false)
+            {
+                //the bad cell still exists, so our trial failed, remove the inserted point.
+                iter->info().notResolvable = true;
+                mDelaunay.remove(vertInserted);
+                mBadCell = nullptr;
+                return false;
+            }
+        }
+        updateErrors();
+
+        //bad cell already resolved, so eliminate the record
+        mBadCell = nullptr;
+
+        return true;
+    }
+
+    bool Refinement::insertPoint(const PointInfo &info, VertexHandle& vertexHandle)
+    {
+        switch(info.pointType)
+        {
+        case POINT_INNER:
+            if(mInnerExists[info.index])
+            {
+                //std::cerr << "warning : Inserting repeated inner shell point. index " << info.index << std::endl;
+                return false;
+            }
+            mInnerExists[info.index] = true;
+            mInnerError[info.index] = 0;
+            break;
+        case POINT_OUTER:
+            if(mOuterExists[info.index])
+            {
+                //std::cerr << "warning : Inserting repeated outer shell point. index " << info.index << std::endl;
+                return false;
+            }
+            mOuterExists[info.index] = true;
+            mOuterError[info.index] = 0;
+            break;
+        }
+
+        matrixr_t point;
+        getPointMatrix(info, point);
+        vertexHandle = mDelaunay.insert(Point(point[0], point[1], point[2]));
+        vertexHandle->info() = info;
+        return true;
     }
 }

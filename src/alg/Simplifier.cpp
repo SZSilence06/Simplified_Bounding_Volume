@@ -60,7 +60,7 @@ namespace SBV
 
     void Simplifier::generateShells()
     {
-        matrixr_t normals(3, mSourceMesh.vertices.size(2));
+        /*matrixr_t normals(3, mSourceMesh.vertices.size(2));
         WKYLIB::Mesh::computeNormal(mSourceMesh.vertices, mSourceMesh.triangles, normals);
 
         matrixr_t shell(3, mSourceMesh.vertices.size(2));
@@ -74,10 +74,10 @@ namespace SBV
         sample(shell, mSourceMesh.triangles, mShell.mOuterShell, outerNormal);
         sample(mSourceMesh.vertices, mSourceMesh.triangles, mShell.mInnerShell, innerNormal);
 
-        mShell.buildKdTree();
+        mShell.buildKdTree();*/
 
-        //ShellGenerator generator(mSourceMesh.vertices, mSourceMesh.triangles);
-        //generator.generate(mMaxDistance, mSampleRadius, mShell);
+        ShellGenerator generator(mSourceMesh.vertices, mSourceMesh.triangles);
+        generator.generate(mMaxDistance, mSampleRadius, mShell);
 
         if(mNeedGenTempResult)
         {

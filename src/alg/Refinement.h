@@ -41,6 +41,9 @@ namespace SBV
             std::vector<PointInfo> points;   //points inside the cell.
             PointInfo maxErrorPoint;
             bool isNew = true;
+            bool isJudged = false;
+            bool isBad = false;
+            bool notResolvable = false;
         };
 
         using K = CGAL::Exact_predicates_inexact_constructions_kernel;
@@ -63,10 +66,13 @@ namespace SBV
         double getError(const PointInfo& point);
         void getPointMatrix(const PointInfo& point, matrixr_t& pointMatrix);
         bool isFinished();
-        bool checkCondition3(const Cell& cell);
+        bool isBadCell(Cell& cell);
+        bool checkCondition3(Cell& cell);
         bool checkClassification(const Cell& cell, const BaryComputer& baryComputer, const matrixr_t& point, bool isOuter);
+        bool resolveBadCell();
         double computeHeight(const Cell& cell);
         void computeAABB(const Cell& cell, double& xmax, double& xmin, double& ymax, double& ymin, double& zmax, double& zmin);
+        bool insertPoint(const PointInfo& info, VertexHandle& vertexHandle);
 
     private:
         const Shell& mShell;
@@ -80,6 +86,8 @@ namespace SBV
         std::vector<bool> mOuterExists;
 
         PointInfo mNextInsertPoint;         //next point to insert(with maximum error)
+
+        Cell* mBadCell = nullptr;     //the bad cell to be resolved next
 
         Delaunay mDelaunay;
     };
