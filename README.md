@@ -10,5 +10,6 @@ This program uses these open-source libraries:
 * libkdtree++
 * zjucad sdk
 * vcglib
+* PCL
 
 Thanks to Rodolphe Vaillant for the <a href="http://rodolphe-vaillant.fr/?e=37">poisson-disk sampling code</a>.
