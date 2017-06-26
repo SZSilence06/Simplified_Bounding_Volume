@@ -1,4 +1,4 @@
-/*#ifndef WKY_EDGE_COLLAPSE_H
+#ifndef WKY_EDGE_COLLAPSE_H
 #define WKY_EDGE_COLLAPSE_H
 
 #include <queue>
@@ -48,7 +48,9 @@ namespace SBV
         void computeErrorMatrix(size_t vert);
         void addNeighbour(size_t firstVert, size_t secondVert);
         void tryAddCollapseableNeighbour(size_t firstVert, size_t secondVert);
+        void tryAddCollapseableNeighbourFace(size_t firstVert, size_t secondVert, size_t thirdVert);
         double computeError(size_t vert, const matrixr_t& point);
+        bool isSameShellFace(size_t firstVert, size_t secondVert, size_t thirdVert);
         bool isCollapseable(size_t firstVert, size_t secondVert);
         bool isValidCollapse(size_t firstVert, size_t secondVert, const matrixr_t &collapseTo);
         void collapseEdge(size_t firstVert, size_t secondVert, const matrixr_t &collapseTo);
@@ -58,9 +60,9 @@ namespace SBV
         void organizeOutput();
         size_t getCollapsedVert(size_t vert);
         bool testLinkCondition(size_t firstVert, size_t secondVert);
-        void buildOneRingArea(size_t firstVert, size_t secondVert, matrixs_t& lines,
+        void buildOneRingArea(size_t firstVert, size_t secondVert, matrixs_t& faces,
                               std::set<size_t>& innerSample, std::set<size_t>& outerSample);
-        void findBoundaryEdge(size_t firstVert, size_t secondVert, std::vector<std::pair<size_t, size_t>>& boundaryEdges);
+        void findBoundaryFace(size_t firstVert, size_t secondVert, std::vector<std::tuple<size_t, size_t, size_t> >& boundaryFaces);
         void findShellSamples(size_t vert, std::set<size_t>& innerSample, std::set<size_t>& outerSample);
         bool findCollapsePos(size_t vert, size_t vertCollapseTo, matrixr_t& position, double& out_error);
 
@@ -71,10 +73,11 @@ namespace SBV
         bool mIsHalfEdge = true;
         double mSampleRadius;
 
-        std::vector<Eigen::Matrix3d> mQ;
+        std::vector<matrixr_t> mQ;
         std::vector<std::set<size_t> > mNeighbours;   //store the neighbour vertices for each vertex
         std::vector<std::set<size_t> > mCollapseableNeighbours;   //store the collapseable neighbour vertices for each vertex
-        std::vector<std::set<size_t> > mNeighbourFaces;
+        std::vector<std::set<std::pair<size_t, size_t> > > mSameShellNeighbourFaces;  //store the neighbour faces which are on same shell with the vertex.
+        std::vector<std::set<size_t> > mNeighbourCells;
 
         //for half edge collapse
         std::vector<size_t> mCollapseTo;    //record what vertex the vertices has collapsed to.
@@ -85,4 +88,4 @@ namespace SBV
     };
 }
 
-#endif*/
+#endif

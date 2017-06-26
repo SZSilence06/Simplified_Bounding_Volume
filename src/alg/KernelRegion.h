@@ -12,23 +12,19 @@ namespace SBV
     class KernelRegion
     {
     public:
-        KernelRegion(const matrixr_t& points, const matrixs_t& lines, const Shell& shell,
-                     const std::set<size_t>& innerSample, const std::set<size_t>& outerSample,
+        KernelRegion(const matrixr_t& points, const matrixs_t& faces, const matrixr_t& onePointInRegion,
+                     const Shell& shell, const std::set<size_t>& innerSample, const std::set<size_t>& outerSample,
                      const TriangulatedShell& triangulation, PointType collapsedPointType);
 
-        bool contains(const vec2_t& point) const;
-        bool isInvalidRegion(const vec2_t& point) const;
+        bool contains(const vec3_t& point) const;
+        bool isInvalidRegion(const vec3_t& point) const;
 
     private:                      
-        void buildAdjacency();
-        void buildPolygonSequence();
-        bool isClockwise();
-        void construct();
-        void findShellSamples();
+        void construct(const matrixr_t& onePointInRegion);
 
     private:
         const matrixr_t& mPoints;
-        const matrixs_t& mLines;
+        const matrixs_t& mFaces;
         const Shell& mShell;
         const std::set<size_t>& mInnerSamples;
         const std::set<size_t>& mOuterSamples;
