@@ -349,12 +349,12 @@ namespace SBV
         }
 
         //organize output
-        matrixr_t newVerts(2, vertices.size(2) + mZeroSet.vertices.size(2));
+        matrixr_t newVerts(3, vertices.size(2) + mZeroSet.vertices.size(2));
         newVerts(colon(), colon(0, vertices.size(2) - 1)) = vertices;
         newVerts(colon(), colon(vertices.size(2), newVerts.size(2) - 1)) = mZeroSet.vertices;
         vertices = newVerts;
 
-        cells.resize(3, newCells.size());
+        cells.resize(4, newCells.size());
         for(int i = 0; i < newCells.size(); i++)
         {
             cells(colon(), i) = newCells[i];
