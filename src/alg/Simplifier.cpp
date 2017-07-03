@@ -46,10 +46,10 @@ namespace SBV
         std::cout << "Start Boundary collapse..." << std::endl;
         collapseBoundary();
 
-        /*std::cout << "Start mutual tessellation..." << std::endl;
+        std::cout << "Start mutual tessellation..." << std::endl;
         mutualTessellate();
 
-        std::cout << "Start zero set collapse..." << std::endl;
+        /*std::cout << "Start zero set collapse..." << std::endl;
         collapseZeroSet();
 
         mTimerSimplify.end();
@@ -133,6 +133,7 @@ namespace SBV
             WKYLIB::Mesh::writeTetra(mOutputDirectory + "/refined_shell.vtk", mTriangulation.vertices, mTriangulation.cells);
             jtf::mesh::save_obj((mOutputDirectory + "/refined_zero_set.obj").c_str(), mTriangulation.getZeroSet().triangles,
                                        mTriangulation.getZeroSet().vertices);
+            mTriangulation.outputBoundaryFaces(mOutputDirectory + "/refined");
         }
     }
 
@@ -149,6 +150,7 @@ namespace SBV
             WKYLIB::Mesh::writeTetra(mOutputDirectory + "/boundary_collapsed_shell(half_edge).vtk", mTriangulation.vertices, mTriangulation.cells);
             jtf::mesh::save_obj((mOutputDirectory + "/boundary_collapsed_zero_set(half_edge).obj").c_str(), mTriangulation.getZeroSet().triangles,
                                        mTriangulation.getZeroSet().vertices);
+            mTriangulation.outputBoundaryFaces(mOutputDirectory + "/boundary_collapsed(half_edge)");
         }
 
         mTimerBoundaryGeneral.start();
@@ -162,10 +164,11 @@ namespace SBV
             WKYLIB::Mesh::writeTetra(mOutputDirectory + "/boundary_collapsed_shell(general).vtk", mTriangulation.vertices, mTriangulation.cells);
             jtf::mesh::save_obj((mOutputDirectory + "/boundary_collapsed_zero_set(general).obj").c_str(), mTriangulation.getZeroSet().triangles,
                                        mTriangulation.getZeroSet().vertices);
+            mTriangulation.outputBoundaryFaces(mOutputDirectory + "/boundary_collapsed(general)");
         }
     }
 
-    /*void Simplifier::mutualTessellate()
+    void Simplifier::mutualTessellate()
     {
         mTimerMutualTessellation.start();
         mTriangulation.mutualTessellate();
@@ -173,11 +176,11 @@ namespace SBV
 
         if(mNeedGenTempResult)
         {
-            WKYLIB::Mesh::writeMesh2D(mOutputDirectory + "/mutual_tesellation.obj", mTriangulation.vertices, mTriangulation.triangles);
+            WKYLIB::Mesh::writeTetra(mOutputDirectory + "/mutual_tessellation.vtk", mTriangulation.vertices, mTriangulation.cells);
         }
     }
 
-    void Simplifier::collapseZeroSet()
+    /*void Simplifier::collapseZeroSet()
     {
         mTimerZeroSetHalfEdge.start();
         EdgeCollapse collapserHalfEdge(mTriangulation, mShell, EdgeCollapse::ZERO_SET, true, mSampleRadius);

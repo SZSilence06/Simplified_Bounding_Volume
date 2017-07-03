@@ -510,7 +510,6 @@ namespace SBV
 
     bool EdgeCollapse::testLinkCondition(size_t firstVert, size_t secondVert)
     {
-        return true;
         //we mark A as firstVert, B as secondVert in this function
         const std::set<size_t>& neighbourA = mNeighbourCells[firstVert];
         const std::set<size_t>& neighbourB = mNeighbourCells[secondVert];

@@ -40,6 +40,7 @@ namespace SBV
 
         void buildZeroSet();
         void mutualTessellate();
+        void outputBoundaryFaces(const std::string& path);
 
     private:
         struct ZeroFace{

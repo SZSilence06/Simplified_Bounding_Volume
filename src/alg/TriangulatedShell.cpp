@@ -1,4 +1,5 @@
 #include "TriangulatedShell.h"
+#include <jtflib/mesh/io.h>
 
 using namespace zjucad::matrix;
 
@@ -53,6 +54,7 @@ namespace SBV
 
         //build zero face connection
         std::vector<matrixs_t> triangleVector;
+        int test = 0;
         for(int i = 0; i < cells.size(2); i++)
         {
             size_t v0 = cells(0, i);
@@ -100,6 +102,11 @@ namespace SBV
                 }
                 triangleVector.push_back(tri1);
                 triangleVector.push_back(tri2);
+                if(test == 529 || test == 530)
+                {
+                    std::cout << "cell id " << i << std::endl;
+                }
+                test += 2;
             }
             else
             {
@@ -117,6 +124,11 @@ namespace SBV
                     tri[2] = getZeroPointIndex(innerVerts[0], outerVerts[2]);
                 }
                 triangleVector.push_back(tri);
+                if(test == 529)
+                {
+                    std::cout << "cell id " << i << std::endl;
+                }
+                test++;
             }
         }
 
@@ -223,76 +235,117 @@ namespace SBV
 
     void TriangulatedShell::mutualTessellate()
     {
-        /*hasZeroSet = true;
-        std::vector<matrixs_t> newTriangles;
-        for(int i = 0; i < triangles.size(2); i++)
+        hasZeroSet = true;
+        std::vector<matrixs_t> newCells;
+        for(int i = 0; i < cells.size(2); i++)
         {
-            const matrixs_t& face = triangles(colon(), i);
-            if(getSign(face[0]) == getSign(face[1]) && getSign(face[0]) == getSign(face[2]))
+            const matrixs_t& cell = cells(colon(), i);
+            if(getSign(cell[0]) == getSign(cell[1]) && getSign(cell[0]) == getSign(cell[2]) && getSign(cell[0]) == getSign(cell[3]))
             {
                 //no zero set, so this face won't be splited
-                newTriangles.push_back(face);
+                newCells.push_back(cell);
+                continue;
             }
-        }
 
-        for(int i = 0; i < mZeroSet.lineFaces.size(); i++)
-        {
-            const size_t& face = mZeroSet.lineFaces[i];
-            const size_t& a = triangles(0, face);
-            const size_t& b = triangles(1, face);
-            const size_t& c = triangles(2, face);
-            const size_t& lineVert11 = mZeroSet.vertPairs[mZeroSet.lines(0, i)].first;
-            const size_t& lineVert12 = mZeroSet.vertPairs[mZeroSet.lines(0, i)].second;
-            const size_t& lineVert21 = mZeroSet.vertPairs[mZeroSet.lines(1, i)].first;
-            const size_t& lineVert22 = mZeroSet.vertPairs[mZeroSet.lines(1, i)].second;
-
-            size_t commonVert;
-            if(getSign(a) == getSign(b))
+            std::vector<size_t> innerVerts, outerVerts;
+            for(int j = 0; j < 4; j++)
             {
-                commonVert = c;
+                getSign(cells(j, i)) < 0 ? innerVerts.push_back(cells(j, i)) : outerVerts.push_back(cells(j, i));
             }
-            else if(getSign(a) == getSign(c))
+            if(innerVerts.size() == 2)
             {
-                commonVert = b;
+                size_t a = innerVerts[0], b = innerVerts[1];
+                size_t c = outerVerts[0], d = outerVerts[1];
+                size_t e = getZeroPointIndex(a, c) + vertices.size(2);
+                size_t f = getZeroPointIndex(a, d) + vertices.size(2);
+                size_t g = getZeroPointIndex(b, c) + vertices.size(2);
+                size_t h = getZeroPointIndex(b, d) + vertices.size(2);
+
+                matrixs_t cell1(4, 1), cell2(4, 1), cell3(4, 1), cell4(4, 1), cell5(4, 1), cell6(4, 1);
+                cell1[0] = a;
+                cell1[1] = b;
+                cell1[2] = e;
+                cell1[3] = f;
+
+                cell2[0] = b;
+                cell2[1] = e;
+                cell2[2] = f;
+                cell2[3] = h;
+
+                cell3[0] = d;
+                cell3[1] = e;
+                cell3[2] = f;
+                cell3[3] = h;
+
+                cell4[0] = c;
+                cell4[1] = d;
+                cell4[2] = e;
+                cell4[3] = g;
+
+                cell5[0] = b;
+                cell5[1] = e;
+                cell5[2] = g;
+                cell5[3] = h;
+
+                cell6[0] = d;
+                cell6[1] = e;
+                cell6[2] = g;
+                cell6[3] = h;
+
+                newCells.push_back(cell1);
+                newCells.push_back(cell2);
+                newCells.push_back(cell3);
+                newCells.push_back(cell4);
+                newCells.push_back(cell5);
+                newCells.push_back(cell6);
             }
             else
             {
-                commonVert = a;
+                size_t a, b, c, d;
+                if(innerVerts.size() == 1)
+                {
+                    a = innerVerts[0];
+                    b = outerVerts[0];
+                    c = outerVerts[1];
+                    d = outerVerts[2];
+                }
+                else
+                {
+                    a = outerVerts[0];
+                    b = innerVerts[0];
+                    c = innerVerts[1];
+                    d = innerVerts[2];
+                }
+                size_t e = getZeroPointIndex(a, b) + vertices.size(2);
+                size_t f = getZeroPointIndex(a, c) + vertices.size(2);
+                size_t g = getZeroPointIndex(a, d) + vertices.size(2);
+
+                matrixs_t cell1(4, 1), cell2(4, 1), cell3(4, 1), cell4(4, 1);
+                cell1[0] = a;
+                cell1[1] = e;
+                cell1[2] = f;
+                cell1[3] = g;
+
+                cell2[0] = d;
+                cell2[1] = e;
+                cell2[2] = f;
+                cell2[3] = g;
+
+                cell3[0] = b;
+                cell3[1] = c;
+                cell3[2] = d;
+                cell3[3] = e;
+
+                cell4[0] = c;
+                cell4[1] = d;
+                cell4[2] = e;
+                cell4[3] = f;
+
+                newCells.push_back(cell1);
+                newCells.push_back(cell2);
+                newCells.push_back(cell3);
+                newCells.push_back(cell4);
             }
-
-            //insert one new triangle
-            matrixs_t newFace1(3, 1);
-            newFace1[0] = vertices.size(2) + mZeroSet.lines(0, i);
-            newFace1[1] = vertices.size(2) + mZeroSet.lines(1, i);
-            newFace1[2] = commonVert;
-            newTriangles.push_back(newFace1);
-
-            std::vector<size_t> faceVerts;
-            faceVerts.push_back(a);
-            faceVerts.push_back(b);
-            faceVerts.push_back(c);
-
-            faceVerts.erase(std::remove(faceVerts.begin(), faceVerts.end(), commonVert), faceVerts.end());
-
-            //insert another two new triangle
-            matrixs_t newFace2(3, 1);
-            matrixs_t newFace3(3, 1);
-            newFace2[0] = vertices.size(2) + mZeroSet.lines(0, i);
-            newFace2[1] = vertices.size(2) + mZeroSet.lines(1, i);
-            newFace2[2] = faceVerts[0];
-            newFace3[0] = faceVerts[0];
-            newFace3[1] = faceVerts[1];
-            if((lineVert11 == commonVert && lineVert12 == faceVerts[0]) ||
-                    (lineVert12 == commonVert && lineVert11 == faceVerts[0]))
-            {
-                newFace3[2] = vertices.size(2) + mZeroSet.lines(1, i);
-            }
-            else
-            {
-                newFace3[2] = vertices.size(2) + mZeroSet.lines(0, i);
-            }
-            newTriangles.push_back(newFace2);
-            newTriangles.push_back(newFace3);
         }
 
         //organize output
@@ -301,16 +354,62 @@ namespace SBV
         newVerts(colon(), colon(vertices.size(2), newVerts.size(2) - 1)) = mZeroSet.vertices;
         vertices = newVerts;
 
-        triangles.resize(3, newTriangles.size());
-        for(int i = 0; i < newTriangles.size(); i++)
+        cells.resize(3, newCells.size());
+        for(int i = 0; i < newCells.size(); i++)
         {
-            triangles(colon(), i) = newTriangles[i];
+            cells(colon(), i) = newCells[i];
         }
 
         //update vertType
         for(int i = 0; i < mZeroSet.vertices.size(2); i++)
         {
             vertType.push_back(POINT_ZERO);
-        }*/
+        }
+    }
+
+    void TriangulatedShell::outputBoundaryFaces(const std::string &path)
+    {
+        std::vector<matrixs_t> innerBoundary;
+        std::vector<matrixs_t> outerBoundary;
+
+        for(int i = 0; i < cells.size(2); i++)
+        {
+            std::vector<size_t> innerVerts, outerVerts;
+            for(int j = 0; j < 4; j++)
+            {
+                getSign(cells(j, i)) < 0 ? innerVerts.push_back(cells(j, i)) : outerVerts.push_back(cells(j, i));
+            }
+
+            if(innerVerts.size() == 3)
+            {
+                matrixs_t face(3, 1);
+                face[0] = innerVerts[0];
+                face[1] = innerVerts[1];
+                face[2] = innerVerts[2];
+                innerBoundary.push_back(face);
+            }
+            else if(outerVerts.size() == 3)
+            {
+                matrixs_t face(3, 1);
+                face[0] = outerVerts[0];
+                face[1] = outerVerts[1];
+                face[2] = outerVerts[2];
+                outerBoundary.push_back(face);
+            }
+        }
+
+        matrixs_t inner(3, innerBoundary.size());
+        matrixs_t outer(3, outerBoundary.size());
+        for(int i = 0; i < innerBoundary.size(); i++)
+        {
+            inner(colon(), i) = innerBoundary[i];
+        }
+        for(int i = 0; i < outerBoundary.size(); i++)
+        {
+            outer(colon(), i) = outerBoundary[i];
+        }
+
+        jtf::mesh::save_obj((path + "_innerBoundary.obj").c_str(), inner, this->vertices);
+        jtf::mesh::save_obj((path + "_outerBoundary.obj").c_str(), outer, this->vertices);
     }
 }
