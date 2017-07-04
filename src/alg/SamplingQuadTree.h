@@ -10,13 +10,14 @@ namespace SBV
     class SamplingQuadTree
     {
     public:
-        SamplingQuadTree(const KernelRegion& kernel, double xmax, double xmin, double ymax, double ymin, double sampleRadius);
+        SamplingQuadTree(const KernelRegion& kernel, double xmax, double xmin, double ymax, double ymin,
+                         double zmax, double zmin, double sampleRadius);
 
         inline const std::vector<matrixr_t>& getSamples() const { return mSamples; }
 
     private:
         void build();
-        void sample(double xmin, double xmax, double ymin, double ymax);
+        void sample(double xmin, double xmax, double ymin, double ymax, double zmin, double zmax);
         bool isOutsideKernelRegion(double xmin, double xmax, double ymin, double ymax);
 
     private:

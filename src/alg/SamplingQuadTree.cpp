@@ -6,33 +6,38 @@
 namespace SBV
 {
     SamplingQuadTree::SamplingQuadTree(const KernelRegion &kernel, double xmax, double xmin, double ymax, double ymin,
-                                       double sampleRadius)
+                                       double zmax, double zmin, double sampleRadius)
         : mKernel(kernel),
           mSampleRadius(sampleRadius)
     {
-        sample(xmin, xmax, ymin, ymax);
+        sample(xmin, xmax, ymin, ymax, zmin, zmax);
     }
 
-    void SamplingQuadTree::sample(double xmin, double xmax, double ymin, double ymax)
+    void SamplingQuadTree::sample(double xmin, double xmax, double ymin, double ymax, double zmin, double zmax)
     {
         int xCount = (xmax - xmin) / mSampleRadius;
         int yCount = (ymax - ymin) / mSampleRadius;
+        int zCount = (zmax - zmin) / mSampleRadius;
 
 //#pragma omp parallel for schedule(dynamic, 1)
-        for(int y = 0; y < yCount; y++)
+        for(int z = 0; z < zCount; z++)
         {
-            for(int x = 0; x < xCount; x++)
+            for(int y = 0; y < yCount; y++)
             {
-                vec2_t point;
-                point[0] = xmin + mSampleRadius * x;
-                point[1] = ymin + mSampleRadius * y;
-
-                if(mKernel.contains(point))
+                for(int x = 0; x < xCount; x++)
                 {
-                    mSamples.push_back(point);
+                    vec3_t point;
+                    point[0] = xmin + mSampleRadius * x;
+                    point[1] = ymin + mSampleRadius * y;
+                    point[2] = zmin + mSampleRadius * z;
+                    if(mKernel.contains(point))
+                    {
+                        mSamples.push_back(point);
+                    }
                 }
             }
         }
+
         /*if(isOutsideKernelRegion(xmin, xmax, ymin, ymax))
         {
             //return;

@@ -836,29 +836,30 @@ namespace SBV
                 throw std::logic_error("this should not be run");
             }
         }
-        /*else if(mType == ZERO_SET)
+        else if(mType == ZERO_SET)
         {
             //find AABB of the one ring area
             double xmin = std::numeric_limits<double>::max();
-            double xmax = std::numeric_limits<double>::min();
+            double xmax = std::numeric_limits<double>::lowest();
             double ymin = std::numeric_limits<double>::max();
-            double ymax = std::numeric_limits<double>::min();
+            double ymax = std::numeric_limits<double>::lowest();
+            double zmin = std::numeric_limits<double>::max();
+            double zmax = std::numeric_limits<double>::lowest();
 
-            for(int i = 0; i < lines.size(2); i++)
+            for(int i = 0; i < faces.size(2); i++)
             {
-                const matrixr_t& a = mTriangulation.vertices(colon(), lines(0, i));
-                const matrixr_t& b = mTriangulation.vertices(colon(), lines(1, i));
-                xmax = a[0] > xmax ? a[0] : xmax;
-                xmin = a[0] < xmin ? a[0] : xmin;
-                ymax = a[1] > ymax ? a[1] : ymax;
-                ymin = a[1] < ymin ? a[1] : ymin;
-                xmax = b[0] > xmax ? b[0] : xmax;
-                xmin = b[0] < xmin ? b[0] : xmin;
-                ymax = b[1] > ymax ? b[1] : ymax;
-                ymin = b[1] < ymin ? b[1] : ymin;
+                const matrixr_t& a = mTriangulation.vertices(colon(), faces(0, i));
+                const matrixr_t& b = mTriangulation.vertices(colon(), faces(1, i));
+                const matrixr_t& c = mTriangulation.vertices(colon(), faces(2, i));
+                xmax = std::max(std::max(a[0], b[0]), c[0]);
+                xmin = std::min(std::min(a[0], b[0]), c[0]);
+                ymax = std::max(std::max(a[1], b[1]), c[1]);
+                ymin = std::min(std::min(a[1], b[1]), c[1]);
+                zmax = std::max(std::max(a[2], b[2]), c[2]);
+                zmin = std::min(std::min(a[2], b[2]), c[2]);
             }
 
-            SamplingQuadTree tree(kernel, xmax, xmin, ymax, ymin, mSampleRadius);
+            SamplingQuadTree tree(kernel, xmax, xmin, ymax, ymin, zmax, zmin, mSampleRadius);
             auto& samples = tree.getSamples();
             for(int i = 0; i < samples.size(); i++)
             {
@@ -871,7 +872,7 @@ namespace SBV
                     position = point;
                 }
             }
-        }*/
+        }
         return found;
     }
 }

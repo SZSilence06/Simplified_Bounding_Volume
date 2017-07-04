@@ -52,7 +52,7 @@ namespace SBV
 
         size_t getZeroPointIndex(size_t firstVertex, size_t secondVertex);
         void buildZeroSetExisting();
-        void tryAddZeroFace(size_t currentTetra, size_t zeroVert1, size_t zeroVert2, std::set<ZeroFace>& zeroFaces);
+        void tryAddZeroFace(size_t currentTetra, size_t zeroVert1, size_t zeroVert2, size_t zeroVert3, std::set<ZeroFace>& zeroFaces);
 
     private:
         ZeroSet mZeroSet;

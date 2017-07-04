@@ -149,7 +149,7 @@ namespace SBV
 
     void TriangulatedShell::buildZeroSetExisting()
     {
-        /*mZeroSet.faceTetras.clear();
+        mZeroSet.faceTetras.clear();
 
         std::vector<matrixr_t> zeroVerts;
         for(int i = 0; i < vertices.size(2); i++)
@@ -161,7 +161,7 @@ namespace SBV
         }
 
         //organize zero vertices
-        matrixr_t newVerts(2, zeroVerts.size());
+        matrixr_t newVerts(3, zeroVerts.size());
         for(int i = 0; i < zeroVerts.size(); i++)
         {
             newVerts(colon(), i) = zeroVerts[i];
@@ -170,49 +170,46 @@ namespace SBV
 
         //find out zero faces count
         std::set<ZeroFace > zeroFaces;
-        for(int i = 0, j = 0; i < triangles.size(2); i++)
+        for(int i = 0; i < cells.size(2); i++)
         {
-            size_t v0 = triangles(0, i);
-            size_t v1 = triangles(1, i);
-            size_t v2 = triangles(2, i);
-
-            if(getSign(v0) == getSign(v1) && getSign(v0) == 0)
+            std::vector<size_t> zeroVert;
+            for(int j = 0; j < 4; j++)
             {
-                tryAddZeroFace(i, v0, v1, zeroFaces);
+                if(vertType[cells(j, i)] == POINT_ZERO)
+                {
+                    zeroVert.push_back(cells(j, i));
+                }
             }
-            else if(getSign(v0) == getSign(v2) && getSign(v0) == 0)
+            if(zeroVert.size() == 3)
             {
-                tryAddZeroFace(i, v0, v2, zeroFaces);
-            }
-            else if(getSign(v1) == getSign(v2) && getSign(v1) == 0)
-            {
-                tryAddZeroFace(i, v1, v2, zeroFaces);
+                tryAddZeroFace(i, zeroVert[0], zeroVert[1], zeroVert[2], zeroFaces);
             }
         }
 
         //organize zero faces
         int i = 0;
-        mZeroSet.lines.resize(2, zeroFaces.size());
+        mZeroSet.triangles.resize(3, zeroFaces.size());
         for(const ZeroFace& face : zeroFaces)
         {
             int j = 0;
             for(const size_t& vert : face.verts)
             {
-                mZeroSet.lines(j, i) = vert;
+                mZeroSet.triangles(j, i) = vert;
                 j++;
             }
-            mZeroSet.lineFaces.push_back(face.tetra);
+            mZeroSet.faceTetras.push_back(face.tetra);
             i++;
-        }*/
+        }
     }
 
-    void TriangulatedShell::tryAddZeroFace(size_t currentTetra, size_t zeroVert1, size_t zeroVert2,
+    void TriangulatedShell::tryAddZeroFace(size_t currentTetra, size_t zeroVert1, size_t zeroVert2, size_t zeroVert3,
                                            std::set<ZeroFace>& zeroFaces)
     {
         int zeroIndexDelta = vertices.size(2) - mZeroSet.vertices.size(2);
         ZeroFace face;
         face.verts.insert(zeroVert1 - zeroIndexDelta);
         face.verts.insert(zeroVert2 - zeroIndexDelta);
+        face.verts.insert(zeroVert3 - zeroIndexDelta);
         face.tetra = currentTetra;
         zeroFaces.insert(face);
     }
