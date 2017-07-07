@@ -1,5 +1,6 @@
 #include "Refinement.h"
 #include "BaryComputer.h"
+#include "NormalChecker.h"
 #include <limits>
 #include <wkylib/geometry.h>
 #include <zjucad/matrix/io.h>
@@ -205,6 +206,13 @@ namespace SBV
         zmax = std::max(std::max(std::max(p0[2], p1[2]), p2[2]), p3[2]);
         zmin = std::min(std::min(std::min(p0[2], p1[2]), p2[2]), p3[2]);
     }
+
+    PointType Refinement::getPointType(const VertexHandle &vh)
+    {
+        const PointInfo& info = vh->info();
+        return info.pointType;
+    }
+
     double Refinement::getFValue(const VertexHandle& vh)
     {
         const PointInfo& info = vh->info();
@@ -424,54 +432,10 @@ namespace SBV
             }
         }
 
-        BaryComputer baryComputer(tetra);
-
-        matrixr_t center = (tetra(colon(), 0) + tetra(colon(), 1) + tetra(colon(), 2) + tetra(colon(), 3)) / 4.0;
-        constexpr double k = cbrt(0.7);
-
-        matrixr_t newVerts[4];
-        for(int i = 0; i < 4; i++)
-        {
-            newVerts[i] = k * tetra(colon(), i) + (1 - k) * center;
-        }
-
-        //check inner verts classification
-        const KdTreeWrap& innerTree = mShell.getInnerTree();
-        size_t nearVerts[4];
-        for(int i = 0; i < 4; i++)
-        {
-            nearVerts[i] = innerTree.getNearestPoint(newVerts[i]);
-        }
-
-        for(int i = 0; i < 4; i++)
-        {
-            if(checkClassification(cell, baryComputer, mShell.mInnerShell(colon(), nearVerts[i]), false) == false)
-            {
-                bad_sample_index = nearVerts[i];
-                is_outer = false;
-                return false;
-            }
-        }
-
-        //check outer verts classification
-        const KdTreeWrap& outerTree = mShell.getOuterTree();
-        for(int i = 0; i < 4; i++)
-        {
-            nearVerts[i] = outerTree.getNearestPoint(newVerts[i]);
-        }
-
-        for(int i = 0; i < 4; i++)
-        {
-            if(checkClassification(cell, baryComputer, mShell.mOuterShell(colon(), nearVerts[i]), true) == false)
-            {
-                bad_sample_index = nearVerts[i];
-                is_outer = true;
-                return false;
-            }
-        }
-
+        bool result = NormalChecker::check(tetra, getPointType(cell.vertex(0)), getPointType(cell.vertex(1)),
+                                           getPointType(cell.vertex(2)), getPointType(cell.vertex(3)), mShell);
         cell.info().isJudged = true;
-        return true;
+        return result;
     }
 
     bool Refinement::checkClassification(const Cell& cell, const BaryComputer &baryComputer, const matrixr_t &point, bool isOuter)

@@ -32,7 +32,7 @@ namespace SBV
         std::vector<PointType> vertType;
 
     public:
-        double getFValue(PointType pointType) const;
+        static double getFValue(PointType pointType);
         double getFValue(size_t vert) const;
         double getSign(size_t vert) const;
 

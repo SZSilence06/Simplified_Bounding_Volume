@@ -1,6 +1,8 @@
 #include "EdgeCollapse.h"
+#include "BaryComputer.h"
 #include "KernelRegion.h"
 #include "SamplingQuadTree.h"
+#include "NormalChecker.h"
 #include <wkylib/geometry.h>
 #include <iostream>
 #include <omp.h>
@@ -83,7 +85,7 @@ namespace SBV
         buildMatrices();
 
         //build edge infos
-#pragma omp parallel for schedule(dynamic, 1)
+//#pragma omp parallel for schedule(dynamic, 1)
         for(int i = 0; i < mTriangulation.vertices.size(2); i++)
         {
             if(mTriangulation.vertType[i] == POINT_BOUNDING_BOX)
@@ -254,7 +256,7 @@ namespace SBV
                 continue;
             }
 
-            if(!isValidCollapse(edgeInfo->firstVert, edgeInfo->secondVert, mTriangulation.vertices(colon(), edgeInfo->secondVert)))
+            if(!isValidCollapse(edgeInfo->firstVert, edgeInfo->secondVert, edgeInfo->position))
             {
                 continue;
             }
@@ -485,7 +487,7 @@ namespace SBV
         return vert;
     }
 
-    bool EdgeCollapse::isValidCollapse(size_t firstVert, size_t secondVert, const matrixr_t &collapseTo)
+    bool EdgeCollapse::isValidCollapse(size_t firstVert, size_t secondVert, const vec3_t &collapseTo)
     {
         if(testLinkCondition(firstVert, secondVert) == false)
         {
@@ -504,6 +506,9 @@ namespace SBV
         {
             return false;
         }
+
+        if(checkNormal(faces, collapseTo, mTriangulation.vertType[firstVert]) == false)
+            return false;
 
         return true;
     }
@@ -783,7 +788,7 @@ namespace SBV
         }
     }
 
-    bool EdgeCollapse::findCollapsePos(size_t vert, size_t vertCollapseTo, matrixr_t &position, double& out_error)
+    bool EdgeCollapse::findCollapsePos(size_t vert, size_t vertCollapseTo, vec3_t &position, double& out_error)
     {
         matrixs_t faces;
         std::set<size_t> innerSample;
@@ -804,6 +809,9 @@ namespace SBV
                     const vec3_t samplePoint = mShell.mInnerShell(colon(), sample);
                     if(kernel.contains(samplePoint))
                     {
+                        if(checkNormal(faces, samplePoint, POINT_INNER) == false)
+                            continue;
+
                         double error = computeError(vert, samplePoint) + computeError(vertCollapseTo, samplePoint);
                         if(error < out_error)
                         {
@@ -821,6 +829,9 @@ namespace SBV
                     const vec3_t samplePoint = mShell.mOuterShell(colon(), sample);
                     if(kernel.contains(samplePoint))
                     {
+                        if(checkNormal(faces, samplePoint, POINT_OUTER) == false)
+                            continue;
+
                         double error = computeError(vert, samplePoint) + computeError(vertCollapseTo, samplePoint);
                         if(error < out_error)
                         {
@@ -874,5 +885,31 @@ namespace SBV
             }
         }
         return found;
+    }
+
+    bool EdgeCollapse::checkNormal(const matrixs_t &oneRingFaces, const vec3_t &point, PointType pointType)
+    {
+        for(int i = 0; i < oneRingFaces.size(2); i++)
+        {
+            matrixr_t tetra(3, 4);
+            tetra(colon(), colon(0, 2)) = mTriangulation.vertices(colon(), oneRingFaces(colon(), i));
+            tetra(colon(), 3) = point;
+
+            PointType type_v1 = mTriangulation.vertType[oneRingFaces(0, i)];
+            PointType type_v2 = mTriangulation.vertType[oneRingFaces(1, i)];
+            PointType type_v3 = mTriangulation.vertType[oneRingFaces(2, i)];
+            PointType type_v4 = pointType;
+
+            if(mTriangulation.getFValue(type_v1) == mTriangulation.getFValue(type_v2)
+                    && mTriangulation.getFValue(type_v1) == mTriangulation.getFValue(type_v3)
+                    && mTriangulation.getFValue(type_v1) == mTriangulation.getFValue(type_v4))
+                continue;
+
+            if(NormalChecker::check(tetra, type_v1, type_v2, type_v3, type_v4, mShell) == false)
+            {
+                return false;
+            }
+        }
+        return true;
     }
 }

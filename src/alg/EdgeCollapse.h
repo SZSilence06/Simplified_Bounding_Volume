@@ -27,7 +27,7 @@ namespace SBV
         {
             size_t firstVert;          //the vert to collapse
             size_t secondVert;         //the vert to collapse to
-            matrixr_t position;        //the position to collapse to
+            vec3_t position;        //the position to collapse to
             double error;         //error for collapsing the edge
             bool isUpdated = false;         // indicating whether this info is out-dated(need to be discarded)
         };
@@ -52,7 +52,7 @@ namespace SBV
         double computeError(size_t vert, const matrixr_t& point);
         bool isSameShellFace(size_t firstVert, size_t secondVert, size_t thirdVert);
         bool isCollapseable(size_t firstVert, size_t secondVert);
-        bool isValidCollapse(size_t firstVert, size_t secondVert, const matrixr_t &collapseTo);
+        bool isValidCollapse(size_t firstVert, size_t secondVert, const vec3_t &collapseTo);
         void collapseEdge(size_t firstVert, size_t secondVert, const matrixr_t &collapseTo);
         void updateEdgeInfo(size_t vertCollapsed, size_t vertCollapsedTo);
         void insertEdges(size_t vert);
@@ -64,7 +64,8 @@ namespace SBV
                               std::set<size_t>& innerSample, std::set<size_t>& outerSample);
         void findBoundaryFace(size_t firstVert, size_t secondVert, std::vector<std::tuple<size_t, size_t, size_t> >& boundaryFaces);
         void findShellSamples(size_t vert, std::set<size_t>& innerSample, std::set<size_t>& outerSample);
-        bool findCollapsePos(size_t vert, size_t vertCollapseTo, matrixr_t& position, double& out_error);
+        bool findCollapsePos(size_t vert, size_t vertCollapseTo, vec3_t& position, double& out_error);
+        bool checkNormal(const matrixs_t& oneRingFaces, const vec3_t& point, PointType pointType);
 
     private:
         TriangulatedShell& mTriangulation;

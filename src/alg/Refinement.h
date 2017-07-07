@@ -62,6 +62,7 @@ namespace SBV
         void updateErrors();
         void updatePointInCell(Cell& cell);
         void organizeOutput();
+        PointType getPointType(const VertexHandle& vh);
         double getFValue(const VertexHandle& vh);
         double getError(const PointInfo& point);
         void getPointMatrix(const PointInfo& point, matrixr_t& pointMatrix);

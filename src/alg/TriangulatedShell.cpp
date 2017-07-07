@@ -5,7 +5,7 @@ using namespace zjucad::matrix;
 
 namespace SBV
 {
-    double TriangulatedShell::getFValue(PointType pointType) const
+    double TriangulatedShell::getFValue(PointType pointType)
     {
         switch(pointType)
         {
