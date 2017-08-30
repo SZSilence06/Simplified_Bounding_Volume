@@ -1,10 +1,13 @@
 #include <zjucad/matrix/matrix.h>
 #include <zjucad/matrix/io.h>
+#include <hjlib/math/blas_lapack.h>
+#include <zjucad/matrix/lapack.h>
 #include <wkylib/mesh/IO.h>
 #include <wkylib/CmdLine.h>
 #include <opencv2/opencv.hpp>
 #include <cmath>
 #include <limits>
+#include <eigen3/Eigen/Eigen>
 #include "matrix_mn.h"
 
 using namespace zjucad::matrix;
@@ -65,21 +68,21 @@ inline double G(const vec2_t& x, const vec2_t& x2)
     return log(distance(x, x2)) / (2 * PI);
 }
 
-inline double E(const vec2_t& x)
+inline double E(int sampleIndex)
 {
-    return cr + cl;
+    return un[sampleIndex] + un[sampleIndex + g_totalCount];
 }
 
-double computeIntegral(const vec2_t& x, const vec2_t& x2, const vec2_t& n)
+double computeIntegral(const vec2_t& x, const vec2_t& x2, const vec2_t& n, int sampleIndex)
 {
     double result;
     switch(g_genType)
     {
     case GEN_RESULT:
-        result = (cr - cl) * Gn(x, x2, n) - G(x, x2) * E(x2);
+        result = (cr - cl) * Gn(x, x2, n) - G(x, x2) * E(sampleIndex);
         break;
     case GEN_G:
-        result = -G(x, x2) * E(x2);
+        result = -G(x, x2) * E(sampleIndex);
         break;
     case GEN_GN:
         result = (cr - cl) * Gn(x, x2, n);
@@ -93,10 +96,10 @@ double computeIntegral(const vec2_t& x, const vec2_t& x2, const vec2_t& n)
 double computeColor(const vec2_t& pixel)
 {
     double result = 0;
-    const double scale = 1e-1;
+    const double scale = 1;
     for(int i = 0; i < g_totalCount; i++)
     {
-        result += computeIntegral(pixel*scale, g_samples[i]*scale, g_samplesN[i]) * g_sampleLength*scale;
+        result += computeIntegral(pixel*scale, g_samples[i]*scale, g_samplesN[i], i) * g_sampleLength*scale;
     }
     return result;
 }
@@ -115,8 +118,44 @@ double computeLength()
 
 void computeUN()
 {
-    un.resize(g_totalCount, g_totalCount);
+    matrixr_t A = zeros<double>(g_totalCount * 2, g_totalCount * 2);
+    for(int i = 0; i < g_totalCount; i++)
+    {
+        for(int j = 0; j < g_totalCount; j++)
+        {
+            if(j == i)
+                continue;
 
+            double temp = -G(g_samples[i], g_samples[j]);
+            A(i, j) = temp;
+            A(i, j + g_totalCount) = temp;
+            A(i + g_totalCount, j) = temp;
+            A(i + g_totalCount, j + g_totalCount) = temp;
+        }
+    }
+    matrixr_t B = zeros<double>(g_totalCount * 2, 1);
+    for(int i = 0; i < g_totalCount; i++)
+    {
+        B[i] += cl;
+        B[i + g_totalCount] += cr;
+        for(int j = 0; j < g_totalCount; j++)
+        {
+            if(j == i)
+                continue;
+
+            double temp = cl * Gn(g_samples[i], g_samples[j], -g_samplesN[j]) + cr * Gn(g_samples[i], g_samples[j], g_samplesN[j]);
+            B[i] += temp;
+            B[i + g_totalCount] += temp;
+        }
+    }
+    std::cout << "solving un..." << std::endl;
+ //   Eigen::MatrixXd AA = Eigen::Map<Eigen::MatrixXd>(&A[0], A.size(1), A.size(2));
+ //   Eigen::VectorXd bb = Eigen::Map<Eigen::VectorXd>(&B[0], B.size());
+ //   Eigen::FullPivLU<Eigen::MatrixXd> solver;
+ //   solver.compute(AA);
+ //   Eigen::VectorXd dx = solver.solve(bb);
+    un = inv(A) * B;
+    std::cout << "un solved." << std::endl;
 }
 
 void computeAABB(double& xmin, double& xmax, double& ymin, double& ymax)
@@ -201,11 +240,12 @@ void generateSamples()
             g_totalCount++;
         }
     }
+    std::cout << "total sample count: " << g_totalCount << std::endl;
 }
 
 Camera generateCamera()
 {
-    const double scale = 1.2;
+    const double scale = 1e1;
 
     double xmin = std::numeric_limits<double>::max();
     double xmax = std::numeric_limits<double>::lowest();
@@ -231,7 +271,8 @@ Camera generateCamera()
 
 void generateImage()
 {
-    generateSamples();
+    generateSamples();   
+    computeUN();
 
     Camera camera = generateCamera();
     double xInc = (camera.xmax - camera.xmin) / xRes;
