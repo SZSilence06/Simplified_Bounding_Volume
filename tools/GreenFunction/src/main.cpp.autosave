@@ -317,7 +317,14 @@ void generateImage()
             if(fabs(g_color[i][j]) > 1)
                 g_color[i][j] = g_color[i][j] > 0 ? 1 : -1;
 
-    saveImage();
+    if(g_genType == GEN_RESULT)
+    {
+        saveGrayImage();
+    }
+    else
+    {
+        saveImage();
+    }
 }
 
 int main(int argc, char** argv)

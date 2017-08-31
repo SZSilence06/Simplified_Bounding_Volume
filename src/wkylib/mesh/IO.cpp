@@ -163,6 +163,7 @@ namespace WKYLIB
         bool readCurve2D(const std::string& file, matrixr_t& vertices, matrixs_t& lines)
         {
             std::ifstream in;
+            char sign = 0;
 
             in.open(file);
             if(in.fail())
@@ -176,10 +177,10 @@ namespace WKYLIB
             {
                 char buf[1024];
                 in.getline(buf, sizeof(buf));
-
+                sign = 0;
                 std::stringstream ss;
                 ss << buf;
-                char sign;
+
                 ss >> sign;
                 if(sign == 'v')
                 {
