@@ -8,6 +8,7 @@
 #include <cmath>
 #include <limits>
 #include <eigen3/Eigen/Eigen>
+#include <map>
 #include "matrix_mn.h"
 
 using namespace zjucad::matrix;
@@ -35,16 +36,16 @@ struct Camera{
 
 const int g_sampleCount = 5000;
 const double PI = acos(-1.0);
-const double EPSILON = 5e-3;
+const double EPSILON = 1e-6;
 const int xRes = 400;
 const int yRes = 400;
 double g_color[xRes][yRes] = {0};
 double g_sampleLength;
-double cl = 1;
+double cl = -1;
 double cr = 1;
 matrixr_t un;
-vec2_t g_samples[g_sampleCount];
-vec2_t g_samplesN[g_sampleCount];
+std::vector<vec2_t> g_samples;
+std::vector<vec2_t> g_samplesN;
 int g_totalCount = 0;
 GenType g_genType = GEN_RESULT;
 
@@ -60,7 +61,7 @@ inline double distance(const vec2_t& x, const vec2_t& x2)
 inline double Gn(const vec2_t& x, const vec2_t& x2, const vec2_t& n)
 {
     const vec2_t xx = x - x2;
-    return (xx[0] * n[0] + xx[1] * n[1]) / (2 * PI * distance(x, x2));
+    return (xx[0] * n[0] + xx[1] * n[1]) / (2 * PI * distance(x, x2) * distance(x, x2));
 }
 
 inline double G(const vec2_t& x, const vec2_t& x2)
@@ -96,10 +97,9 @@ double computeIntegral(const vec2_t& x, const vec2_t& x2, const vec2_t& n, int s
 double computeColor(const vec2_t& pixel)
 {
     double result = 0;
-    const double scale = 1;
     for(int i = 0; i < g_totalCount; i++)
     {
-        result += computeIntegral(pixel*scale, g_samples[i]*scale, g_samplesN[i], i) * g_sampleLength*scale;
+        result += computeIntegral(pixel, g_samples[i], g_samplesN[i], i) * g_sampleLength;
     }
     return result;
 }
@@ -188,9 +188,9 @@ void saveImage()
                 c.val[1] = c.val[2] = 0;
             }
             //const double steps[] = {-0.5, -0.3, -0.2, -0.1, -0.03, 0, 0.03, 0.1, 0.2, 0.3, 0.5};
-            const double steps[] = {0.1, 0.5, 0.9};
+            const double steps[] = {0.1, 0.3, 0.5, 0.7, 0.9};
             for(size_t k = 0; k < sizeof(steps)/sizeof(double); ++k) {
-                if(fabs(fabs(g_color[i][j]) - fabs(steps[k])) < EPSILON)
+                if(fabs(fabs(g_color[i][j]) - fabs(steps[k])) < 5e-3)
                 {
                     c.val[1] = 255;
                     c.val[0] = c.val[2] = 0;
@@ -221,8 +221,58 @@ void saveGrayImage()
     cv::imwrite("output.jpg", image, compression_params);
 }
 
+void buildAdjacency(std::vector<std::vector<int>>& adjacency)
+{
+    adjacency.resize(points.size(2));
+    for(int i = 0; i < lines.size(2); i++)
+    {
+        int a = lines(0, i), b = lines(1, i);
+        adjacency[a].push_back(b);
+        adjacency[b].push_back(a);
+    }
+}
+
+void adaptCurve()
+{
+    std::vector<std::vector<int>> adjacency;
+    buildAdjacency(adjacency);
+    int endPoints[2];
+    int k = 0;
+    for(int i = 0; i < adjacency.size(); i++)
+    {
+        if(adjacency[i].size() == 1)
+        {
+            endPoints[k++] = i;
+        }
+    }
+    if(k == 0)
+    {
+        endPoints[0] = endPoints[1] = 0;
+    }
+    k = 0;
+    int prev = -1;
+    for(int i = endPoints[0]; i != endPoints[1];)
+    {
+        for(int j = 0; j < adjacency[i].size(); j++)
+        {
+            if(adjacency[i][j] != prev)
+            {
+                matrixs_t line(2, 1);
+                line[0] = i;
+                line[1] = adjacency[i][j];
+                lines(colon(), k++) = line;
+                prev = i;
+                i = adjacency[i][j];
+            }
+        }
+    }
+}
+
 void generateSamples()
 {
+    adaptCurve();
+
+    double currentLength = 0;
     for(int i = 0; i < lines.size(2); i++)
     {
         vec2_t a = points(colon(), lines(0, i));
@@ -232,15 +282,22 @@ void generateSamples()
         vec2_t n;
         n[0] = nAB[1];
         n[1] = -nAB[0];
-        int sampleCount = length / g_sampleLength;
-        for(int j = 0; j < sampleCount; j++)
+        while(currentLength < length - EPSILON)
         {
-            g_samples[g_totalCount] = a + j * g_sampleLength * nAB;
-            g_samplesN[g_totalCount] = n;
+            g_samples.push_back(a + currentLength * nAB);
+            g_samplesN.push_back(n);
             g_totalCount++;
+            currentLength += g_sampleLength;
         }
+        currentLength -= length;
     }
     std::cout << "total sample count: " << g_totalCount << std::endl;
+    matrixr_t sam(2, g_totalCount);
+    for(int i = 0; i < g_totalCount; i++)
+    {
+        sam(colon(), i) = g_samples[i];
+    }
+    WKYLIB::Mesh::writePoints2D("samples.vtk", sam);
 }
 
 Camera generateCamera()
@@ -297,16 +354,10 @@ void generateImage()
 
     for(int i = 0; i < xRes; i++)
         for(int j = 0; j < yRes; j++)
-            g_color[i][j] /= max;
+            if(fabs(g_color[i][j]) > 1)
+                g_color[i][j] = g_color[i][j] > 0 ? 1 : -1;
 
-    if(g_genType == GEN_RESULT)
-    {
-        saveGrayImage();
-    }
-    else
-    {
-        saveImage();
-    }
+    saveImage();
 }
 
 int main(int argc, char** argv)
