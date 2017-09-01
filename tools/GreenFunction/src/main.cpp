@@ -34,7 +34,7 @@ struct Camera{
     double ymax;
 };
 
-const int g_sampleCount = 5000;
+const int g_sampleCount = 500;
 const double PI = acos(-1.0);
 const double EPSILON = 1e-6;
 const int xRes = 400;
@@ -302,7 +302,7 @@ void generateSamples()
 
 Camera generateCamera()
 {
-    const double scale = 1e1;
+    const double scale = 1.2;
 
     double xmin = std::numeric_limits<double>::max();
     double xmax = std::numeric_limits<double>::lowest();

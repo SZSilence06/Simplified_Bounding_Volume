@@ -27,6 +27,7 @@ add_executable(GreenFunction ${headers} ${sources})
 
 target_link_libraries(GreenFunction
     ${OpenCV_LIBS}
-    ${WKY_LIBRARY})
+    ${WKY_LIBRARY}
+    lapack)
 
 
