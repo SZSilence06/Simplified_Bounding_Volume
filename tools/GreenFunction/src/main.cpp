@@ -3,11 +3,10 @@
 #include <hjlib/math/blas_lapack.h>
 #include <zjucad/matrix/lapack.h>
 #include <wkylib/mesh/IO.h>
-#include <wkylib/CmdLine.h>
 #include <opencv2/opencv.hpp>
+#include <eigen3/Eigen/Dense>
 #include <cmath>
 #include <limits>
-#include <eigen3/Eigen/Eigen>
 #include <map>
 #include "matrix_mn.h"
 
@@ -67,11 +66,13 @@ inline double Gn(const vec2_t& x, const vec2_t& x2, const vec2_t& n)
 inline double G(const vec2_t& x, const vec2_t& x2)
 {
     return log(distance(x, x2)) / (2 * PI);
+    //return 1 / (2 * PI) * distance(x, x2);
 }
 
 inline double E(int sampleIndex)
 {
     return un[sampleIndex] + un[sampleIndex + g_totalCount];
+    //return cr - cl;
 }
 
 double computeIntegral(const vec2_t& x, const vec2_t& x2, const vec2_t& n, int sampleIndex)
@@ -118,6 +119,8 @@ double computeLength()
 
 void computeUN()
 {
+    const double l = g_sampleLength;
+
     matrixr_t A = zeros<double>(g_totalCount * 2, g_totalCount * 2);
     for(int i = 0; i < g_totalCount; i++)
     {
@@ -126,12 +129,15 @@ void computeUN()
             if(j == i)
                 continue;
 
-            double temp = -G(g_samples[i], g_samples[j]);
+            double temp = -G(g_samples[i], g_samples[j]) * l;
             A(i, j) = temp;
             A(i, j + g_totalCount) = temp;
             A(i + g_totalCount, j) = temp;
             A(i + g_totalCount, j + g_totalCount) = temp;
         }
+        const double l = g_sampleLength;
+        const double temp = -(-l + l * log(l / 2)) / (2 * PI);
+        A(i, i) = A(i, i + g_totalCount) = A(i + g_totalCount, i) = A(i + g_totalCount, i + g_totalCount) = temp;
     }
     matrixr_t B = zeros<double>(g_totalCount * 2, 1);
     for(int i = 0; i < g_totalCount; i++)
@@ -143,18 +149,22 @@ void computeUN()
             if(j == i)
                 continue;
 
-            double temp = cl * Gn(g_samples[i], g_samples[j], -g_samplesN[j]) + cr * Gn(g_samples[i], g_samples[j], g_samplesN[j]);
-            B[i] += temp;
-            B[i + g_totalCount] += temp;
+            double temp = (cl * Gn(g_samples[i], g_samples[j], -g_samplesN[j]) + cr * Gn(g_samples[i], g_samples[j], g_samplesN[j])) * l;
+            B[i] -= temp;
+            B[i + g_totalCount] -= temp;
         }
+        B[i] -= 0.5 * (cl - cr);
+        B[i + g_totalCount] -= 0.5 * (cr - cl);
     }
     std::cout << "solving un..." << std::endl;
- //   Eigen::MatrixXd AA = Eigen::Map<Eigen::MatrixXd>(&A[0], A.size(1), A.size(2));
- //   Eigen::VectorXd bb = Eigen::Map<Eigen::VectorXd>(&B[0], B.size());
- //   Eigen::FullPivLU<Eigen::MatrixXd> solver;
- //   solver.compute(AA);
- //   Eigen::VectorXd dx = solver.solve(bb);
-    un = inv(A) * B;
+    Eigen::Map<Eigen::MatrixXd> AA(&A.data()[0], A.size(1), A.size(2));
+    Eigen::Map<Eigen::VectorXd> BB(&B.data()[0], B.size(1), B.size(2));
+    Eigen::ColPivHouseholderQR<Eigen::MatrixXd> solver(AA);
+    Eigen::VectorXd UNN = solver.solve(BB);
+    un.resize(UNN.rows(), 1);
+    for(int i = 0; i < UNN.rows(); i++){
+        un[i] = UNN[i];
+    }
     std::cout << "un solved." << std::endl;
 }
 
@@ -180,15 +190,15 @@ void saveImage()
             cv::Vec3b c;
             if(g_color[i][j] > 0)
             {
-                c.val[2] = g_color[i][j] * 255;
+                c.val[2] = g_color[i][j] > 1 ? 255 : g_color[i][j] * 255;
                 c.val[1] = c.val[0] = 0;
             }
             else{
-                c.val[0] = -g_color[i][j] * 255;
+                c.val[0] = g_color[i][j] < -1 ? 255 : -g_color[i][j] * 255;
                 c.val[1] = c.val[2] = 0;
             }
-            //const double steps[] = {-0.5, -0.3, -0.2, -0.1, -0.03, 0, 0.03, 0.1, 0.2, 0.3, 0.5};
-            const double steps[] = {0.1, 0.3, 0.5, 0.7, 0.9};
+
+            const double steps[] = {0.1, 0.3, 0.5, 0.7, 0.9, 0.99};
             for(size_t k = 0; k < sizeof(steps)/sizeof(double); ++k) {
                 if(fabs(fabs(g_color[i][j]) - fabs(steps[k])) < 5e-3)
                 {
@@ -352,10 +362,12 @@ void generateImage()
             min = *std::min_element(&g_color[0][0], &g_color[0][0]+xRes*yRes);
     std::cout << "min max: " << min << " " << max << std::endl;
 
-    for(int i = 0; i < xRes; i++)
-        for(int j = 0; j < yRes; j++)
-            if(fabs(g_color[i][j]) > 1)
-                g_color[i][j] = g_color[i][j] > 0 ? 1 : -1;
+    // for(int i = 0; i < xRes; i++)
+    //    for(int j = 0; j < yRes; j++)
+            //g_color[i][j] /= fabs(min);
+            //if(fabs(g_color[i][j]) > 1)
+           //     g_color[i][j] = g_color[i][j] > 0 ? 1 : -1;
+
 
     saveImage();
 }
