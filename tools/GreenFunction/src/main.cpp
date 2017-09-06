@@ -1,4 +1,4 @@
-#include <zjucad/matrix/matrix.h>
+#include "Common.h"
 #include <zjucad/matrix/io.h>
 #include <hjlib/math/blas_lapack.h>
 #include <zjucad/matrix/lapack.h>
@@ -8,17 +8,11 @@
 #include <cmath>
 #include <limits>
 #include <map>
-#include "matrix_mn.h"
+#include "Curve.h"
+#include "SamplePoint.h"
 
 using namespace zjucad::matrix;
 using namespace WKYLIB::Mesh;
-
-matrixr_t points;
-matrixs_t lines;
-
-typedef zjucad::matrix::matrix_mn<double, 2, 1> vec2_t;
-typedef zjucad::matrix::matrix_mn<double, 3, 1> vec3_t;
-using Color = vec3_t;
 
 enum GenType{
     GEN_RESULT = 1,
@@ -36,16 +30,16 @@ struct Camera{
 const int g_sampleCount = 500;
 const double PI = acos(-1.0);
 const double EPSILON = 1e-6;
+const double FARAWAY = 1e6;
 const int xRes = 400;
 const int yRes = 400;
+Curve g_curve;
 double g_color[xRes][yRes] = {0};
 double g_sampleLength;
 double cl = -1;
 double cr = 1;
 matrixr_t un;
-std::vector<vec2_t> g_samples;
-std::vector<vec2_t> g_samplesN;
-int g_totalCount = 0;
+std::vector<SamplePoint> g_samples;
 GenType g_genType = GEN_RESULT;
 
 inline double distance(const vec2_t& x, const vec2_t& x2)
@@ -69,25 +63,21 @@ inline double G(const vec2_t& x, const vec2_t& x2)
     //return 1 / (2 * PI) * distance(x, x2);
 }
 
-inline double E(int sampleIndex)
-{
-    return un[sampleIndex] + un[sampleIndex + g_totalCount];
-    //return cr - cl;
-}
-
-double computeIntegral(const vec2_t& x, const vec2_t& x2, const vec2_t& n, int sampleIndex)
+double computeIntegral(const vec2_t& x, const SamplePoint& sample)
 {
     double result;
+    const vec2_t& x2 = sample.position;
+    const vec2_t& n = sample.normal;
     switch(g_genType)
     {
     case GEN_RESULT:
-        result = (cr - cl) * Gn(x, x2, n) - G(x, x2) * E(sampleIndex);
+        result = sample.color * Gn(x, x2, n) - G(x, x2) * sample.derivative;
         break;
     case GEN_G:
-        result = -G(x, x2) * E(sampleIndex);
+        result =  -G(x, x2) * sample.derivative;
         break;
     case GEN_GN:
-        result = (cr - cl) * Gn(x, x2, n);
+        result = sample.color * Gn(x, x2, n);
         break;
     default:
         throw std::runtime_error("invalid genType.");
@@ -98,9 +88,9 @@ double computeIntegral(const vec2_t& x, const vec2_t& x2, const vec2_t& n, int s
 double computeColor(const vec2_t& pixel)
 {
     double result = 0;
-    for(int i = 0; i < g_totalCount; i++)
+    for(int i = 0; i < g_samples.size(); i++)
     {
-        result += computeIntegral(pixel, g_samples[i], g_samplesN[i], i) * g_sampleLength;
+        result += computeIntegral(pixel, g_samples[i]) * g_sampleLength;
     }
     return result;
 }
@@ -108,54 +98,52 @@ double computeColor(const vec2_t& pixel)
 double computeLength()
 {
     double result = 0;
-    for(int i = 0; i < lines.size(2); i++)
+    for(int i = 0; i < g_curve.lines.size(2); i++)
     {
-        int a = lines(0, i);
-        int b = lines(1, i);
-        result += norm(points(colon(), a) - points(colon(), b));
+        int a = g_curve.lines(0, i);
+        int b = g_curve.lines(1, i);
+        result += norm(g_curve.points(colon(), a) - g_curve.points(colon(), b));
     }
     return result;
+}
+
+bool isOpposite(const SamplePoint& a, const SamplePoint& b)
+{
+    return (norm(a.position - b.position) < 1e-6) && (norm(a.normal + b.normal) < 1e-6);
 }
 
 void computeUN()
 {
     const double l = g_sampleLength;
+    const size_t N = g_samples.size();
 
-    matrixr_t A = zeros<double>(g_totalCount * 2, g_totalCount * 2);
-    for(int i = 0; i < g_totalCount; i++)
+    matrixr_t A = zeros<double>(N, N);
+    for(int i = 0; i < N; i++)
     {
-        for(int j = 0; j < g_totalCount; j++)
+        for(int j = 0; j < N; j++)
+        {
+            if(j == i || isOpposite(g_samples[i], g_samples[j]))
+                A(i, j) = -(-l + l * log(l / 2)) / (2 * PI);
+            else
+                A(i, j) = -G(g_samples[i].position, g_samples[j].position) * l;
+        }
+    }
+
+    matrixr_t B = zeros<double>(N, 1);
+    for(int i = 0; i < N; i++)
+    {
+        B[i] += g_samples[i].color;
+        for(int j = 0; j < N; j++)
         {
             if(j == i)
-                continue;
-
-            double temp = -G(g_samples[i], g_samples[j]) * l;
-            A(i, j) = temp;
-            A(i, j + g_totalCount) = temp;
-            A(i + g_totalCount, j) = temp;
-            A(i + g_totalCount, j + g_totalCount) = temp;
+                B[i] -= 0.5 * g_samples[j].color;
+            else if(isOpposite(g_samples[i], g_samples[j]))
+                B[i] += 0.5 * g_samples[j].color;
+            else
+                B[i] -= (g_samples[j].color * Gn(g_samples[i].position, g_samples[j].position, g_samples[j].normal)) * l;
         }
-        const double l = g_sampleLength;
-        const double temp = -(-l + l * log(l / 2)) / (2 * PI);
-        A(i, i) = A(i, i + g_totalCount) = A(i + g_totalCount, i) = A(i + g_totalCount, i + g_totalCount) = temp;
     }
-    matrixr_t B = zeros<double>(g_totalCount * 2, 1);
-    for(int i = 0; i < g_totalCount; i++)
-    {
-        B[i] += cl;
-        B[i + g_totalCount] += cr;
-        for(int j = 0; j < g_totalCount; j++)
-        {
-            if(j == i)
-                continue;
 
-            double temp = (cl * Gn(g_samples[i], g_samples[j], -g_samplesN[j]) + cr * Gn(g_samples[i], g_samples[j], g_samplesN[j])) * l;
-            B[i] -= temp;
-            B[i + g_totalCount] -= temp;
-        }
-        B[i] -= 0.5 * (cl - cr);
-        B[i + g_totalCount] -= 0.5 * (cr - cl);
-    }
     std::cout << "solving un..." << std::endl;
     Eigen::Map<Eigen::MatrixXd> AA(&A.data()[0], A.size(1), A.size(2));
     Eigen::Map<Eigen::VectorXd> BB(&B.data()[0], B.size(1), B.size(2));
@@ -165,14 +153,19 @@ void computeUN()
     for(int i = 0; i < UNN.rows(); i++){
         un[i] = UNN[i];
     }
+    std::cout << un << std::endl;
     std::cout << "un solved." << std::endl;
+    for(int i = 0; i < N; i++)
+    {
+        g_samples[i].derivative = un[i];
+    }
 }
 
 void computeAABB(double& xmin, double& xmax, double& ymin, double& ymax)
 {
-    for(int i = 0; i < points.size(2); i++)
+    for(int i = 0; i < g_curve.points.size(2); i++)
     {
-        vec2_t p = points(colon(), i);
+        vec2_t p = g_curve.points(colon(), i);
         xmin = std::min(xmin, p[0]);
         xmax = std::max(xmax, p[0]);
         ymin = std::min(ymin, p[1]);
@@ -198,7 +191,7 @@ void saveImage()
                 c.val[1] = c.val[2] = 0;
             }
 
-            const double steps[] = {0.1, 0.3, 0.5, 0.7, 0.9, 0.99};
+            const double steps[] = {0.1, 0.3, 0.5, 0.7, 0.9};
             for(size_t k = 0; k < sizeof(steps)/sizeof(double); ++k) {
                 if(fabs(fabs(g_color[i][j]) - fabs(steps[k])) < 5e-3)
                 {
@@ -231,62 +224,15 @@ void saveGrayImage()
     cv::imwrite("output.jpg", image, compression_params);
 }
 
-void buildAdjacency(std::vector<std::vector<int>>& adjacency)
-{
-    adjacency.resize(points.size(2));
-    for(int i = 0; i < lines.size(2); i++)
-    {
-        int a = lines(0, i), b = lines(1, i);
-        adjacency[a].push_back(b);
-        adjacency[b].push_back(a);
-    }
-}
-
-void adaptCurve()
-{
-    std::vector<std::vector<int>> adjacency;
-    buildAdjacency(adjacency);
-    int endPoints[2];
-    int k = 0;
-    for(int i = 0; i < adjacency.size(); i++)
-    {
-        if(adjacency[i].size() == 1)
-        {
-            endPoints[k++] = i;
-        }
-    }
-    if(k == 0)
-    {
-        endPoints[0] = endPoints[1] = 0;
-    }
-    k = 0;
-    int prev = -1;
-    for(int i = endPoints[0]; i != endPoints[1];)
-    {
-        for(int j = 0; j < adjacency[i].size(); j++)
-        {
-            if(adjacency[i][j] != prev)
-            {
-                matrixs_t line(2, 1);
-                line[0] = i;
-                line[1] = adjacency[i][j];
-                lines(colon(), k++) = line;
-                prev = i;
-                i = adjacency[i][j];
-            }
-        }
-    }
-}
-
 void generateSamples()
 {
-    adaptCurve();
+    g_curve.adjust();
 
     double currentLength = 0;
-    for(int i = 0; i < lines.size(2); i++)
+    for(int i = 0; i < g_curve.lines.size(2); i++)
     {
-        vec2_t a = points(colon(), lines(0, i));
-        vec2_t b = points(colon(), lines(1, i));
+        vec2_t a = g_curve.points(colon(), g_curve.lines(0, i));
+        vec2_t b = g_curve.points(colon(), g_curve.lines(1, i));
         double length = norm(a - b);
         vec2_t nAB = (b - a) / length;
         vec2_t n;
@@ -294,18 +240,25 @@ void generateSamples()
         n[1] = -nAB[0];
         while(currentLength < length - EPSILON)
         {
-            g_samples.push_back(a + currentLength * nAB);
-            g_samplesN.push_back(n);
-            g_totalCount++;
+            SamplePoint sample;
+            sample.position = a + currentLength * nAB;
+            sample.normal = n;
+            sample.color = cr;
+            g_samples.push_back(sample);
+            sample.normal = -n;
+            sample.color = cl;
+            g_samples.push_back(sample);
             currentLength += g_sampleLength;
         }
         currentLength -= length;
     }
-    std::cout << "total sample count: " << g_totalCount << std::endl;
-    matrixr_t sam(2, g_totalCount);
-    for(int i = 0; i < g_totalCount; i++)
+    std::cout << "total sample count: " << g_samples.size() / 2 << std::endl;
+    matrixr_t sam(2, g_samples.size() / 2);
+    int j = 0;
+    for(int i = 0; i < g_samples.size(); i++)
     {
-        sam(colon(), i) = g_samples[i];
+        if(i % 2)
+            sam(colon(), j++) = g_samples[i].position;
     }
     WKYLIB::Mesh::writePoints2D("samples.vtk", sam);
 }
@@ -345,7 +298,9 @@ void generateImage()
     double xInc = (camera.xmax - camera.xmin) / xRes;
     double yInc = (camera.ymax - camera.ymin) / yRes;
 
+#ifdef NDEBUG
 #pragma omp parallel for
+#endif
     for(int i = 0; i < xRes; i++)
     {
         if(i%10 == 0)
@@ -372,10 +327,62 @@ void generateImage()
     saveImage();
 }
 
+/*void initFarAway()
+{
+    g_farAway.resize(8);
+    g_farAwayN.resize(8);
+
+    g_farAway[0][0] = FARAWAY;
+    g_farAway[0][1] = 0;
+    g_farAwayN[0][0] = -1;
+    g_farAwayN[0][1] = 0;
+
+    g_farAway[1][0] = -FARAWAY;
+    g_farAway[1][1] = 0;
+    g_farAwayN[1][0] = 1;
+    g_farAwayN[1][1] = 0;
+
+    g_farAway[2][0] = 0;
+    g_farAway[2][1] = FARAWAY;
+    g_farAwayN[2][0] = 0;
+    g_farAwayN[2][1] = -1;
+
+    g_farAway[3][0] = 0;
+    g_farAway[3][1] = -FARAWAY;
+    g_farAwayN[3][0] = 0;
+    g_farAwayN[3][1] = 1;
+
+    g_farAway[4][0] = FARAWAY;
+    g_farAway[4][1] = FARAWAY;
+    g_farAwayN[4][0] = -1;
+    g_farAwayN[4][1] = -1;
+    g_farAwayN[4] /= norm(g_farAwayN[4]);
+
+    g_farAway[5][0] = FARAWAY;
+    g_farAway[5][1] = -FARAWAY;
+    g_farAwayN[5][0] = -1;
+    g_farAwayN[5][1] = 1;
+    g_farAwayN[5] /= norm(g_farAwayN[5]);
+
+    g_farAway[6][0] = -FARAWAY;
+    g_farAway[6][1] = FARAWAY;
+    g_farAwayN[6][0] = 1;
+    g_farAwayN[6][1] = -1;
+    g_farAwayN[6] /= norm(g_farAwayN[6]);
+
+    g_farAway[7][0] = -FARAWAY;
+    g_farAway[7][1] = -FARAWAY;
+    g_farAwayN[7][0] = 1;
+    g_farAwayN[7][1] = 1;
+    g_farAwayN[7] /= norm(g_farAwayN[7]);
+}*/
+
 int main(int argc, char** argv)
 {   
-    WKYLIB::Mesh::readCurve2D(argv[1], points, lines);
+    WKYLIB::Mesh::readCurve2D(argv[1], g_curve.points, g_curve.lines);
     g_genType = static_cast<GenType>(std::atoi(argv[2]));
+
+    //initFarAway();
 
     double length = computeLength();
     g_sampleLength = length / g_sampleCount;

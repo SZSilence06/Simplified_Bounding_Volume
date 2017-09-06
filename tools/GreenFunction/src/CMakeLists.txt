@@ -19,7 +19,6 @@ elseif(${CMAKE_BUILD_TYPE} MATCHES Release)
     link_directories("../../../build-src-qt5-Clone of Release/lib/")
 endif()
 
-
 file(GLOB headers *.h)
 file(GLOB sources *.cpp)
 
