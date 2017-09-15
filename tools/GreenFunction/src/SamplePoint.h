@@ -6,7 +6,7 @@
 struct SamplePoint
 {
     vec2_t position;
-    matrixr_t normal;
+    vec2_t normal;
     double color = 0;
     double derivative = 0;
 };

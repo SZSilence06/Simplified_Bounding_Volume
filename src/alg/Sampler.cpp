@@ -6,7 +6,7 @@ using namespace Utils_sampling;
 
 namespace SBV
 {
-    void Sampler::poisson(const matrixr_t &vertices, const matrixs_t &triangles, double radius, matrixr_t &samples, matrixr_t& sample_normals)
+    void Sampler::poissonDisk(const matrixr_t &vertices, const matrixs_t &triangles, double radius, matrixr_t &samples, matrixr_t& sample_normals)
     {
         std::vector<Vec3> verts;
         for(int i = 0; i < vertices.size(2); i++)

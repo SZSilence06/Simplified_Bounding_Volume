@@ -30,7 +30,7 @@ struct Camera{
 const int g_sampleCount = 500;
 const double PI = acos(-1.0);
 const double EPSILON = 1e-6;
-const double FARAWAY = 1e6;
+const double FARAWAY = 2;
 const int xRes = 400;
 const int yRes = 400;
 Curve g_curve;
@@ -159,6 +159,9 @@ void computeUN()
     {
         g_samples[i].derivative = un[i];
     }
+
+    auto lefttop = A(colon(0, N / 2 - 1), colon(0, N / 2 - 1));
+    auto leftbottom = A(colon(N / 2, N - 1), colon(0, N / 2 - 1));
 }
 
 void computeAABB(double& xmin, double& xmax, double& ymin, double& ymax)
@@ -191,7 +194,7 @@ void saveImage()
                 c.val[1] = c.val[2] = 0;
             }
 
-            const double steps[] = {0.1, 0.3, 0.5, 0.7, 0.9};
+            const double steps[] = {0.1, 0.3, 0.5, 0.7, 0.9, 0.99};
             for(size_t k = 0; k < sizeof(steps)/sizeof(double); ++k) {
                 if(fabs(fabs(g_color[i][j]) - fabs(steps[k])) < 5e-3)
                 {
@@ -289,14 +292,111 @@ Camera generateCamera()
     return result;
 }
 
+void initFarAway()
+{
+    const int N = FARAWAY / g_sampleLength;
+    for(int i = 0; i < N; i++)
+    {
+        const double temp = i * g_sampleLength;
+        //right top vertical
+        SamplePoint point;
+        point.position[0] = FARAWAY;
+        point.position[1] = temp;
+        point.normal[0] = -1;
+        point.normal[1] = 0;
+        g_samples.push_back(point);
+
+        //right bottom vertical
+        if(i)
+        {
+            point.position[0] = FARAWAY;
+            point.position[1] = -temp;
+            point.normal[0] = -1;
+            point.normal[1] = 0;
+            g_samples.push_back(point);
+        }
+
+        //left top vertical
+        point.position[0] = -FARAWAY;
+        point.position[1] = temp;
+        point.normal[0] = 1;
+        point.normal[1] = 0;
+        g_samples.push_back(point);
+
+        if(i)
+        {
+            //left bottom vertical
+            point.position[0] = -FARAWAY;
+            point.position[1] = -temp;
+            point.normal[0] = 1;
+            point.normal[1] = 0;
+            g_samples.push_back(point);
+        }
+
+        //right top horizontal
+        point.position[0] = temp;
+        point.position[1] = FARAWAY;
+        point.normal[0] = 0;
+        point.normal[1] = -1;
+        g_samples.push_back(point);
+
+        //right bottom horizontal
+        point.position[0] = temp;
+        point.position[1] = -FARAWAY;
+        point.normal[0] = 0;
+        point.normal[1] = 1;
+        g_samples.push_back(point);
+
+        if(i)
+        {
+            //left top horizontal
+            point.position[0] = -temp;
+            point.position[1] = FARAWAY;
+            point.normal[0] = 0;
+            point.normal[1] = -1;
+            g_samples.push_back(point);
+
+            //left bottom horizontal
+            point.position[0] = -temp;
+            point.position[1] = -FARAWAY;
+            point.normal[0] = 0;
+            point.normal[1] = 1;
+            g_samples.push_back(point);
+        }
+    }
+}
+
+void addInternalPoint(const Camera& camera)
+{
+    vec2_t center;
+    center[0] = (camera.xmin + camera.xmax) / 2;
+    center[1] = (camera.ymin + camera.ymax) / 2;
+
+    const double radius = 0.01;
+    double theta = g_sampleLength / radius;
+    for(int i = 0; i * theta < 2 * PI; i++)
+    {
+        double t = i * theta;
+        SamplePoint point;
+        point.position[0] = center[0] + radius * cos(t);
+        point.position[1] = center[1] + radius * sin(t);
+        point.normal[0] = cos(t);
+        point.normal[1] = sin(t);
+        point.color = 0;
+        g_samples.push_back(point);
+    }
+}
+
 void generateImage()
 {
-    generateSamples();   
-    computeUN();
-
     Camera camera = generateCamera();
     double xInc = (camera.xmax - camera.xmin) / xRes;
     double yInc = (camera.ymax - camera.ymin) / yRes;
+
+    generateSamples();
+    addInternalPoint(camera);
+    initFarAway();
+    computeUN();
 
 #ifdef NDEBUG
 #pragma omp parallel for
@@ -327,62 +427,12 @@ void generateImage()
     saveImage();
 }
 
-/*void initFarAway()
-{
-    g_farAway.resize(8);
-    g_farAwayN.resize(8);
 
-    g_farAway[0][0] = FARAWAY;
-    g_farAway[0][1] = 0;
-    g_farAwayN[0][0] = -1;
-    g_farAwayN[0][1] = 0;
-
-    g_farAway[1][0] = -FARAWAY;
-    g_farAway[1][1] = 0;
-    g_farAwayN[1][0] = 1;
-    g_farAwayN[1][1] = 0;
-
-    g_farAway[2][0] = 0;
-    g_farAway[2][1] = FARAWAY;
-    g_farAwayN[2][0] = 0;
-    g_farAwayN[2][1] = -1;
-
-    g_farAway[3][0] = 0;
-    g_farAway[3][1] = -FARAWAY;
-    g_farAwayN[3][0] = 0;
-    g_farAwayN[3][1] = 1;
-
-    g_farAway[4][0] = FARAWAY;
-    g_farAway[4][1] = FARAWAY;
-    g_farAwayN[4][0] = -1;
-    g_farAwayN[4][1] = -1;
-    g_farAwayN[4] /= norm(g_farAwayN[4]);
-
-    g_farAway[5][0] = FARAWAY;
-    g_farAway[5][1] = -FARAWAY;
-    g_farAwayN[5][0] = -1;
-    g_farAwayN[5][1] = 1;
-    g_farAwayN[5] /= norm(g_farAwayN[5]);
-
-    g_farAway[6][0] = -FARAWAY;
-    g_farAway[6][1] = FARAWAY;
-    g_farAwayN[6][0] = 1;
-    g_farAwayN[6][1] = -1;
-    g_farAwayN[6] /= norm(g_farAwayN[6]);
-
-    g_farAway[7][0] = -FARAWAY;
-    g_farAway[7][1] = -FARAWAY;
-    g_farAwayN[7][0] = 1;
-    g_farAwayN[7][1] = 1;
-    g_farAwayN[7] /= norm(g_farAwayN[7]);
-}*/
 
 int main(int argc, char** argv)
 {   
     WKYLIB::Mesh::readCurve2D(argv[1], g_curve.points, g_curve.lines);
     g_genType = static_cast<GenType>(std::atoi(argv[2]));
-
-    //initFarAway();
 
     double length = computeLength();
     g_sampleLength = length / g_sampleCount;

@@ -89,7 +89,7 @@ namespace SBV
 
     void Simplifier::sample(const matrixr_t &vertices, const matrixs_t &triangles, matrixr_t &output_samples, matrixr_t& output_normals)
     {
-        Sampler::poisson(vertices, triangles, mSampleRadius, output_samples, output_normals);
+        Sampler::poissonDisk(vertices, triangles, mSampleRadius, output_samples, output_normals);
         /*output_samples.clear();
         for(int i = 0; i < triangles.size(2); i++)
         {

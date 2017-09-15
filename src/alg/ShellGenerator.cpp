@@ -4,6 +4,9 @@
 #include "MyPoisson.h"
 #include <pcl/io/vtk_io.h>
 #include <jtflib/mesh/io.h>
+#include <zjucad/matrix/io.h>
+
+using namespace zjucad::matrix;
 
 namespace SBV
 {
@@ -14,10 +17,10 @@ namespace SBV
 
     }
 
-    void ShellGenerator::generate(double distance, double sampleRadius, Shell& shell)
+    /*void ShellGenerator::generate(double distance, double sampleRadius, Shell& shell)
     {
         matrixr_t normals;
-        Sampler::poisson(mVertices, mTriangles, sampleRadius, shell.mInnerShell, normals);
+        Sampler::poissonDisk(mVertices, mTriangles, sampleRadius, shell.mInnerShell, normals);
 
         pcl::PCLPointCloud2 cloud;
         makePCLCloud(shell.mInnerShell, normals, cloud);
@@ -41,7 +44,7 @@ namespace SBV
         jtf::mesh::save_obj("test2.obj", recon_triangles, recon_vertices);
 
         matrixr_t normal_outer;
-        Sampler::poisson(recon_vertices, recon_triangles, sampleRadius, shell.mOuterShell, normal_outer);
+        Sampler::poissonDisk(recon_vertices, recon_triangles, sampleRadius, shell.mOuterShell, normal_outer);
 
         shell.buildKdTree();
     }
@@ -146,6 +149,140 @@ namespace SBV
             {
                 triangles(j, i) = mesh.polygons[i].vertices[j];
             }
+        }
+    }*/
+
+    void ShellGenerator::generate(double distance, double sampleRadius, Shell &shell)
+    {
+        mSampleRadius = sampleRadius;
+        mDistance = distance;
+
+        generateSamples(shell);
+        computeDerivative();
+        generateOuterShell(shell);
+
+        shell.buildKdTree();
+    }
+
+    void ShellGenerator::generateOuterShell(Shell& shell)
+    {
+        shell.mOuterShell.resize(3, shell.mInnerShell.size(2));
+        for(int i = 0; i < shell.mInnerShell.size(2); i++)
+        {
+            const vec3_t x = shell.mInnerShell(colon(), i);
+            shell.mOuterShell(colon(), i) = trace(x);
+        }
+    }
+
+    vec3_t ShellGenerator::trace(const vec3_t x)
+    {
+        const double STEP = 0.01;
+        double t = 0;
+        vec3_t result = x;
+        while(t < mDistance)
+        {
+            vec3_t grad = getGradient(x);
+            grad /= norm(grad);
+            result -= STEP * grad;
+            t += STEP;
+        }
+        return result;
+    }
+
+    vec3_t ShellGenerator::getGradient(const vec3_t &x)
+    {
+        const double STEP = 0.01;
+        double a = getFieldValue(x);
+
+        vec3_t xx = x;
+        xx[0] += STEP;
+        double b = getFieldValue(xx);
+
+        vec3_t xy = x;
+        xy[1] += STEP;
+        double c = getFieldValue(xy);
+
+        vec3_t xz = x;
+        xz[2] += STEP;
+        double d = getFieldValue(xz);
+
+        vec3_t result;
+        result[0] = (b - a) / STEP;
+        result[1] = (c - a) / STEP;
+        result[2] = (d - a) / STEP;
+        return result;
+    }
+
+    void ShellGenerator::generateSamples(Shell& shell)
+    {
+        matrixr_t normals;
+        Sampler::poissonDisk(mVertices, mTriangles, mSampleRadius, shell.mInnerShell, normals);
+
+        for(int i = 0; i < shell.mInnerShell.size(2); i++)
+        {
+            SamplePoint sample;
+            sample.position = shell.mInnerShell(colon(), i);
+            sample.normal = normals(colon(), i);
+            sample.value = 1;
+            mSamples.push_back(sample);
+            sample.normal = -sample.normal;
+            sample.value = -1;
+            mSamples.push_back(sample);
+        }
+    }
+
+    bool ShellGenerator::isOpposite(const SamplePoint &a, const SamplePoint &b)
+    {
+        return (norm(a.position - b.position) < 1e-6) && (norm(a.normal + b.normal) < 1e-6);
+    }
+
+    void ShellGenerator::computeDerivative()
+    {
+        matrixr_t un;
+
+        const double l = mSampleRadius;
+        const size_t N = mSamples.size();
+
+        matrixr_t A = zeros<double>(N, N);
+        for(int i = 0; i < N; i++)
+        {
+            for(int j = 0; j < N; j++)
+            {
+                if(j == i || isOpposite(mSamples[i], mSamples[j]))
+                    A(i, j) = -l / 2;
+                else
+                    A(i, j) = -G(mSamples[i].position, mSamples[j].position) * PI * l * l;
+            }
+        }
+
+        matrixr_t B = zeros<double>(N, 1);
+        for(int i = 0; i < N; i++)
+        {
+            B[i] += mSamples[i].value;
+            for(int j = 0; j < N; j++)
+            {
+                if(j == i)
+                    B[i] -= 0.5 * mSamples[j].value;
+                else if(isOpposite(mSamples[i], mSamples[j]))
+                    B[i] += 0.5 * mSamples[j].value;
+                else
+                    B[i] -= (mSamples[j].value * Gn(mSamples[i].position, mSamples[j].position, mSamples[j].normal)) * PI * l * l;
+            }
+        }
+
+        std::cout << "solving un..." << std::endl;
+        Eigen::Map<Eigen::MatrixXd> AA(&A.data()[0], A.size(1), A.size(2));
+        Eigen::Map<Eigen::VectorXd> BB(&B.data()[0], B.size(1), B.size(2));
+        Eigen::ColPivHouseholderQR<Eigen::MatrixXd> solver(AA);
+        Eigen::VectorXd UNN = solver.solve(BB);
+        un.resize(UNN.rows(), 1);
+        for(int i = 0; i < UNN.rows(); i++){
+            un[i] = UNN[i];
+        }
+        std::cout << "un solved." << std::endl;
+        for(int i = 0; i < N; i++)
+        {
+            mSamples[i].derivative = un[i];
         }
     }
 }
