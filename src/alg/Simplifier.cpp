@@ -76,7 +76,7 @@ namespace SBV
 
         mShell.buildKdTree();*/
 
-        ShellGenerator generator(mSourceMesh.vertices, mSourceMesh.triangles);
+        ShellGenerator generator(mSourceMesh.vertices, mSourceMesh.triangles, mOutputDirectory);
         generator.generate(mMaxDistance, mSampleRadius, mShell);
 
         if(mNeedGenTempResult)

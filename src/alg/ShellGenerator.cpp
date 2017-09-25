@@ -5,14 +5,18 @@
 #include <pcl/io/vtk_io.h>
 #include <jtflib/mesh/io.h>
 #include <zjucad/matrix/io.h>
+#include <Eigen/IterativeLinearSolvers>
+#include <wkylib/mesh/IO.h>
+#include "vtk.h"
 
 using namespace zjucad::matrix;
 
 namespace SBV
 {
-    ShellGenerator::ShellGenerator(const matrixr_t &vertices, const matrixs_t &triangles)
+    ShellGenerator::ShellGenerator(const matrixr_t &vertices, const matrixs_t &triangles, const std::string& outputDirectory)
         : mVertices(vertices),
-          mTriangles(triangles)
+          mTriangles(triangles),
+          mOutputDirectory(outputDirectory)
     {
 
     }
@@ -157,36 +161,142 @@ namespace SBV
         mSampleRadius = sampleRadius;
         mDistance = distance;
 
-        generateSamples(shell);
+        matrixr_t normals;
+
+        generateSamples(shell, normals);
         computeDerivative();
-        generateOuterShell(shell);
+        visualizeField(shell);
+        generateOuterShell(shell, normals);
 
         shell.buildKdTree();
     }
 
-    void ShellGenerator::generateOuterShell(Shell& shell)
+    void scaleAABB(double& xmin, double& xmax, double& ymin, double& ymax, double& zmin, double& zmax, double scale)
+    {
+        double xCenter = (xmin + xmax) / 2;
+        double yCenter = (ymin + ymax) / 2;
+        double zCenter = (zmin + zmax) / 2;
+        double xLength = xmax - xmin;
+        double yLength = ymax - ymin;
+        double zLength = zmax - zmin;
+        xLength *= scale;
+        yLength *= scale;
+        zLength *= scale;
+        xmin = xCenter - xLength / 2;
+        xmax = xCenter + xLength / 2;
+        ymin = yCenter - yLength / 2;
+        ymax = yCenter + yLength / 2;
+        zmin = zCenter - zLength / 2;
+        zmax = zCenter + zLength / 2;
+    }
+
+    template <typename OS>
+    void grid2vtk(OS &os, double xmin, double xmax, double ymin, double ymax, double zmin, double zmax, int res) {
+      os << "# vtk DataFile Version 2.0\nSample rectilinear grid\nASCII\nDATASET RECTILINEAR_GRID\n";
+      os << "DIMENSIONS" << " " << res << " " << res << " " << res << std::endl;
+
+      // order: first x, then y, finally z
+      const double dx = (xmax - xmin)/(res-1);
+      const double dy = (ymax - ymin)/(res-1);
+      const double dz = (zmax - zmin)/(res-1);
+
+      os << "X_COORDINATES " << res << " float\n";
+      for (size_t i = 0; i < res; ++i)
+        os << xmin+i*dx << std::endl;
+
+      os << "Y_COORDINATES " << res << " float\n";
+      for (size_t i = 0; i < res; ++i)
+        os << ymin+i*dy << std::endl;
+
+      os << "Z_COORDINATES " << res << " float\n";
+      for (size_t i = 0; i < res; ++i)
+        os << zmin+i*dz << std::endl;
+    }
+
+    void ShellGenerator::visualizeField(const Shell& shell)
+    {
+        const double scale = 3;
+        const int res = 50;
+        double xmax, xmin, ymax, ymin, zmax, zmin;
+        buildAABB(shell, xmax, xmin, ymax, ymin, zmax, zmin);
+        scaleAABB(xmin, xmax, ymin, ymax, zmin, zmax, scale);
+
+        std::ofstream of(mOutputDirectory + "/field.vtk");
+        grid2vtk(of, xmin, xmax, ymin, ymax, zmin, zmax, res);
+
+        const double xStep = (xmax - xmin) / res;
+        const double yStep = (ymax - ymin) / res;
+        const double zStep = (zmax - zmin) / res;
+        matrixr_t fieldData(res * res * res, 1);
+
+#pragma omp parallel for
+        for(size_t i = 0; i < res; i++) {
+            for(size_t j = 0; j < res; j++) {
+                for(size_t k = 0; k < res; k++)
+                {
+                    const size_t idx = i * res * res + j * res + k;
+                    vec3_t pos;
+                    pos[0] = xmin + k * xStep;
+                    pos[1] = ymin + j * yStep;
+                    pos[2] = zmin + i * zStep;
+                    double value = getFieldValue(pos);
+                    //if(value > 1)
+                    //    value = 1;
+                    //if(value < 0)
+                    //    value = 0;
+                    fieldData[idx] = value;
+                }
+            }
+        }
+
+        point_data(of, fieldData.begin(), fieldData.size(), "field");
+        of.close();
+        std::cout << "[INFO] field generated." << std::endl;
+    }
+
+    void ShellGenerator::generateOuterShell(Shell& shell, const matrixr_t& inner_shell_normals)
     {
         shell.mOuterShell.resize(3, shell.mInnerShell.size(2));
         for(int i = 0; i < shell.mInnerShell.size(2); i++)
         {
             const vec3_t x = shell.mInnerShell(colon(), i);
-            shell.mOuterShell(colon(), i) = trace(x);
+            shell.mOuterShell(colon(), i) = trace(x, inner_shell_normals(colon(), i));
         }
     }
 
-    vec3_t ShellGenerator::trace(const vec3_t x)
+    vec3_t ShellGenerator::trace(const vec3_t& x, const vec3_t& n)
     {
         const double STEP = 0.01;
         double t = 0;
         vec3_t result = x;
         while(t < mDistance)
         {
-            vec3_t grad = getGradient(x);
-            grad /= norm(grad);
-            result -= STEP * grad;
+            if(t == 0)
+            {
+                result += STEP * n;
+            }
+            else
+            {
+                vec3_t grad = getGradient(result);
+                double norm_grad = norm(grad);
+                if(norm_grad == 0) {
+                    std::cerr << "[warning] gradient equals zero" << std::endl;
+                }
+                grad /= norm_grad;
+                result -= STEP * grad;
+            }
             t += STEP;
         }
         return result;
+    }
+
+    double ShellGenerator::distance(const vec3_t &x, const vec3_t &x2)
+    {
+        const double r = norm(x - x2);
+        if(fabs(r) < 1e-6) {
+            std::cerr << "# warning: near the boundary " << r << std::endl;
+        }
+        return r;
     }
 
     vec3_t ShellGenerator::getGradient(const vec3_t &x)
@@ -213,9 +323,8 @@ namespace SBV
         return result;
     }
 
-    void ShellGenerator::generateSamples(Shell& shell)
+    void ShellGenerator::generateSamples(Shell& shell, matrixr_t& normals)
     {
-        matrixr_t normals;
         Sampler::poissonDisk(mVertices, mTriangles, mSampleRadius, shell.mInnerShell, normals);
 
         for(int i = 0; i < shell.mInnerShell.size(2); i++)
@@ -225,9 +334,74 @@ namespace SBV
             sample.normal = normals(colon(), i);
             sample.value = 1;
             mSamples.push_back(sample);
-            sample.normal = -sample.normal;
-            sample.value = -1;
-            mSamples.push_back(sample);
+            //sample.normal = -sample.normal;
+            //sample.value = -1;
+            //mSamples.push_back(sample);
+        }
+
+        addBoundary(shell);
+    }
+
+    void ShellGenerator::buildAABB(const Shell& shell, double &xmax, double &xmin, double &ymax, double &ymin, double &zmax, double &zmin)
+    {
+        xmax = std::numeric_limits<double>::lowest();
+        xmin = std::numeric_limits<double>::max();
+        ymax = std::numeric_limits<double>::lowest();
+        ymin = std::numeric_limits<double>::max();
+        zmax = std::numeric_limits<double>::lowest();
+        zmin = std::numeric_limits<double>::max();
+        for(int i = 0; i < shell.mInnerShell.size(2); i++)
+        {
+            xmax = std::max(xmax, shell.mInnerShell(0, i));
+            xmin = std::min(xmin, shell.mInnerShell(0, i));
+            ymax = std::max(ymax, shell.mInnerShell(1, i));
+            ymin = std::min(ymin, shell.mInnerShell(1, i));
+            zmax = std::max(zmax, shell.mInnerShell(2, i));
+            zmin = std::min(zmin, shell.mInnerShell(2, i));
+        }
+    }
+
+    void ShellGenerator::addBoundary(Shell& shell)
+    {
+        const double scale = 2;
+        double xmax, xmin, ymax, ymin, zmax, zmin;
+        buildAABB(shell, xmax, xmin, ymax, ymin, zmax, zmin);
+        scaleAABB(xmin, xmax, ymin, ymax, zmin, zmax, scale);
+
+        matrixr_t bV(3, 8);
+        matrixs_t bT(3, 12);
+        bV(0, 0) = xmin; bV(1, 0) = ymin; bV(2, 0) = zmin;
+        bV(0, 1) = xmin; bV(1, 1) = ymin; bV(2, 1) = zmax;
+        bV(0, 2) = xmin; bV(1, 2) = ymax; bV(2, 2) = zmin;
+        bV(0, 3) = xmin; bV(1, 3) = ymax; bV(2, 3) = zmax;
+        bV(0, 4) = xmax; bV(1, 4) = ymin; bV(2, 4) = zmin;
+        bV(0, 5) = xmax; bV(1, 5) = ymin; bV(2, 5) = zmax;
+        bV(0, 6) = xmax; bV(1, 6) = ymax; bV(2, 6) = zmin;
+        bV(0, 7) = xmax; bV(1, 7) = ymax; bV(2, 7) = zmax;
+
+        bT(0, 0) = 0; bT(1, 0) = 1; bT(2, 0) = 2;
+        bT(0, 1) = 1; bT(1, 1) = 2; bT(2, 1) = 3;
+        bT(0, 2) = 0; bT(1, 2) = 1; bT(2, 2) = 4;
+        bT(0, 3) = 1; bT(1, 3) = 4; bT(2, 3) = 5;
+        bT(0, 4) = 0; bT(1, 4) = 2; bT(2, 4) = 4;
+        bT(0, 5) = 2; bT(1, 5) = 4; bT(2, 5) = 6;
+        bT(0, 6) = 4; bT(1, 6) = 5; bT(2, 6) = 6;
+        bT(0, 7) = 5; bT(1, 7) = 6; bT(2, 7) = 7;
+        bT(0, 8) = 2; bT(1, 8) = 3; bT(2, 8) = 6;
+        bT(0, 9) = 3; bT(1, 9) = 6; bT(2, 9) = 7;
+        bT(0, 10) = 1; bT(1, 10) = 3; bT(2, 10) = 5;
+        bT(0, 11) = 3; bT(1, 11) = 5; bT(2, 11) = 7;
+
+        matrixr_t samples, normals;
+        Sampler::poissonDisk(bV, bT, mSampleRadius, samples, normals);
+
+        for(int i = 0; i < samples.size(2); i++)
+        {
+            SamplePoint point;
+            point.position = samples(colon(), i);
+            point.normal = -normals(colon(), i);
+            point.value = 0;
+            mSamples.push_back(point);
         }
     }
 
@@ -263,8 +437,10 @@ namespace SBV
             {
                 if(j == i)
                     B[i] -= 0.5 * mSamples[j].value;
+                //    B[i] -= 0;
                 else if(isOpposite(mSamples[i], mSamples[j]))
                     B[i] += 0.5 * mSamples[j].value;
+                //    B[i] += 0;
                 else
                     B[i] -= (mSamples[j].value * Gn(mSamples[i].position, mSamples[j].position, mSamples[j].normal)) * PI * l * l;
             }
@@ -273,6 +449,7 @@ namespace SBV
         std::cout << "solving un..." << std::endl;
         Eigen::Map<Eigen::MatrixXd> AA(&A.data()[0], A.size(1), A.size(2));
         Eigen::Map<Eigen::VectorXd> BB(&B.data()[0], B.size(1), B.size(2));
+
         Eigen::ColPivHouseholderQR<Eigen::MatrixXd> solver(AA);
         Eigen::VectorXd UNN = solver.solve(BB);
         un.resize(UNN.rows(), 1);
@@ -280,6 +457,7 @@ namespace SBV
             un[i] = UNN[i];
         }
         std::cout << "un solved." << std::endl;
+        std::cout << un << std::endl;
         for(int i = 0; i < N; i++)
         {
             mSamples[i].derivative = un[i];

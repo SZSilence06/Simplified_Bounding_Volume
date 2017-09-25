@@ -148,8 +148,9 @@ void genDefaultParams()
         {
             g_outputPath = g_inputMeshPath.substr(0, pos);
         }
-        g_outputPath += " -e " + std::to_string(g_maxDistance) + " -r " + std::to_string(g_sampleRadius)
-                + " -a " + std::to_string(g_alpha);
+        std::stringstream ss;
+        ss << g_outputPath << "_-e_ " << g_maxDistance << "_-r_" << g_sampleRadius << "_-a_" << g_alpha;
+        g_outputPath = ss.str();
     }
 
     if(boost::filesystem::exists(g_outputPath) == false
