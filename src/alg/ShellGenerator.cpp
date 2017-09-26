@@ -7,6 +7,7 @@
 #include <zjucad/matrix/io.h>
 #include <Eigen/IterativeLinearSolvers>
 #include <wkylib/mesh/IO.h>
+#include <wkylib/geometry.h>
 #include "vtk.h"
 
 using namespace zjucad::matrix;
@@ -327,19 +328,35 @@ namespace SBV
     {
         Sampler::poissonDisk(mVertices, mTriangles, mSampleRadius, shell.mInnerShell, normals);
 
-        for(int i = 0; i < shell.mInnerShell.size(2); i++)
+        for(int i = 0; i < mTriangles.size(2); i++)
         {
+            const vec3_t a = mVertices(colon(), mTriangles(0, i));
+            const vec3_t b = mVertices(colon(), mTriangles(1, i));
+            const vec3_t c = mVertices(colon(), mTriangles(2, i));
+            vec3_t n = cross(b - a, c - a);
+            n /= norm(n);
+
             SamplePoint sample;
-            sample.position = shell.mInnerShell(colon(), i);
-            sample.normal = normals(colon(), i);
+            sample.position = (a + b + c) / 3;
+            sample.normal = n;
             sample.value = 1;
+            sample.size = WKYLIB::compute_area(a, b, c);
+            sample.tri = i;
             mSamples.push_back(sample);
             //sample.normal = -sample.normal;
             //sample.value = -1;
             //mSamples.push_back(sample);
         }
 
-        addBoundary(shell);
+        //addBoundary(shell);
+    }
+
+    double ShellGenerator::kernel(const vec3_t &x, const SamplePoint &sample)
+    {
+        const vec3_t& x2 = sample.position;
+        const vec3_t& n = sample.normal;
+        double result = sample.value * Gn(x, x2, n) - G(x, x2) * sample.derivative;
+        return result;
     }
 
     void ShellGenerator::buildAABB(const Shell& shell, double &xmax, double &xmin, double &ymax, double &ymin, double &zmax, double &zmin)
@@ -412,9 +429,10 @@ namespace SBV
 
     void ShellGenerator::computeDerivative()
     {
+        std::cout << "[INFO] computing derivatives..." << std::endl;
+
         matrixr_t un;
 
-        const double l = mSampleRadius;
         const size_t N = mSamples.size();
 
         matrixr_t A = zeros<double>(N, N);
@@ -422,10 +440,22 @@ namespace SBV
         {
             for(int j = 0; j < N; j++)
             {
-                if(j == i || isOpposite(mSamples[i], mSamples[j]))
-                    A(i, j) = -l / 2;
+                if(j == i)
+                {
+                    const vec3_t a = mVertices(colon(), mTriangles(0, mSamples[i].tri));
+                    const vec3_t b = mVertices(colon(), mTriangles(1, mSamples[i].tri));
+                    const vec3_t c = mVertices(colon(), mTriangles(2, mSamples[i].tri));
+                    const vec3_t o = (a + b + c) / 3;
+                    const vec3_t oab = (o + a + b) / 3;
+                    const vec3_t oac = (o + a + c) / 3;
+                    const vec3_t obc = (o + b + c) / 3;
+                    const double Soab = WKYLIB::compute_area(o, a, b);
+                    const double Soac = WKYLIB::compute_area(o, a, c);
+                    const double Sobc = WKYLIB::compute_area(o, b, c);
+                    A(i, j) = -(G(mSamples[i].position, oab) * Soab + G(mSamples[i].position, oac) * Soac + G(mSamples[i].position, obc) * Sobc) / 3;
+                }
                 else
-                    A(i, j) = -G(mSamples[i].position, mSamples[j].position) * PI * l * l;
+                    A(i, j) = -G(mSamples[i].position, mSamples[j].position) * mSamples[j].size;
             }
         }
 
@@ -436,13 +466,22 @@ namespace SBV
             for(int j = 0; j < N; j++)
             {
                 if(j == i)
-                    B[i] -= 0.5 * mSamples[j].value;
-                //    B[i] -= 0;
-                else if(isOpposite(mSamples[i], mSamples[j]))
-                    B[i] += 0.5 * mSamples[j].value;
-                //    B[i] += 0;
+                {
+                    const vec3_t a = mVertices(colon(), mTriangles(0, mSamples[i].tri));
+                    const vec3_t b = mVertices(colon(), mTriangles(1, mSamples[i].tri));
+                    const vec3_t c = mVertices(colon(), mTriangles(2, mSamples[i].tri));
+                    const vec3_t o = (a + b + c) / 3;
+                    const vec3_t oab = (o + a + b) / 3;
+                    const vec3_t oac = (o + a + c) / 3;
+                    const vec3_t obc = (o + b + c) / 3;
+                    const double Soab = WKYLIB::compute_area(o, a, b);
+                    const double Soac = WKYLIB::compute_area(o, a, c);
+                    const double Sobc = WKYLIB::compute_area(o, b, c);
+                    B[i] -= mSamples[i].value * (Gn(mSamples[i].position, oab, mSamples[i].normal) * Soab + Gn(mSamples[i].position, oac, mSamples[i].normal) * Soac
+                                                 + Gn(mSamples[i].position, obc, mSamples[i].normal) * Sobc) / 3;
+                }
                 else
-                    B[i] -= (mSamples[j].value * Gn(mSamples[i].position, mSamples[j].position, mSamples[j].normal)) * PI * l * l;
+                    B[i] -= (mSamples[j].value * Gn(mSamples[i].position, mSamples[j].position, mSamples[j].normal)) * mSamples[j].size;
             }
         }
 

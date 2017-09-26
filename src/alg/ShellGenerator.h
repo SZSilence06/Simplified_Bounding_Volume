@@ -33,6 +33,8 @@ namespace SBV
             vec3_t normal;
             double value = 0;
             double derivative = 0;
+            double size = 0;   //indicating the size of the triangle which the sample point lies in.
+            int tri = -1;      //indicating the triangle which the sample point lies in.
         };
 
         void generateSamples(Shell& shell, matrixr_t& normals);
@@ -51,20 +53,14 @@ namespace SBV
             return dot((x - x2) / (4 * PI * pow(distance(x, x2), 3)), n);
         }
 
-        double kernel(const vec3_t& x, const SamplePoint& sample)
-        {
-            const vec3_t& x2 = sample.position;
-            const vec3_t& n = sample.normal;
-            double result = sample.value * Gn(x, x2, n) - G(x, x2) * sample.derivative;
-            return result;
-        }
+        double kernel(const vec3_t& x, const SamplePoint& sample);
 
         double getFieldValue(const vec3_t& x)
         {
             double result = 0;
             for(int i = 0; i < mSamples.size(); i++)
             {
-                result += kernel(x, mSamples[i]) * PI * mSampleRadius * mSampleRadius;
+                result += kernel(x, mSamples[i]) * mSamples[i].size;
             }
             //if(result > 1) result = 1;
             //if(result < 0) result = 0;
