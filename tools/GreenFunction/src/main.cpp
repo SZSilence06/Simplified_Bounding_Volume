@@ -27,7 +27,7 @@ struct Camera{
     double ymax;
 };
 
-const int g_sampleCount = 500;
+const int g_sampleCount = 50;
 const double PI = acos(-1.0);
 const double EPSILON = 1e-6;
 const double FARAWAY = 2;

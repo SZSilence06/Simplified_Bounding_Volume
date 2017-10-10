@@ -8,7 +8,7 @@ namespace WKYLIB
 {
     namespace Mesh
     {
-        bool writePoints_vtk(const std::string &file, const matrixr_t &points)
+        static bool writePoints_vtk(const std::string &file, const matrixr_t &points)
         {
             std::ofstream out;
 
@@ -42,7 +42,7 @@ namespace WKYLIB
             return true;
         }
 
-        bool writePoints_pcd(const std::string &file, const matrixr_t &points)
+        static bool writePoints_pcd(const std::string &file, const matrixr_t &points)
         {
             std::ofstream out;
             out.open(file);
@@ -72,7 +72,7 @@ namespace WKYLIB
             return true;
         }
 
-        bool writePoints_obj(const std::string &file, const matrixr_t &points)
+        static bool writePoints_obj(const std::string &file, const matrixr_t &points)
         {
             std::ofstream out;
             out.open(file);
@@ -109,7 +109,7 @@ namespace WKYLIB
             return false;
         }
 
-        bool writePointsAndNormals_obj(const std::string &file, const matrixr_t &points, const matrixr_t& normals)
+        static bool writePointsAndNormals_obj(const std::string &file, const matrixr_t &points, const matrixr_t& normals)
         {
             std::ofstream out;
             out.open(file);
@@ -313,6 +313,39 @@ namespace WKYLIB
 
             out.close();
 
+            return true;
+        }
+
+        WKY_API bool writeMeshAndNormals(const std::string& file, const matrixr_t& vertices, const matrixs_t& triangles, const matrixr_t& normals)
+        {
+            if(vertices.size(1) != 3 || triangles.size(1) != 3 || normals.size(1) != 3)
+            {
+                throw std::invalid_argument("You can only use 3d matrix for 'vertices' and 3d matrix for 'trianlges' and 3d matrix for 'normasl' in writeMeshAndNormals().");
+            }
+
+            std::ofstream out;
+            out.open(file);
+            if(out.fail())
+            {
+                return false;
+            }
+
+            for(int i = 0; i < vertices.size(2); i++)
+            {
+                out << "v " << vertices(0, i) << " " << vertices(1, i) << " " << vertices(2, i) << std::endl;
+            }
+            for(int i = 0; i < normals.size(2); i++)
+            {
+                out << "vn " << normals(0, i) << " " << normals(1, i) << " " << normals(2, i) << std::endl;
+            }
+            for(int i = 0; i < triangles.size(2); i++)
+            {
+                out << "f " << triangles(0, i) + 1 << "//" << triangles(0, i) + 1 << " "
+                    << triangles(1, i) + 1 << "//" << triangles(1, i) + 1 << " "
+                    << triangles(2, i) + 1 << "//" << triangles(2, i) + 1 << std::endl;
+            }
+
+            out.close();
             return true;
         }
     }

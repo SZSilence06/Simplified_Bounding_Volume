@@ -9,6 +9,11 @@
 #include <wkylib/mesh/IO.h>
 #include <wkylib/geometry.h>
 #include "vtk.h"
+#include <vtkSphereSource.h>
+#include <vtkSmartPointer.h>
+#include <vtkPolyData.h>
+#include <vtkTriangle.h>
+#include <vtkGenericCell.h>
 
 using namespace zjucad::matrix;
 
@@ -216,8 +221,8 @@ namespace SBV
 
     void ShellGenerator::visualizeField(const Shell& shell)
     {
-        const double scale = 3;
-        const int res = 50;
+        const double scale = 2.5;
+        const int res = 100;
         double xmax, xmin, ymax, ymin, zmax, zmin;
         buildAABB(shell, xmax, xmin, ymax, ymin, zmax, zmin);
         scaleAABB(xmin, xmax, ymin, ymax, zmin, zmax, scale);
@@ -241,10 +246,6 @@ namespace SBV
                     pos[1] = ymin + j * yStep;
                     pos[2] = zmin + i * zStep;
                     double value = getFieldValue(pos);
-                    //if(value > 1)
-                    //    value = 1;
-                    //if(value < 0)
-                    //    value = 0;
                     fieldData[idx] = value;
                 }
             }
@@ -328,6 +329,23 @@ namespace SBV
     {
         Sampler::poissonDisk(mVertices, mTriangles, mSampleRadius, shell.mInnerShell, normals);
 
+        //output mesh normals for test
+        matrixr_t N(3, mVertices.size(2));
+        for(int i = 0; i < mTriangles.size(2); i++)
+        {
+            const vec3_t a = mVertices(colon(), mTriangles(0, i));
+            const vec3_t b = mVertices(colon(), mTriangles(1, i));
+            const vec3_t c = mVertices(colon(), mTriangles(2, i));
+            vec3_t n = cross(b - a, c - a);
+            n /= norm(n);
+            N(colon(), mTriangles(0, i)) += n;
+            N(colon(), mTriangles(1, i)) += n;
+            N(colon(), mTriangles(2, i)) += n;
+        }
+        for(int i = 0; i < N.size(2); i++)
+            N(colon(), i) /= norm(N(colon(), i));
+        WKYLIB::Mesh::writeMeshAndNormals((mOutputDirectory + "/mesh.obj"), mVertices, mTriangles, N);
+
         for(int i = 0; i < mTriangles.size(2); i++)
         {
             const vec3_t a = mVertices(colon(), mTriangles(0, i));
@@ -341,14 +359,14 @@ namespace SBV
             sample.normal = n;
             sample.value = 1;
             sample.size = WKYLIB::compute_area(a, b, c);
-            sample.tri = i;
+            sample.tri = mVertices(colon(), mTriangles(colon(), i));
             mSamples.push_back(sample);
-            //sample.normal = -sample.normal;
-            //sample.value = -1;
-            //mSamples.push_back(sample);
+            sample.normal = -sample.normal;
+            sample.value = -1;
+            mSamples.push_back(sample);
         }
 
-        //addBoundary(shell);
+        addBoundary(shell);
     }
 
     double ShellGenerator::kernel(const vec3_t &x, const SamplePoint &sample)
@@ -384,42 +402,73 @@ namespace SBV
         double xmax, xmin, ymax, ymin, zmax, zmin;
         buildAABB(shell, xmax, xmin, ymax, ymin, zmax, zmin);
         scaleAABB(xmin, xmax, ymin, ymax, zmin, zmax, scale);
+        double xCenter = (xmax + xmin) / 2;
+        double yCenter = (ymax + ymin) / 2;
+        double zCenter = (zmax + zmin) / 2;
+        double radius = std::max(std::max(xCenter - xmin, yCenter - ymin), zCenter - zmin);
 
-        matrixr_t bV(3, 8);
-        matrixs_t bT(3, 12);
-        bV(0, 0) = xmin; bV(1, 0) = ymin; bV(2, 0) = zmin;
-        bV(0, 1) = xmin; bV(1, 1) = ymin; bV(2, 1) = zmax;
-        bV(0, 2) = xmin; bV(1, 2) = ymax; bV(2, 2) = zmin;
-        bV(0, 3) = xmin; bV(1, 3) = ymax; bV(2, 3) = zmax;
-        bV(0, 4) = xmax; bV(1, 4) = ymin; bV(2, 4) = zmin;
-        bV(0, 5) = xmax; bV(1, 5) = ymin; bV(2, 5) = zmax;
-        bV(0, 6) = xmax; bV(1, 6) = ymax; bV(2, 6) = zmin;
-        bV(0, 7) = xmax; bV(1, 7) = ymax; bV(2, 7) = zmax;
+        vtkSmartPointer<vtkSphereSource> sphereSource = vtkSmartPointer<vtkSphereSource>::New();
+        sphereSource->SetCenter(xCenter, yCenter, zCenter);
+        sphereSource->SetRadius(radius);
+        sphereSource->SetThetaResolution(50);
+        sphereSource->SetPhiResolution(50);
+        sphereSource->Update();
+        vtkPolyData* polydata = sphereSource->GetOutput();
 
-        bT(0, 0) = 0; bT(1, 0) = 1; bT(2, 0) = 2;
-        bT(0, 1) = 1; bT(1, 1) = 2; bT(2, 1) = 3;
-        bT(0, 2) = 0; bT(1, 2) = 1; bT(2, 2) = 4;
-        bT(0, 3) = 1; bT(1, 3) = 4; bT(2, 3) = 5;
-        bT(0, 4) = 0; bT(1, 4) = 2; bT(2, 4) = 4;
-        bT(0, 5) = 2; bT(1, 5) = 4; bT(2, 5) = 6;
-        bT(0, 6) = 4; bT(1, 6) = 5; bT(2, 6) = 6;
-        bT(0, 7) = 5; bT(1, 7) = 6; bT(2, 7) = 7;
-        bT(0, 8) = 2; bT(1, 8) = 3; bT(2, 8) = 6;
-        bT(0, 9) = 3; bT(1, 9) = 6; bT(2, 9) = 7;
-        bT(0, 10) = 1; bT(1, 10) = 3; bT(2, 10) = 5;
-        bT(0, 11) = 3; bT(1, 11) = 5; bT(2, 11) = 7;
+        matrixr_t bV(3, polydata->GetNumberOfPoints());
+        matrixs_t bT(3, polydata->GetNumberOfCells());
 
-        matrixr_t samples, normals;
-        Sampler::poissonDisk(bV, bT, mSampleRadius, samples, normals);
-
-        for(int i = 0; i < samples.size(2); i++)
+        // Write all of the coordinates of the points in the vtkPolyData to the console.
+        for(vtkIdType i = 0; i < polydata->GetNumberOfPoints(); i++)
         {
-            SamplePoint point;
-            point.position = samples(colon(), i);
-            point.normal = -normals(colon(), i);
-            point.value = 0;
-            mSamples.push_back(point);
+            vec3_t p;
+            polydata->GetPoint(i, &p[0]);
+            // This is identical to:
+            // polydata->GetPoints()->GetPoint(i,p);
+            bV(colon(), i) = p;
         }
+
+        for(vtkIdType i = 0; i < polydata->GetNumberOfCells(); i++)
+        {
+            vtkCell* cell = polydata->GetCell(i);
+            vtkIdList* ids = cell->GetPointIds();
+            for(int j = 0; j < 3; j++)
+                bT(j, i) = ids->GetId(j);
+        }
+
+        matrixr_t normals(3, bV.size(2));
+        for(int i = 0; i < bT.size(2); i++)
+        {
+            const vec3_t a = bV(colon(), bT(0, i));
+            const vec3_t b = bV(colon(), bT(1, i));
+            const vec3_t c = bV(colon(), bT(2, i));
+            vec3_t n = cross(b - a, c - a);
+            n /= norm(n);
+            normals(colon(), bT(0, i)) += n;
+            normals(colon(), bT(1, i)) += n;
+            normals(colon(), bT(2, i)) += n;
+        }
+        for(int i = 0; i < normals.size(2); i++)
+            normals(colon(), i) /= norm(normals(colon(), i));
+
+        for(int i = 0; i < bT.size(2); i++)
+        {
+            const vec3_t a = bV(colon(), bT(0, i));
+            const vec3_t b = bV(colon(), bT(1, i));
+            const vec3_t c = bV(colon(), bT(2, i));
+            vec3_t n = -cross(b - a, c - a);
+            n /= norm(n);
+
+            SamplePoint sample;
+            sample.position = (a + b + c) / 3;
+            sample.normal = n;
+            sample.value = 0;
+            sample.size = WKYLIB::compute_area(a, b, c);
+            sample.tri = bV(colon(), bT(colon(), i));
+            mSamples.push_back(sample);
+        }
+
+        WKYLIB::Mesh::writeMeshAndNormals((mOutputDirectory + "/boundary.obj"), bV, bT, normals);
     }
 
     bool ShellGenerator::isOpposite(const SamplePoint &a, const SamplePoint &b)
@@ -440,11 +489,11 @@ namespace SBV
         {
             for(int j = 0; j < N; j++)
             {
-                if(j == i)
+                if(j == i || isOpposite(mSamples[i], mSamples[j]))
                 {
-                    const vec3_t a = mVertices(colon(), mTriangles(0, mSamples[i].tri));
-                    const vec3_t b = mVertices(colon(), mTriangles(1, mSamples[i].tri));
-                    const vec3_t c = mVertices(colon(), mTriangles(2, mSamples[i].tri));
+                    const vec3_t a = mSamples[j].tri(colon(), 0);
+                    const vec3_t b = mSamples[j].tri(colon(), 1);
+                    const vec3_t c = mSamples[j].tri(colon(), 2);
                     const vec3_t o = (a + b + c) / 3;
                     const vec3_t oab = (o + a + b) / 3;
                     const vec3_t oac = (o + a + c) / 3;
@@ -452,7 +501,7 @@ namespace SBV
                     const double Soab = WKYLIB::compute_area(o, a, b);
                     const double Soac = WKYLIB::compute_area(o, a, c);
                     const double Sobc = WKYLIB::compute_area(o, b, c);
-                    A(i, j) = -(G(mSamples[i].position, oab) * Soab + G(mSamples[i].position, oac) * Soac + G(mSamples[i].position, obc) * Sobc) / 3;
+                    A(i, j) = -(G(mSamples[i].position, oab) * Soab + G(mSamples[i].position, oac) * Soac + G(mSamples[i].position, obc) * Sobc);
                 }
                 else
                     A(i, j) = -G(mSamples[i].position, mSamples[j].position) * mSamples[j].size;
@@ -465,11 +514,11 @@ namespace SBV
             B[i] += mSamples[i].value;
             for(int j = 0; j < N; j++)
             {
-                if(j == i)
+                if(j == i || isOpposite(mSamples[i], mSamples[j]))
                 {
-                    const vec3_t a = mVertices(colon(), mTriangles(0, mSamples[i].tri));
-                    const vec3_t b = mVertices(colon(), mTriangles(1, mSamples[i].tri));
-                    const vec3_t c = mVertices(colon(), mTriangles(2, mSamples[i].tri));
+                    const vec3_t a = mSamples[j].tri(colon(), 0);
+                    const vec3_t b = mSamples[j].tri(colon(), 1);
+                    const vec3_t c = mSamples[j].tri(colon(), 2);
                     const vec3_t o = (a + b + c) / 3;
                     const vec3_t oab = (o + a + b) / 3;
                     const vec3_t oac = (o + a + c) / 3;
@@ -477,18 +526,21 @@ namespace SBV
                     const double Soab = WKYLIB::compute_area(o, a, b);
                     const double Soac = WKYLIB::compute_area(o, a, c);
                     const double Sobc = WKYLIB::compute_area(o, b, c);
-                    B[i] -= mSamples[i].value * (Gn(mSamples[i].position, oab, mSamples[i].normal) * Soab + Gn(mSamples[i].position, oac, mSamples[i].normal) * Soac
-                                                 + Gn(mSamples[i].position, obc, mSamples[i].normal) * Sobc) / 3;
+                    B[i] -= mSamples[j].value * (Gn(mSamples[i].position, oab, mSamples[j].normal) * Soab + Gn(mSamples[i].position, oac, mSamples[j].normal) * Soac
+                                                 + Gn(mSamples[i].position, obc, mSamples[j].normal) * Sobc);
                 }
                 else
                     B[i] -= (mSamples[j].value * Gn(mSamples[i].position, mSamples[j].position, mSamples[j].normal)) * mSamples[j].size;
             }
         }
 
-        std::cout << "solving un..." << std::endl;
         Eigen::Map<Eigen::MatrixXd> AA(&A.data()[0], A.size(1), A.size(2));
         Eigen::Map<Eigen::VectorXd> BB(&B.data()[0], B.size(1), B.size(2));
 
+        //std::cout << "[INFO] computing transpose..." << std::endl;
+        //BB = AA.transpose() * BB;
+        //AA = AA.transpose() * AA;
+        std::cout << "[INFO] solving un..." << std::endl;
         Eigen::ColPivHouseholderQR<Eigen::MatrixXd> solver(AA);
         Eigen::VectorXd UNN = solver.solve(BB);
         un.resize(UNN.rows(), 1);
@@ -501,5 +553,46 @@ namespace SBV
         {
             mSamples[i].derivative = un[i];
         }
+    }
+
+    ShellGenerator::EulerAngle ShellGenerator::eulerAngle(const vec3_t &p0, const vec3_t &pz, const vec3_t &px)
+    {
+        // translation of local system
+        vec3_t uz = pz - p0;
+        vec3_t ux = px - p0;
+
+        // unit vectors
+        uz /= norm(uz);
+        ux /= norm(ux);
+
+        // angle phi from direction of cross product
+        EulerAngle result;
+        result.phi = atan2(uz[0], -uz[1]);
+
+        // angle theta from dot product of Uz and versor of z-axis
+        double eta = -uz[0] * sin(result.phi) + uz[1] * cos(result.phi);
+        result.theta = acos(uz[2]);
+        if(eta > 0)
+            result.theta = -result.theta;
+
+        // angle psi from dot product of Ux and versor of rotated x-axis
+        vec3_t uxr;
+        uxr[0] = cos(result.phi);
+        uxr[1] = sin(result.phi);
+        uxr[2] = 0;
+        eta = -ux[0] * cos(result.theta) * sin(result.phi) + ux[1] * cos(result.theta) * cos(result.phi) + ux[2] * sin(result.theta);
+        double cosarg = dot(ux, uxr);
+
+        // set cosarg between -1 and 1
+        if(cosarg > 1)
+            cosarg  =1;
+        if(cosarg < -1)
+            cosarg = -1;
+
+        result.psi = acos(cosarg);
+        if(eta < 0)
+            result.psi = -result.psi;
+
+        return result;
     }
 }

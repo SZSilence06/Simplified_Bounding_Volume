@@ -25,6 +25,12 @@ namespace SBV
         //void writeHeader(const matrixr_t &points, pcl::PCLPointCloud2& cloud);
         //void makeZJUMesh(const pcl::PolygonMesh& mesh, matrixr_t& vertices, matrixs_t& triangles);
 
+        struct EulerAngle
+        {
+            double phi;             //rotation along z-axis
+            double theta;           //rotation alon x-axis already rotated by phi
+            double psi;             //rotation alon y-axis already rotated by phi and theta
+        };
 
         //for computing Green Function
         struct SamplePoint
@@ -34,8 +40,10 @@ namespace SBV
             double value = 0;
             double derivative = 0;
             double size = 0;   //indicating the size of the triangle which the sample point lies in.
-            int tri = -1;      //indicating the triangle which the sample point lies in.
+            mat3x3_t tri;      //indicating the triangle which the sample point lies in.
         };
+
+        EulerAngle eulerAngle(const vec3_t& p0, const vec3_t& pz, const vec3_t& px);
 
         void generateSamples(Shell& shell, matrixr_t& normals);
         void addBoundary(Shell& shell);

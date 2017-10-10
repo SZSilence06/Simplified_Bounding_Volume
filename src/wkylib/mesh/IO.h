@@ -19,6 +19,7 @@ namespace WKYLIB
          * @brief write points and normals to a file. supported formats: obj.
          * @param file : output file path.
          * @param points : points to write.
+         * @param normals : normals of the points.
          * @return true if succeeded, and false otherwise.
          */
         WKY_API bool writePointsAndNormals(const std::string& file, const matrixr_t& points, const matrixr_t& normals);
@@ -66,6 +67,16 @@ namespace WKYLIB
          * @return true if succeeded, and false otherwise.
          */
         WKY_API bool writeTetra(const std::string& file, const matrixr_t& vertices, const matrixs_t& cells);
+
+        /**
+         * @brief write triangle mesh and normals to a obj format file.
+         * @param file : output file path.
+         * @param vertices : vertices to output.
+         * @param triangles : triangles to output.
+         * @param normals : normals of the vertices.
+         * @return true if succeeded, and false otherwise.
+         */
+        WKY_API bool writeMeshAndNormals(const std::string& file, const matrixr_t& vertices, const matrixs_t& triangles, const matrixr_t& normals);
     }
 }
 
