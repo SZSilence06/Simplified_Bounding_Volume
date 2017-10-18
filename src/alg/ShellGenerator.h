@@ -25,13 +25,6 @@ namespace SBV
         //void writeHeader(const matrixr_t &points, pcl::PCLPointCloud2& cloud);
         //void makeZJUMesh(const pcl::PolygonMesh& mesh, matrixr_t& vertices, matrixs_t& triangles);
 
-        struct EulerAngle
-        {
-            double phi;             //rotation along z-axis
-            double theta;           //rotation alon x-axis already rotated by phi
-            double psi;             //rotation alon y-axis already rotated by phi and theta
-        };
-
         //for computing Green Function
         struct SamplePoint
         {
@@ -41,9 +34,9 @@ namespace SBV
             double derivative = 0;
             double size = 0;   //indicating the size of the triangle which the sample point lies in.
             mat3x3_t tri;      //indicating the triangle which the sample point lies in.
+            matrixr_t transform;  //matrix for transforming to local
+            matrixr_t invTransform;
         };
-
-        EulerAngle eulerAngle(const vec3_t& p0, const vec3_t& pz, const vec3_t& px);
 
         void generateSamples(Shell& shell, matrixr_t& normals);
         void addBoundary(Shell& shell);
@@ -68,7 +61,9 @@ namespace SBV
             double result = 0;
             for(int i = 0; i < mSamples.size(); i++)
             {
-                result += kernel(x, mSamples[i]) * mSamples[i].size;
+                //result += kernel(x, mSamples[i]) * mSamples[i].size;
+                //if(i == 859)
+                result += kernel(x, mSamples[i]);
             }
             //if(result > 1) result = 1;
             //if(result < 0) result = 0;
@@ -78,6 +73,10 @@ namespace SBV
         vec3_t getGradient(const vec3_t& x);
 
         double distance(const vec3_t& x, const vec3_t& x2);
+
+        void viewTransform(const vec3_t& eye, vec3_t ux, vec3_t uz, matrixr_t& output);
+        void localTransform(const vec3_t& a, const vec3_t& b, const vec3_t& c, matrixr_t& output);
+        double integrateOverTriangle(const vec3_t& x, const SamplePoint& point, double& I1, vec3_t& Igrad);
 
     private:
         const matrixr_t& mVertices;

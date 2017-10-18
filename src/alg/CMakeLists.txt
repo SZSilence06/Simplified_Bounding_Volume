@@ -4,9 +4,9 @@ file(GLOB sources *.cpp)
 find_package(CGAL REQUIRED)
 include_directories(${CGAL_INCLUDE_DIRS})
 
-find_package(PCL REQUIRED COMPONENTS common io surface features search filters)
-include_directories(${PCL_INCLUDE_DIRS})
-link_directories(${PCL_LIBRARY_DIRS})
+#find_package(PCL REQUIRED COMPONENTS common io surface features search filters)
+#include_directories(${PCL_INCLUDE_DIRS})
+#link_directories(${PCL_LIBRARY_DIRS})
 
 find_package(VTK REQUIRED)
 include(${VTK_USE_FILE})
@@ -30,5 +30,5 @@ target_link_libraries(alg
     lapack
     ${CGAL_LIBRARY}
     ${GMP_LIBRARIES}
-    ${PCL_LIBRARIES}
+#    ${PCL_LIBRARIES}
     ${VTK_LIBRARIES})

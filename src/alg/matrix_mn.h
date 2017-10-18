@@ -18,6 +18,8 @@ public:
 	typedef T* pointer;
   typedef const_pointer const_iterator;
   typedef pointer iterator;
+    typedef pointer raw_data_type;
+    typedef const_pointer const_raw_data_type;
 
 	matrix_mn(){}
 	template <typename E>
@@ -60,6 +62,9 @@ public:
 		std::copy(e().begin(), e().end(), begin());
 		return *this;
 	}
+
+    const_raw_data_type data(void) const {return dat_;}
+    raw_data_type data(void) {return dat_;}
 
 	PROXY_ACCESS;
 	MATRIX_SELF_OP;

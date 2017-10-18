@@ -1,15 +1,10 @@
-/*
+/**/CMakeLists.txt.user*
 /src/CMakeLists.txt.user
-/tools/CurveConverter/src/CMakeLists.txt.user
+/CMakeLists.txt.user
+/tools/GreenFunction/src/CMakeLists.txt.user
 /tools/build-PoissonReconstruct-qt5-Release
-/tools/GreenFunction/build-src-qt5-Debug
-/tools/GreenFunction/build-src-qt5-Release
-!/.gitignore
-!/.gitattributes
-!/src
-!/test_data
-!/tools
-!/README.md
-!/compile.sh
+/tools/GreenFunction/build*
+/build*
+/.vscode
 
 

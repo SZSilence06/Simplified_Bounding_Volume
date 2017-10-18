@@ -248,9 +248,9 @@ void generateSamples()
             sample.normal = n;
             sample.color = cr;
             g_samples.push_back(sample);
-            sample.normal = -n;
-            sample.color = cl;
-            g_samples.push_back(sample);
+            //sample.normal = -n;
+            //sample.color = cl;
+            //g_samples.push_back(sample);
             currentLength += g_sampleLength;
         }
         currentLength -= length;

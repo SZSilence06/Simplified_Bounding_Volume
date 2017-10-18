@@ -1,4 +1,4 @@
-#ifndef WKY_PCL_MY_POISSON_H
+/*#ifndef WKY_PCL_MY_POISSON_H
 #define WKY_PCL_MY_POISSON_H
 
 #include <pcl/surface/poisson.h>
@@ -19,4 +19,4 @@ private:
     double iso_delta_ = 0;
 };
 
-#endif
+#endif*/

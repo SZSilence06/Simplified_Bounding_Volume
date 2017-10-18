@@ -2,10 +2,12 @@
 #include "Sampler.h"
 #include "Shell.h"
 #include "MyPoisson.h"
-#include <pcl/io/vtk_io.h>
+//#include <pcl/io/vtk_io.h>
+#include <hjlib/math/blas_lapack.h>
+#include <zjucad/matrix/lapack.h>
 #include <jtflib/mesh/io.h>
 #include <zjucad/matrix/io.h>
-#include <Eigen/IterativeLinearSolvers>
+#include <eigen3/Eigen/IterativeLinearSolvers>
 #include <wkylib/mesh/IO.h>
 #include <wkylib/geometry.h>
 #include "vtk.h"
@@ -172,6 +174,7 @@ namespace SBV
         generateSamples(shell, normals);
         computeDerivative();
         visualizeField(shell);
+        exit(0);
         generateOuterShell(shell, normals);
 
         shell.buildKdTree();
@@ -198,15 +201,19 @@ namespace SBV
 
     template <typename OS>
     void grid2vtk(OS &os, double xmin, double xmax, double ymin, double ymax, double zmin, double zmax, int res) {
+        const int resX = res;
+        const int resY = res;
+        const int resZ = res;
+
       os << "# vtk DataFile Version 2.0\nSample rectilinear grid\nASCII\nDATASET RECTILINEAR_GRID\n";
-      os << "DIMENSIONS" << " " << res << " " << res << " " << res << std::endl;
+      os << "DIMENSIONS" << " " << resX << " " << resY << " " << resZ << std::endl;
 
       // order: first x, then y, finally z
       const double dx = (xmax - xmin)/(res-1);
       const double dy = (ymax - ymin)/(res-1);
       const double dz = (zmax - zmin)/(res-1);
 
-      os << "X_COORDINATES " << res << " float\n";
+      os << "X_COORDINATES " << resX << " float\n";
       for (size_t i = 0; i < res; ++i)
         os << xmin+i*dx << std::endl;
 
@@ -221,8 +228,9 @@ namespace SBV
 
     void ShellGenerator::visualizeField(const Shell& shell)
     {
+        std::cout << "[INFO] Generating field..." << std::endl;
         const double scale = 2.5;
-        const int res = 100;
+        const int res = 400;
         double xmax, xmin, ymax, ymin, zmax, zmin;
         buildAABB(shell, xmax, xmin, ymax, ymin, zmax, zmin);
         scaleAABB(xmin, xmax, ymin, ymax, zmin, zmax, scale);
@@ -230,17 +238,26 @@ namespace SBV
         std::ofstream of(mOutputDirectory + "/field.vtk");
         grid2vtk(of, xmin, xmax, ymin, ymax, zmin, zmax, res);
 
-        const double xStep = (xmax - xmin) / res;
-        const double yStep = (ymax - ymin) / res;
-        const double zStep = (zmax - zmin) / res;
-        matrixr_t fieldData(res * res * res, 1);
+        const double xStep = (xmax - xmin) / (res - 1);
+        const double yStep = (ymax - ymin) / (res - 1);
+        const double zStep = (zmax - zmin) / (res - 1);
+
+        const int resX = res;
+        const int resY = res;
+        const int resZ = res;
+        matrixr_t fieldData(resX * resY * resZ, 1);
 
 #pragma omp parallel for
-        for(size_t i = 0; i < res; i++) {
-            for(size_t j = 0; j < res; j++) {
-                for(size_t k = 0; k < res; k++)
-                {
-                    const size_t idx = i * res * res + j * res + k;
+        for(size_t i = 0; i < resZ; i++) {
+            for(size_t j = 0; j < resY; j++) {
+                for(size_t k = 0; k < resX; k++)
+                {  
+                    const size_t idx = i * resY * resX + j * resX + k;
+                    //if(idx != 43249)
+                    //{
+                    //    fieldData[idx] = 0;
+                    //    continue;
+                    //}
                     vec3_t pos;
                     pos[0] = xmin + k * xStep;
                     pos[1] = ymin + j * yStep;
@@ -360,21 +377,16 @@ namespace SBV
             sample.value = 1;
             sample.size = WKYLIB::compute_area(a, b, c);
             sample.tri = mVertices(colon(), mTriangles(colon(), i));
-            mSamples.push_back(sample);
-            sample.normal = -sample.normal;
-            sample.value = -1;
-            mSamples.push_back(sample);
+            localTransform(sample.tri(colon(), 0), sample.tri(colon(), 1), sample.tri(colon(), 2), sample.transform);
+            sample.invTransform = sample.transform;
+            inv(sample.invTransform);
+            mSamples.push_back(sample);            
+            //sample.normal = -sample.normal;
+            //sample.value = -1;
+            //mSamples.push_back(sample);
         }
 
         addBoundary(shell);
-    }
-
-    double ShellGenerator::kernel(const vec3_t &x, const SamplePoint &sample)
-    {
-        const vec3_t& x2 = sample.position;
-        const vec3_t& n = sample.normal;
-        double result = sample.value * Gn(x, x2, n) - G(x, x2) * sample.derivative;
-        return result;
     }
 
     void ShellGenerator::buildAABB(const Shell& shell, double &xmax, double &xmin, double &ymax, double &ymin, double &zmax, double &zmin)
@@ -465,6 +477,9 @@ namespace SBV
             sample.value = 0;
             sample.size = WKYLIB::compute_area(a, b, c);
             sample.tri = bV(colon(), bT(colon(), i));
+            localTransform(sample.tri(colon(), 0), sample.tri(colon(), 1), sample.tri(colon(), 2), sample.transform);
+            sample.invTransform = sample.transform;
+            inv(sample.invTransform);
             mSamples.push_back(sample);
         }
 
@@ -478,68 +493,29 @@ namespace SBV
 
     void ShellGenerator::computeDerivative()
     {
-        std::cout << "[INFO] computing derivatives..." << std::endl;
-
-        matrixr_t un;
-
         const size_t N = mSamples.size();
+        std::cout << "[INFO] computing derivatives of " << N << " samples... " << std::endl;
+
+        matrixr_t un;   
 
         matrixr_t A = zeros<double>(N, N);
-        for(int i = 0; i < N; i++)
-        {
-            for(int j = 0; j < N; j++)
-            {
-                if(j == i || isOpposite(mSamples[i], mSamples[j]))
-                {
-                    const vec3_t a = mSamples[j].tri(colon(), 0);
-                    const vec3_t b = mSamples[j].tri(colon(), 1);
-                    const vec3_t c = mSamples[j].tri(colon(), 2);
-                    const vec3_t o = (a + b + c) / 3;
-                    const vec3_t oab = (o + a + b) / 3;
-                    const vec3_t oac = (o + a + c) / 3;
-                    const vec3_t obc = (o + b + c) / 3;
-                    const double Soab = WKYLIB::compute_area(o, a, b);
-                    const double Soac = WKYLIB::compute_area(o, a, c);
-                    const double Sobc = WKYLIB::compute_area(o, b, c);
-                    A(i, j) = -(G(mSamples[i].position, oab) * Soab + G(mSamples[i].position, oac) * Soac + G(mSamples[i].position, obc) * Sobc);
-                }
-                else
-                    A(i, j) = -G(mSamples[i].position, mSamples[j].position) * mSamples[j].size;
-            }
-        }
-
         matrixr_t B = zeros<double>(N, 1);
         for(int i = 0; i < N; i++)
         {
-            B[i] += mSamples[i].value;
+            B[i] = mSamples[i].value;
             for(int j = 0; j < N; j++)
             {
-                if(j == i || isOpposite(mSamples[i], mSamples[j]))
-                {
-                    const vec3_t a = mSamples[j].tri(colon(), 0);
-                    const vec3_t b = mSamples[j].tri(colon(), 1);
-                    const vec3_t c = mSamples[j].tri(colon(), 2);
-                    const vec3_t o = (a + b + c) / 3;
-                    const vec3_t oab = (o + a + b) / 3;
-                    const vec3_t oac = (o + a + c) / 3;
-                    const vec3_t obc = (o + b + c) / 3;
-                    const double Soab = WKYLIB::compute_area(o, a, b);
-                    const double Soac = WKYLIB::compute_area(o, a, c);
-                    const double Sobc = WKYLIB::compute_area(o, b, c);
-                    B[i] -= mSamples[j].value * (Gn(mSamples[i].position, oab, mSamples[j].normal) * Soab + Gn(mSamples[i].position, oac, mSamples[j].normal) * Soac
-                                                 + Gn(mSamples[i].position, obc, mSamples[j].normal) * Sobc);
-                }
-                else
-                    B[i] -= (mSamples[j].value * Gn(mSamples[i].position, mSamples[j].position, mSamples[j].normal)) * mSamples[j].size;
+                double I1;
+                vec3_t Igrad;
+                integrateOverTriangle(mSamples[i].position, mSamples[j], I1, Igrad);
+                A(i, j) = I1 / (4 * PI);
+                B[i] -= (mSamples[j].value * dot(Igrad, mSamples[j].normal)) / (4 * PI);
             }
         }
 
         Eigen::Map<Eigen::MatrixXd> AA(&A.data()[0], A.size(1), A.size(2));
         Eigen::Map<Eigen::VectorXd> BB(&B.data()[0], B.size(1), B.size(2));
 
-        //std::cout << "[INFO] computing transpose..." << std::endl;
-        //BB = AA.transpose() * BB;
-        //AA = AA.transpose() * AA;
         std::cout << "[INFO] solving un..." << std::endl;
         Eigen::ColPivHouseholderQR<Eigen::MatrixXd> solver(AA);
         Eigen::VectorXd UNN = solver.solve(BB);
@@ -547,52 +523,218 @@ namespace SBV
         for(int i = 0; i < UNN.rows(); i++){
             un[i] = UNN[i];
         }
-        std::cout << "un solved." << std::endl;
         std::cout << un << std::endl;
+        std::cout << "un solved." << std::endl;
         for(int i = 0; i < N; i++)
         {
             mSamples[i].derivative = un[i];
         }
     }
 
-    ShellGenerator::EulerAngle ShellGenerator::eulerAngle(const vec3_t &p0, const vec3_t &pz, const vec3_t &px)
+    void ShellGenerator::viewTransform(const vec3_t &eye, vec3_t ux, vec3_t uz, matrixr_t &output)
     {
-        // translation of local system
-        vec3_t uz = pz - p0;
-        vec3_t ux = px - p0;
-
-        // unit vectors
         uz /= norm(uz);
         ux /= norm(ux);
+        const vec3_t uy = cross(uz, ux);
 
-        // angle phi from direction of cross product
-        EulerAngle result;
-        result.phi = atan2(uz[0], -uz[1]);
+        output(0, 0) = ux[0];
+        output(0, 1) = ux[1];
+        output(0, 2) = ux[2];
+        output(0, 3) = -dot(eye, ux);
+        output(1, 0) = uy[0];
+        output(1, 1) = uy[1];
+        output(1, 2) = uy[2];
+        output(1, 3) = -dot(eye, uy);
+        output(2, 0) = uz[0];
+        output(2, 1) = uz[1];
+        output(2, 2) = uz[2];
+        output(2, 3) = -dot(eye, uz);
+        output(3, 0) = 0;
+        output(3, 1) = 0;
+        output(3, 2) = 0;
+        output(3, 3) = 1;
+    }
 
-        // angle theta from dot product of Uz and versor of z-axis
-        double eta = -uz[0] * sin(result.phi) + uz[1] * cos(result.phi);
-        result.theta = acos(uz[2]);
-        if(eta > 0)
-            result.theta = -result.theta;
+    void ShellGenerator::localTransform(const vec3_t &a, const vec3_t &b, const vec3_t &c, matrixr_t &output)
+    {
+        vec3_t ux = b - a;
+        vec3_t uz = cross(ux, c - a);
+        output.resize(4, 4);
+        viewTransform(a, ux, uz, output);
+    }
 
-        // angle psi from dot product of Ux and versor of rotated x-axis
-        vec3_t uxr;
-        uxr[0] = cos(result.phi);
-        uxr[1] = sin(result.phi);
-        uxr[2] = 0;
-        eta = -ux[0] * cos(result.theta) * sin(result.phi) + ux[1] * cos(result.theta) * cos(result.phi) + ux[2] * sin(result.theta);
-        double cosarg = dot(ux, uxr);
+    //closed-form calculation according to Graglia 1993.
+    double ShellGenerator::integrateOverTriangle(const vec3_t& x, const SamplePoint &point, double& I1, vec3_t& Igrad)
+    {
+        mat4x4_t triangle;
+        triangle(colon(0, 2), colon(0, 2)) = point.tri;
+        triangle(3, colon(0, 2)) = ones<double>(1, 3);
+        mat4x4_t localTriangle = point.transform * triangle;
 
-        // set cosarg between -1 and 1
-        if(cosarg > 1)
-            cosarg  =1;
-        if(cosarg < -1)
-            cosarg = -1;
+        double l3 = localTriangle(0, 1);
+        double u3 = localTriangle(0, 2);
+        double v3 = localTriangle(1, 2);
 
-        result.psi = acos(cosarg);
-        if(eta < 0)
-            result.psi = -result.psi;
+        if(l3 < 0)
+            throw std::runtime_error("l3 < 0.");
 
+        vec4_t tempX;
+        tempX(colon(0, 2), colon()) = x;
+        tempX[3] = 1;
+        vec4_t localX = point.transform * tempX;
+        double u0 = localX[0];
+        double v0 = localX[1];
+        double w0 = localX[2];
+
+        // edge lengths
+        double l1 = sqrt((l3-u3) * (l3-u3) + v3*v3);
+        double l2 = sqrt(u3*u3 + v3*v3);
+
+        // threshold for small numbers
+        double threshold = 1e-6 * std::min(std::min(l1,l2), l3);
+        if(fabs(w0) < threshold)
+            w0 = 0;
+
+        // eq (3)
+        vec3_t sminus, splus;
+        sminus[0] = -((l3-u3)*(l3-u0)+v3*v0)/l1;
+        sminus[1] = -(u3*(u3-u0)+v3*(v3-v0))/l2;
+        sminus[2] = -u0;
+        splus[0] = ((u3-l3)*(u3-u0)+v3*(v3-v0))/l1;
+        splus[1] = (u3*u0+v3*v0)/l2;
+        splus[2] = l3-u0;
+
+        // eq (4)
+        vec3_t t0;
+        t0[0] = ((u3-l3)*v0+v3*(l3-u0))/l1;
+        t0[1] = (v3*u0-u3*v0)/l2;
+        t0[2] = v0;
+
+        // eq (5)
+        vec3_t tplus, tminus;
+        tplus[0] = sqrt((u3-u0)*(u3-u0) + (v3-v0)*(v3-v0));
+        tplus[1] = sqrt(u0*u0 + v0*v0);
+        tplus[2] = sqrt((l3-u0)*(l3-u0) + v0*v0);
+        tminus[0] = tplus[2];
+        tminus[1] = tplus[0];
+        tminus[2] = tplus[1];
+
+        // line 1, pp. 1450
+        vec3_t R0;
+        for(int i = 0; i < 3; i++)
+            R0[i] = sqrt(t0[i]*t0[i] + w0*w0);
+
+        //line 2, pp. 1450
+        vec3_t Rplus, Rminus;
+        for(int i = 0; i < 3; i++)
+        {
+            Rplus[i] = sqrt(tplus[i]*tplus[i] + w0*w0);
+            Rminus[i] = sqrt(tminus[i]*tminus[i] + w0*w0);
+        }
+
+        // eq (11)
+        vec3_t f2;
+        for(int i = 0; i < 3; i++)
+        {
+            double temp;
+            if(w0 == 0)
+            {
+                if(fabs(t0[i]) < threshold)
+                    temp = fabs(log(splus[i]) / sminus[i]);
+                else
+                    temp = (tplus[i]+splus[i]) / (tminus[i]+sminus[i]);
+                if(temp < 0)
+                    std::cerr << "[WARNING] computing log of negative number. i = " << i
+                              << " tplus[0] = " << tplus[0]
+                              << " tminus[0] = " << tminus[0]
+                              << " splus[0] = " << splus[0]
+                              << " sminus[0] = " << sminus[0]
+                              << ". line " << __LINE__ << std::endl;
+            }
+            else
+            {
+                 temp = (Rplus[i]+splus[i]) / (Rminus[i]+sminus[i]);
+                 if(temp < 0)
+                     std::cerr << "[WARNING] computing log of negative number. i = " << i << ". line " << __LINE__ << std::endl;
+            }
+            f2[i] = log(temp);
+            //fix value for points on the triangle corners
+            if(f2[i] != f2[i])  //nan
+                f2[i] = 0;
+        }
+
+
+        // eq (13) and eq (14)
+        vec3_t beta;
+        double betaSum;
+        if(w0 == 0)
+        {
+            for(int i = 0; i < 3; i++)
+            {
+                if(fabs(t0[i]) < threshold)
+                    beta[i] = 0;
+                else
+                    beta[i] = atan(splus[i] / t0[i]) - atan(sminus[i] / t0[i]);
+            }
+        }
+        else
+        {
+            for(int i = 0; i < 3; i++)
+                beta[i] = atan((t0[i]*splus[i]) / (R0[i]*R0[i] + Rplus[i]*fabs(w0))) - atan((t0[i]*sminus[i]) / (R0[i]*R0[i] + Rminus[i]*fabs(w0)));
+        }
+        betaSum = beta[0] + beta[1] + beta[2];
+
+
+        // eq (19), integral of kernel 1/R
+        I1 = 0;
+        for(int i = 0; i < 3; i++)
+            I1 += t0[i]*f2[i];
+        I1 -= fabs(w0) * betaSum;
+
+        // normals of the triangle edges, Fig. 1(b)
+        vec3_t m[3];
+        m[0][0] = v3;
+        m[0][1] = l3 - u3;
+        m[0][2] = 0;
+        m[1][0] = -v3;
+        m[1][1] = u3;
+        m[1][2] = 0;
+        m[2][0] = 0;
+        m[2][1] = -l3;
+        m[2][2] = 0;
+        for(int i = 0; i < 3; i++)
+            m[i] /= norm(m[i]);
+
+        // eq (34), integral of kernel grad(1/R)
+        Igrad = zeros<double>(3, 1);
+        for(int i = 0; i < 3; i++)
+            Igrad -= m[i] * f2[i];
+        vec3_t w = zeros<double>(3, 1);
+        w[2] = 1;
+        if(w0 >= 0)
+            Igrad -= betaSum * w;
+        else
+            Igrad += betaSum * w;
+
+
+        //transform back to world space
+        vec4_t IgradTemp;
+        IgradTemp(colon(0, 2), 0) = Igrad;
+        IgradTemp[3] = 0;
+        vec4_t IgradGlob = point.invTransform * IgradTemp;
+        Igrad = IgradGlob(colon(0, 2), 0);
+    }
+
+    double ShellGenerator::kernel(const vec3_t &x, const SamplePoint &sample)
+    {
+        double I1;
+        vec3_t Igrad;
+        integrateOverTriangle(x, sample, I1, Igrad);
+        //double kGN = sample.value * dot(Igrad, sample.normal);
+        //double kG = sample.derivative * I1;
+        //std::cout << "kGN : " << kGN << std::endl;
+        //std::cout << "kG : " << kG << std::endl;
+        double result = (sample.value * dot(Igrad, sample.normal) + sample.derivative * I1) / (4 * PI);
         return result;
     }
 }

@@ -1,4 +1,4 @@
-#include "MyPoisson.h"
+/*#include "MyPoisson.h"
 #include <pcl/surface/3rdparty/poisson4/octree_poisson.h>
 #include <pcl/surface/3rdparty/poisson4/sparse_matrix.h>
 #include <pcl/surface/3rdparty/poisson4/function_data.h>
@@ -137,4 +137,4 @@ void MyPoisson::myExecute(pcl::poisson::CoredVectorMeshData &mesh, pcl::poisson:
     iso_value += iso_delta_;
 
     tree.GetMCIsoTriangles (iso_value, this->getIsoDivide(), &mesh, 0, 1, this->getManifold(), this->getOutputPolygons());
-}
+}*/
