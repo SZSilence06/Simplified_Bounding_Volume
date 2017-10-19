@@ -245,12 +245,12 @@ void generateSamples()
         {
             SamplePoint sample;
             sample.position = a + currentLength * nAB;
-            sample.normal = n;
+            sample.normal = -n;
             sample.color = cr;
             g_samples.push_back(sample);
-            //sample.normal = -n;
-            //sample.color = cl;
-            //g_samples.push_back(sample);
+            sample.normal = n;
+            sample.color = cl;
+            g_samples.push_back(sample);
             currentLength += g_sampleLength;
         }
         currentLength -= length;
@@ -302,7 +302,7 @@ void initFarAway()
         SamplePoint point;
         point.position[0] = FARAWAY;
         point.position[1] = temp;
-        point.normal[0] = -1;
+        point.normal[0] = 1;
         point.normal[1] = 0;
         g_samples.push_back(point);
 
@@ -311,7 +311,7 @@ void initFarAway()
         {
             point.position[0] = FARAWAY;
             point.position[1] = -temp;
-            point.normal[0] = -1;
+            point.normal[0] = 1;
             point.normal[1] = 0;
             g_samples.push_back(point);
         }
@@ -319,7 +319,7 @@ void initFarAway()
         //left top vertical
         point.position[0] = -FARAWAY;
         point.position[1] = temp;
-        point.normal[0] = 1;
+        point.normal[0] = -1;
         point.normal[1] = 0;
         g_samples.push_back(point);
 
@@ -328,7 +328,7 @@ void initFarAway()
             //left bottom vertical
             point.position[0] = -FARAWAY;
             point.position[1] = -temp;
-            point.normal[0] = 1;
+            point.normal[0] = -1;
             point.normal[1] = 0;
             g_samples.push_back(point);
         }
@@ -337,14 +337,14 @@ void initFarAway()
         point.position[0] = temp;
         point.position[1] = FARAWAY;
         point.normal[0] = 0;
-        point.normal[1] = -1;
+        point.normal[1] = 1;
         g_samples.push_back(point);
 
         //right bottom horizontal
         point.position[0] = temp;
         point.position[1] = -FARAWAY;
         point.normal[0] = 0;
-        point.normal[1] = 1;
+        point.normal[1] = -1;
         g_samples.push_back(point);
 
         if(i)
@@ -353,14 +353,14 @@ void initFarAway()
             point.position[0] = -temp;
             point.position[1] = FARAWAY;
             point.normal[0] = 0;
-            point.normal[1] = -1;
+            point.normal[1] = 1;
             g_samples.push_back(point);
 
             //left bottom horizontal
             point.position[0] = -temp;
             point.position[1] = -FARAWAY;
             point.normal[0] = 0;
-            point.normal[1] = 1;
+            point.normal[1] = -1;
             g_samples.push_back(point);
         }
     }
@@ -390,11 +390,11 @@ void addInternalPoint(const Camera& camera)
 void generateImage()
 {
     Camera camera = generateCamera();
-    double xInc = (camera.xmax - camera.xmin) / xRes;
-    double yInc = (camera.ymax - camera.ymin) / yRes;
+    double xInc = (camera.xmax - camera.xmin) / (xRes-1);
+    double yInc = (camera.ymax - camera.ymin) / (yRes-1);
 
     generateSamples();
-    addInternalPoint(camera);
+    //addInternalPoint(camera);
     initFarAway();
     computeUN();
 

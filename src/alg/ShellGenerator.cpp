@@ -201,7 +201,7 @@ namespace SBV
 
     template <typename OS>
     void grid2vtk(OS &os, double xmin, double xmax, double ymin, double ymax, double zmin, double zmax, int res) {
-        const int resX = res;
+        const int resX = 1;
         const int resY = res;
         const int resZ = res;
 
@@ -214,7 +214,7 @@ namespace SBV
       const double dz = (zmax - zmin)/(res-1);
 
       os << "X_COORDINATES " << resX << " float\n";
-      for (size_t i = 0; i < res; ++i)
+      for (size_t i = res / 2 - 1; i < res / 2; ++i)
         os << xmin+i*dx << std::endl;
 
       os << "Y_COORDINATES " << res << " float\n";
@@ -230,7 +230,7 @@ namespace SBV
     {
         std::cout << "[INFO] Generating field..." << std::endl;
         const double scale = 2.5;
-        const int res = 400;
+        const int res = 200;
         double xmax, xmin, ymax, ymin, zmax, zmin;
         buildAABB(shell, xmax, xmin, ymax, ymin, zmax, zmin);
         scaleAABB(xmin, xmax, ymin, ymax, zmin, zmax, scale);
@@ -242,7 +242,7 @@ namespace SBV
         const double yStep = (ymax - ymin) / (res - 1);
         const double zStep = (zmax - zmin) / (res - 1);
 
-        const int resX = res;
+        const int resX = 1;
         const int resY = res;
         const int resZ = res;
         matrixr_t fieldData(resX * resY * resZ, 1);
@@ -250,9 +250,9 @@ namespace SBV
 #pragma omp parallel for
         for(size_t i = 0; i < resZ; i++) {
             for(size_t j = 0; j < resY; j++) {
-                for(size_t k = 0; k < resX; k++)
+                for(size_t k = res / 2 - 1; k < res / 2; k++)
                 {  
-                    const size_t idx = i * resY * resX + j * resX + k;
+                    const size_t idx = i * resY * resX + j * resX + 0;
                     //if(idx != 43249)
                     //{
                     //    fieldData[idx] = 0;
@@ -373,7 +373,7 @@ namespace SBV
 
             SamplePoint sample;
             sample.position = (a + b + c) / 3;
-            sample.normal = n;
+            sample.normal = -n;
             sample.value = 1;
             sample.size = WKYLIB::compute_area(a, b, c);
             sample.tri = mVertices(colon(), mTriangles(colon(), i));
@@ -468,7 +468,7 @@ namespace SBV
             const vec3_t a = bV(colon(), bT(0, i));
             const vec3_t b = bV(colon(), bT(1, i));
             const vec3_t c = bV(colon(), bT(2, i));
-            vec3_t n = -cross(b - a, c - a);
+            vec3_t n = cross(b - a, c - a);
             n /= norm(n);
 
             SamplePoint sample;
@@ -509,7 +509,7 @@ namespace SBV
                 vec3_t Igrad;
                 integrateOverTriangle(mSamples[i].position, mSamples[j], I1, Igrad);
                 A(i, j) = I1 / (4 * PI);
-                B[i] -= (mSamples[j].value * dot(Igrad, mSamples[j].normal)) / (4 * PI);
+                B[i] += (mSamples[j].value * dot(Igrad, mSamples[j].normal)) / (4 * PI);
             }
         }
 
@@ -734,7 +734,7 @@ namespace SBV
         //double kG = sample.derivative * I1;
         //std::cout << "kGN : " << kGN << std::endl;
         //std::cout << "kG : " << kG << std::endl;
-        double result = (sample.value * dot(Igrad, sample.normal) + sample.derivative * I1) / (4 * PI);
+        double result = (sample.value * dot(Igrad, sample.normal) - sample.derivative * I1) / (-4 * PI);
         return result;
     }
 }
