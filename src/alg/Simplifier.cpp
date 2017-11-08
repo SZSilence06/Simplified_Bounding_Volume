@@ -29,7 +29,7 @@ namespace SBV
         }
     }
 
-    Simplifier::Simplifier(Mesh &mesh) : mSourceMesh(mesh)
+    Simplifier::Simplifier(Shell &shell) : mShell(shell)
     {
         srand(time(0));
     }
@@ -37,8 +37,6 @@ namespace SBV
     void Simplifier::simplify()
     {
         mTimerSimplify.start();
-
-        generateShells();
 
         std::cout << "Start refinement..." << std::endl;
         refine();
@@ -56,35 +54,6 @@ namespace SBV
 
         if(mNeedGenTempResult)
             writeSummary();
-    }
-
-    void Simplifier::generateShells()
-    {
-        /*matrixr_t normals(3, mSourceMesh.vertices.size(2));
-        WKYLIB::Mesh::computeNormal(mSourceMesh.vertices, mSourceMesh.triangles, normals);
-
-        matrixr_t shell(3, mSourceMesh.vertices.size(2));
-        for(int i = 0; i < mSourceMesh.vertices.size(2); i++)
-        {
-            const matrixr_t& vertex = mSourceMesh.vertices(colon(), i);
-            shell(colon(), i) = vertex + normals(colon(), i) * mMaxDistance;
-        }
-
-        matrixr_t innerNormal, outerNormal;
-        sample(shell, mSourceMesh.triangles, mShell.mOuterShell, outerNormal);
-        sample(mSourceMesh.vertices, mSourceMesh.triangles, mShell.mInnerShell, innerNormal);
-
-        mShell.buildKdTree();*/
-
-        ShellGenerator generator(mSourceMesh.vertices, mSourceMesh.triangles, mOutputDirectory);
-        generator.generate(mMaxDistance, mSampleRadius, mShell);
-
-        if(mNeedGenTempResult)
-        {
-            //jtf::mesh::save_obj((mOutputDirectory + "/outer_shell.obj").c_str(), mSourceMesh.triangles, shell);
-            WKYLIB::Mesh::writePoints(mOutputDirectory + "/inner_shell.vtk", mShell.mInnerShell);
-            WKYLIB::Mesh::writePoints(mOutputDirectory + "/outer_shell.vtk", mShell.mOuterShell);
-        }
     }
 
     void Simplifier::sample(const matrixr_t &vertices, const matrixs_t &triangles, matrixr_t &output_samples, matrixr_t& output_normals)
@@ -140,7 +109,7 @@ namespace SBV
     void Simplifier::collapseBoundary()
     {
         mTimerBoundaryHalfEdge.start();
-        EdgeCollapse collapserHalfEdge(mTriangulation, mShell, EdgeCollapse::BOUNDARY, true, mSampleRadius);
+        EdgeCollapse collapserHalfEdge(mTriangulation, mShell, EdgeCollapse::BOUNDARY, true, 1e-6);
         collapserHalfEdge.collapse();
         mTimerBoundaryHalfEdge.end();
 
@@ -154,7 +123,7 @@ namespace SBV
         }
 
         mTimerBoundaryGeneral.start();
-        EdgeCollapse collapserGeneral(mTriangulation, mShell, EdgeCollapse::BOUNDARY, false, mSampleRadius);
+        EdgeCollapse collapserGeneral(mTriangulation, mShell, EdgeCollapse::BOUNDARY, false, 1e-6);
         collapserGeneral.collapse();
         mTimerBoundaryGeneral.end();
 
@@ -183,7 +152,7 @@ namespace SBV
     void Simplifier::collapseZeroSet()
     {
         mTimerZeroSetHalfEdge.start();
-        EdgeCollapse collapserHalfEdge(mTriangulation, mShell, EdgeCollapse::ZERO_SET, true, mSampleRadius);
+        EdgeCollapse collapserHalfEdge(mTriangulation, mShell, EdgeCollapse::ZERO_SET, true, 1e-6);
         collapserHalfEdge.collapse();
         mTimerZeroSetHalfEdge.end();
 
@@ -198,7 +167,7 @@ namespace SBV
 
 
         mTimerZeroSetGeneral.start();
-        EdgeCollapse collapserGeneral(mTriangulation, mShell, EdgeCollapse::ZERO_SET, false, mSampleRadius);
+        EdgeCollapse collapserGeneral(mTriangulation, mShell, EdgeCollapse::ZERO_SET, false, 0.005);
         collapserGeneral.collapse();
         mTimerZeroSetGeneral.end();
 

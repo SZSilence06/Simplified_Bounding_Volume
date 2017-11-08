@@ -73,7 +73,7 @@ namespace SBV
         bool resolveBadCell();
         double computeHeight(const Cell& cell);
         void computeAABB(const Cell& cell, double& xmax, double& xmin, double& ymax, double& ymin, double& zmax, double& zmin);
-        bool insertPoint(const PointInfo& info, VertexHandle& vertexHandle);
+        bool insertPoint(const PointInfo& info);
 
     private:
         const Shell& mShell;
@@ -89,6 +89,7 @@ namespace SBV
         PointInfo mNextInsertPoint;         //next point to insert(with maximum error)
 
         Cell* mBadCell = nullptr;     //the bad cell to be resolved next
+        bool mSatisfyCondition1 = false;
 
         Delaunay mDelaunay;
     };

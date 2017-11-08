@@ -260,15 +260,16 @@ namespace SBV
             if(iterCount %100 == 0)
                 std::cout << "Iteration " << iterCount << " ..." << std::endl;
 
-            if(mBadCell)
+            if(mSatisfyCondition1 == false)
             {
-                if(resolveBadCell())
-                    continue;
+                insertPoint(mNextInsertPoint);
+                updateErrors();
             }
-
-            VertexHandle vh;
-            insertPoint(mNextInsertPoint, vh);
-            updateErrors();
+            else
+            {
+                resolveBadCell();
+                mBadCell = nullptr;
+            }
         }
 
         std::cout << "Finished refinement after " << iterCount << " iterations." << std::endl;
@@ -317,7 +318,12 @@ namespace SBV
             return false;
 
         if(getError(mNextInsertPoint) > 1 - mAlpha)
+        {
+            mSatisfyCondition1 = false;
             return false;
+        }
+
+        mSatisfyCondition1 = true;
 
         //check for condition 2 and 3.
         int i = 0;
@@ -340,6 +346,7 @@ namespace SBV
             if(cell.info().notResolvable)
                 continue;
 
+            cell.info().isJudged = true;
             if(isBadCell(cell))
             {
                 mBadCell = &cell;
@@ -434,7 +441,6 @@ namespace SBV
 
         bool result = NormalChecker::check(tetra, getPointType(cell.vertex(0)), getPointType(cell.vertex(1)),
                                            getPointType(cell.vertex(2)), getPointType(cell.vertex(3)), mShell);
-        cell.info().isJudged = true;
         return result;
     }
 
@@ -468,61 +474,53 @@ namespace SBV
         center[1] = circumcenter[1];
         center[2] = circumcenter[2];
 
+        //compute radius of the circum circle
+        vec3_t v0;
+        v0[0] = mBadCell->vertex(0)->point()[0];
+        v0[1] = mBadCell->vertex(0)->point()[1];
+        v0[2] = mBadCell->vertex(0)->point()[2];
+        double radius = norm(center - v0);
+
         size_t innerNearest = mShell.getInnerTree().getNearestPoint(center);
         size_t outerNearest = mShell.getOuterTree().getNearestPoint(center);
         vec3_t innerP = mShell.mInnerShell(colon(), innerNearest);
-        vec3_t outerP = mShell.mOuterShell(colon(), outerNearest);
+        vec3_t outerP = mShell.mOuterShell(colon(), outerNearest);        
 
         PointInfo info;
+        vec3_t nearest_to_insert;
         if(norm(innerP - center) < norm(outerP - center))
         {
             info.pointType = POINT_INNER;
             info.index = innerNearest;
+            nearest_to_insert = innerP;
         }
         else
         {
             info.pointType = POINT_OUTER;
             info.index = outerNearest;
+            nearest_to_insert = outerP;
         }
 
-        VertexHandle vertInserted;
-        if(insertPoint(info, vertInserted) == false)
+        if(fabs(radius - norm(center - nearest_to_insert)) <= 1e-6)
         {
-            //the vertex to insert already exists, so our trial failed
+            //the nearest point is already inside the circum circle, so this bad cell is unable to resolve
+            std::cerr << "[WARNING] unable to resolve bad cell" << std::endl;
             mBadCell->info().notResolvable = true;
-            mBadCell = nullptr;
             return false;
         }
-
-        //test whether the cell has been modified
-        for(auto iter = mDelaunay.finite_cells_begin(); iter != mDelaunay.finite_cells_end(); ++iter)
-        {
-            Cell& cell = *iter;
-            if(iter->info().isBad && iter->info().notResolvable == false)
-            {
-                //the bad cell still exists, so our trial failed, remove the inserted point.
-                iter->info().notResolvable = true;
-                mDelaunay.remove(vertInserted);
-                mBadCell = nullptr;
-                return false;
-            }
-        }
+        insertPoint(info);
         updateErrors();
-
-        //bad cell already resolved, so eliminate the record
-        mBadCell = nullptr;
-
         return true;
     }
 
-    bool Refinement::insertPoint(const PointInfo &info, VertexHandle& vertexHandle)
+    bool Refinement::insertPoint(const PointInfo &info)
     {
         switch(info.pointType)
         {
         case POINT_INNER:
             if(mInnerExists[info.index])
             {
-                //std::cerr << "warning : Inserting repeated inner shell point. index " << info.index << std::endl;
+                std::cerr << "warning : Inserting repeated inner shell point. index " << info.index << std::endl;
                 return false;
             }
             mInnerExists[info.index] = true;
@@ -531,7 +529,7 @@ namespace SBV
         case POINT_OUTER:
             if(mOuterExists[info.index])
             {
-                //std::cerr << "warning : Inserting repeated outer shell point. index " << info.index << std::endl;
+                std::cerr << "warning : Inserting repeated outer shell point. index " << info.index << std::endl;
                 return false;
             }
             mOuterExists[info.index] = true;
@@ -541,7 +539,7 @@ namespace SBV
 
         matrixr_t point;
         getPointMatrix(info, point);
-        vertexHandle = mDelaunay.insert(Point(point[0], point[1], point[2]));
+        VertexHandle vertexHandle = mDelaunay.insert(Point(point[0], point[1], point[2]));
         vertexHandle->info() = info;
         return true;
     }

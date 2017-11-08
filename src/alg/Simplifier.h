@@ -13,7 +13,7 @@ namespace SBV {
     public:
         using DebugTimer = WKYLIB::DebugTimer;
 
-        Simplifier(Mesh& mesh);
+        Simplifier(Shell& shell);
 
         void simplify();
 
@@ -52,7 +52,6 @@ namespace SBV {
 
     private:
         void genDefaultParams();
-        void generateShells();
         void sample(const matrixr_t& vertices, const matrixs_t& triangles, matrixr_t& output_samples, matrixr_t& normals);
         void refine();
         void collapseBoundary();
@@ -63,7 +62,6 @@ namespace SBV {
 
     private:
         std::string mOutputDirectory;
-        Mesh& mSourceMesh;
         double mMaxDistance = -1;
         double mSampleRadius = -1;
         double mAlpha = 0.2;

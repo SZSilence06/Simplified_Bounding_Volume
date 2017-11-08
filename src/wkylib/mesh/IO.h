@@ -16,6 +16,14 @@ namespace WKYLIB
         WKY_API bool writePoints(const std::string& file, const matrixr_t& points);
 
         /**
+         * @brief read points from a file. supported formats: vtk.
+         * @param file : input file path.
+         * @param points : points to read.
+         * @return true if succeeded, and false otherwise.
+         */
+        WKY_API bool readPoints(const std::string& file, matrixr_t& points);
+
+        /**
          * @brief write points and normals to a file. supported formats: obj.
          * @param file : output file path.
          * @param points : points to write.

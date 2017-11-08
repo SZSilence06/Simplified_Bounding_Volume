@@ -109,6 +109,60 @@ namespace WKYLIB
             return false;
         }
 
+        static bool readPoints_vtk(const std::string& file, matrixr_t& points)
+        {
+            std::ifstream in;
+
+
+            in.open(file);
+            if(in.fail())
+            {
+                return false;
+            }
+
+            std::string head;
+
+            while(in)
+            {
+                char buf[1024];
+                in.getline(buf, sizeof(buf));
+                std::stringstream ss;
+                ss << buf;
+
+                ss >> head;
+                if(head == "POINTS")
+                {
+                    int point_number;
+                    ss >> point_number;
+                    points.resize(3, point_number);
+                    for(int i = 0; i < point_number; i++)
+                    {
+                        double x, y, z;
+                        std::stringstream ss2;
+                        in.getline(buf, sizeof(buf));
+                        ss2 << buf;
+                        ss2 >> x >> y >> z;
+                        points(0, i) = x;
+                        points(1, i) = y;
+                        points(2, i) = z;
+                    }
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
+        bool readPoints(const std::string &file, matrixr_t &points)
+        {
+            std::string ext = file.substr(file.find_last_of('.') + 1);
+            if(ext == "vtk")
+            {
+                return readPoints_vtk(file, points);
+            }
+            return false;
+        }
+
         static bool writePointsAndNormals_obj(const std::string &file, const matrixr_t &points, const matrixr_t& normals)
         {
             std::ofstream out;
@@ -132,12 +186,56 @@ namespace WKYLIB
             return true;
         }
 
+        static bool writePointsAndNormals_vtk(const std::string &file, const matrixr_t &points, const matrixr_t& normals)
+        {
+            std::ofstream out;
+            out.open(file);
+            if(out.fail())
+            {
+                return false;
+            }
+
+            out << "# vtk DataFile Version 2.0\n TET\nASCII\nDATASET UNSTRUCTURED_GRID\nPOINTS "
+                << points.size(2) << " float" << std::endl;
+            for(int i = 0; i < points.size(2); i++)
+            {
+                out << points(0, i) << " " << points(1, i) << " " << points(2, i) << std::endl;
+            }
+
+            out << "CELLS " << points.size(2) << " " << points.size(2) * 2 << std::endl;
+            for(int i = 0; i < points.size(2); i++)
+            {
+                out << "1 " << i << std::endl;
+            }
+
+            out << "CELL_TYPES " << points.size(2) << std::endl;
+            for(int i = 0; i < points.size(2); i++)
+            {
+                out << "1" << std::endl;
+            }
+
+            out << "CELL_DATA " << points.size(2) << std::endl;
+            out << "NORMALS normals float" << std::endl;
+            for(int i = 0; i < normals.size(2); i++)
+            {
+                out << normals(0, i) << " " << normals(1, i) << " " << normals(2, i) << std::endl;
+            }
+
+            out.close();
+
+            return true;
+        }
+
         bool writePointsAndNormals(const std::string &file, const matrixr_t &points, const matrixr_t& normals)
         {
             std::string ext = file.substr(file.find_last_of('.') + 1);
             if(ext == "obj")
             {
                 return writePointsAndNormals_obj(file, points, normals);
+            }
+            else if(ext == "vtk")
+            {
+                return writePointsAndNormals_vtk(file, points, normals);
             }
             return false;
         }
@@ -320,7 +418,7 @@ namespace WKYLIB
         {
             if(vertices.size(1) != 3 || triangles.size(1) != 3 || normals.size(1) != 3)
             {
-                throw std::invalid_argument("You can only use 3d matrix for 'vertices' and 3d matrix for 'trianlges' and 3d matrix for 'normasl' in writeMeshAndNormals().");
+                throw std::invalid_argument("You can only use 3d matrix for 'vertices' and 3d matrix for 'trianlges' and 3d matrix for 'normals' in writeMeshAndNormals().");
             }
 
             std::ofstream out;

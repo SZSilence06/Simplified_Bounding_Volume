@@ -18,6 +18,8 @@
 #include <wkylib/mesh/IO.h>
 #include <wkylib/debug_util.h>
 #include "alg/Simplifier.h"
+#include "alg/ShellGenerator.h"
+#include "alg/Shell.h"
 
 std::string g_inputMeshPath = "";
 std::string g_outputPath = "";
@@ -161,6 +163,22 @@ void genDefaultParams()
     }
 }
 
+void generateShells(const SBV::Mesh& mesh, SBV::Shell& shell)
+{
+    SBV::ShellGenerator generator(mesh.vertices, mesh.triangles, g_outputPath);
+    generator.generate(g_maxDistance, g_sampleRadius, shell);
+
+    //WKYLIB::Mesh::readPoints(g_outputPath + "/inner_shell.vtk", shell.mInnerShell);
+    //WKYLIB::Mesh::readPoints(g_outputPath + "/outer_shell.vtk", shell.mOuterShell);
+    //shell.buildKdTree();
+
+    if(g_genTempResult)
+    {
+        WKYLIB::Mesh::writePoints(g_outputPath + "/inner_shell.vtk", shell.mInnerShell);
+        WKYLIB::Mesh::writePoints(g_outputPath + "/outer_shell.vtk", shell.mOuterShell);
+    }
+}
+
 int main(int argc, char**argv)
 {
     parseCmdLines(argc, argv);
@@ -174,7 +192,10 @@ int main(int argc, char**argv)
 
     genDefaultParams();
 
-    SBV::Simplifier simplifier(mesh);
+    SBV::Shell shell;
+    generateShells(mesh, shell);
+
+    SBV::Simplifier simplifier(shell);
     simplifier.setOutputDirectory(g_outputPath);
     simplifier.setMaxDistance(g_maxDistance);
     simplifier.setSampleRadius(g_sampleRadius);

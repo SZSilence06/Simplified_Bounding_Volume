@@ -17,7 +17,7 @@ namespace SBV
         this->invA = ones<double>(4, 4);
         this->invA(colon(0, 2), colon()) = tetra;
         if(inv(invA)) {
-            std::cerr << "warning: degenerated triangle." << std::endl;
+            std::cerr << "warning: degenerated triangle. line " << __LINE__ << std::endl;
         }
     }
 }

@@ -39,10 +39,11 @@ namespace SBV
         };
 
         void generateSamples(Shell& shell, matrixr_t& normals);
-        void addBoundary(Shell& shell);
+        void addBoundary(const Shell& shell);
         void generateOuterShell(Shell& shell, const matrixr_t& inner_shell_normals);
         vec3_t trace(const vec3_t& x, const vec3_t& n);
         void computeDerivative();
+        void computeDerivative_fastlap();
         void buildAABB(const Shell& shell, double& xmax, double& xmin, double& ymax, double& ymin, double& zmax, double& zmin);
         void visualizeField(const Shell& shell);
         bool isOpposite(const SamplePoint& a, const SamplePoint& b);
@@ -56,19 +57,7 @@ namespace SBV
 
         double kernel(const vec3_t& x, const SamplePoint& sample);
 
-        double getFieldValue(const vec3_t& x)
-        {
-            double result = 0;
-            for(int i = 0; i < mSamples.size(); i++)
-            {
-                //result += kernel(x, mSamples[i]) * mSamples[i].size;
-                //if(i == 859)
-                result += kernel(x, mSamples[i]);
-            }
-            //if(result > 1) result = 1;
-            //if(result < 0) result = 0;
-            return result;
-        }
+        double getFieldValue(const vec3_t& x);
 
         vec3_t getGradient(const vec3_t& x);
 

@@ -26,7 +26,6 @@ namespace SBV
         {
             mCollapseTo.push_back(i);
         }
-
         buildEdgeInfo();
     }
 
@@ -494,12 +493,13 @@ namespace SBV
             return false;
         }
 
-        matrixs_t faces;
+        matrixs_t boundary_faces;
         std::set<size_t> innerSample;
         std::set<size_t> outerSample;
-        buildOneRingArea(firstVert, secondVert, faces, innerSample, outerSample);
+        std::vector<size_t> related_vert_for_boundary_faces;
+        buildOneRingArea(firstVert, secondVert, boundary_faces, related_vert_for_boundary_faces, innerSample, outerSample);
 
-        KernelRegion kernel(mTriangulation.vertices, faces, mTriangulation.vertices(colon(), firstVert),
+        KernelRegion kernel(mTriangulation.vertices, boundary_faces, related_vert_for_boundary_faces,
                             mShell, innerSample, outerSample,
                             mTriangulation, mTriangulation.vertType[firstVert]);
         if(kernel.contains(collapseTo) == false)
@@ -507,7 +507,7 @@ namespace SBV
             return false;
         }
 
-        if(checkNormal(faces, collapseTo, mTriangulation.vertType[firstVert]) == false)
+        if(checkNormal(boundary_faces, collapseTo, mTriangulation.vertType[firstVert]) == false)
             return false;
 
         return true;
@@ -624,63 +624,71 @@ namespace SBV
         return true;
     }
 
-    void EdgeCollapse::buildOneRingArea(size_t firstVert, size_t secondVert, matrixs_t& faces,
-                                            std::set<size_t>& innerSample, std::set<size_t>& outerSample)
+    void EdgeCollapse::buildOneRingArea(size_t firstVert, size_t secondVert, matrixs_t& boundary_faces,
+                                        std::vector<size_t>& related_vert_for_boundary_faces,
+                                        std::set<size_t>& innerSample, std::set<size_t>& outerSample)
     {
         std::vector<std::tuple<size_t, size_t, size_t> > boundaryFaces;
         findBoundaryFace(firstVert, secondVert, boundaryFaces);
-        findBoundaryFace(secondVert, firstVert, boundaryFaces);
-        findShellSamples(firstVert, innerSample, outerSample);
-        findShellSamples(secondVert, innerSample, outerSample);
+        size_t num1 = boundaryFaces.size();
+        for(int i = 0; i < num1; i++)
+            related_vert_for_boundary_faces.push_back(firstVert);
 
-        faces.resize(3, boundaryFaces.size());
+        findBoundaryFace(secondVert, firstVert, boundaryFaces);
+        for(int i = num1; i < boundaryFaces.size(); i++)
+            related_vert_for_boundary_faces.push_back(secondVert);
+
+
+        boundary_faces.resize(3, boundaryFaces.size());
         int i = 0;
         for(std::tuple<size_t, size_t, size_t>& face : boundaryFaces)
         {
-            faces(0, i) = std::get<0>(face);
-            faces(1, i) = std::get<1>(face);
-            faces(2, i) = std::get<2>(face);
+            boundary_faces(0, i) = std::get<0>(face);
+            boundary_faces(1, i) = std::get<1>(face);
+            boundary_faces(2, i) = std::get<2>(face);
             i++;
         }
+
+        //find samples located in the one ring area
+        findShellSamples(firstVert, innerSample, outerSample);
+        findShellSamples(secondVert, innerSample, outerSample);
     }
 
     void EdgeCollapse::findBoundaryFace(size_t firstVert, size_t secondVert, std::vector<std::tuple<size_t, size_t, size_t> >& boundaryFaces)
     {
         for(size_t cell : mNeighbourCells[firstVert])
         {
-            size_t a = getCollapsedVert(mTriangulation.cells(0, cell));
-            size_t b = getCollapsedVert(mTriangulation.cells(1, cell));
-            size_t c = getCollapsedVert(mTriangulation.cells(2, cell));
-            size_t d = getCollapsedVert(mTriangulation.cells(3, cell));
+            std::vector<size_t> v(4);
+            for(int i = 0; i < 4; i++)
+                v[i] = getCollapsedVert(mTriangulation.cells(i, cell));
 
-            if(a == b || a == c || a == d || b == c || b == d || c == d)
-            {
-                //the cell is collapsed
+            if(isCollapsedCell(v))
                 continue;
-            }
 
-            if(a == secondVert || b == secondVert || c == secondVert || d == secondVert)
-            {
+            if(v[0] == secondVert || v[1] == secondVert || v[2] == secondVert || v[3] == secondVert)
                 continue;
-            }
 
-            if(a == firstVert)
-            {
-                boundaryFaces.push_back(std::make_tuple(b, c, d));
-            }
-            else if(b == firstVert)
-            {
-                boundaryFaces.push_back(std::make_tuple(a, c, d));
-            }
-            else if(c == firstVert)
-            {
-                boundaryFaces.push_back(std::make_tuple(a, b, d));
-            }
-            else
-            {
-                boundaryFaces.push_back(std::make_tuple(a, b, c));
-            }
+            v.erase(std::find(v.begin(), v.end(), firstVert));
+            boundaryFaces.push_back(std::make_tuple(v[0], v[1], v[2]));
         }
+    }
+
+    inline bool EdgeCollapse::isVertOfCell(const vec3_t &samplePoint, const std::vector<size_t>& cellVerts)
+    {
+        for(int j = 0; j < 4; j++)
+            if(norm(samplePoint- mTriangulation.vertices(colon(), cellVerts[j])) < 1e-6)
+                return true;
+        return false;
+    }
+
+    inline bool EdgeCollapse::isCollapsedCell(const std::vector<size_t> &cellVerts)
+    {
+        for(int i = 0; i < cellVerts.size(); i++)
+            for(int j = i + 1; j < cellVerts.size(); j++)
+                if(cellVerts[i] == cellVerts[j])
+                    //the cell is collapsed
+                    return true;
+        return false;
     }
 
     void EdgeCollapse::findShellSamples(size_t vert, std::set<size_t> &innerSample, std::set<size_t> &outerSample)
@@ -695,45 +703,29 @@ namespace SBV
         // AABB
         for(size_t cell : mNeighbourCells[vert])
         {
-            size_t a = getCollapsedVert(mTriangulation.cells(0, cell));
-            size_t b = getCollapsedVert(mTriangulation.cells(1, cell));
-            size_t c = getCollapsedVert(mTriangulation.cells(2, cell));
-            size_t d = getCollapsedVert(mTriangulation.cells(3, cell));
+            std::vector<size_t> v(4);
+            for(int i = 0; i < 4; i++)
+                v[i] = getCollapsedVert(mTriangulation.cells(i, cell));
 
-            if(a == b || a == c || a == d || b == c || b == d || c == d)
-            {
-                //the cell is collapsed
+            if(isCollapsedCell(v))
                 continue;
-            }
 
             //find AABB
             for(int i = 0; i < 4; i++)
             {
-                const vec3_t vert = mTriangulation.vertices(colon(), getCollapsedVert(mTriangulation.cells(i, cell)));
+                const vec3_t vert = mTriangulation.vertices(colon(), v[i]);
                 if(vert[0] > xmax)
-                {
                     xmax = vert[0];
-                }
                 if(vert[0] < xmin)
-                {
                     xmin = vert[0];
-                }
                 if(vert[1] > ymax)
-                {
                     ymax = vert[1];
-                }
                 if(vert[1] < ymin)
-                {
                     ymin = vert[1];
-                }
                 if(vert[2] > zmax)
-                {
                     zmax = vert[2];
-                }
                 if(vert[2] < zmin)
-                {
                     zmin = vert[2];
-                }
             }
         }
 
@@ -744,30 +736,26 @@ namespace SBV
 
         for(size_t cell : mNeighbourCells[vert])
         {
-            size_t a = getCollapsedVert(mTriangulation.cells(0, cell));
-            size_t b = getCollapsedVert(mTriangulation.cells(1, cell));
-            size_t c = getCollapsedVert(mTriangulation.cells(2, cell));
-            size_t d = getCollapsedVert(mTriangulation.cells(3, cell));
+            std::vector<size_t> v(4);
+            for(int i = 0; i < 4; i++)
+                v[i] = getCollapsedVert(mTriangulation.cells(i, cell));
 
-            if(a == b || a == c || a == d || b == c || b == d || c == d)
-            {
-                //the cell is collapsed
+            if(isCollapsedCell(v))
                 continue;
-            }
 
-            matrixr_t invA = ones<double>(4, 4);
-            invA(colon(0, 2), 0) = mTriangulation.vertices(colon(), a);
-            invA(colon(0, 2), 1) = mTriangulation.vertices(colon(), b);
-            invA(colon(0, 2), 2) = mTriangulation.vertices(colon(), c);
-            invA(colon(0, 2), 3) = mTriangulation.vertices(colon(), d);
+            matrixr_t tetra= ones<double>(3, 4);
+            for(int i = 0; i < 4; i++)
+                tetra(colon(), i) = mTriangulation.vertices(colon(), v[i]);
 
-            if(inv(invA)) {
-                std::cerr << "warning: degenerated tetrahedron." << std::endl;
-                continue;
-            }
+            BaryComputer baryComputer(tetra);
             for(int i = 0; i < sampleInner.size(); i++)
             {
-                const vec4_t bary = invA(colon(), colon(0, 2)) * mShell.mInnerShell(colon(), sampleInner[i]) + invA(colon(), 3);
+                vec3_t candidate = mShell.mInnerShell(colon(), sampleInner[i]);
+                if(isVertOfCell(candidate, v))
+                    continue;
+
+                vec4_t bary;
+                baryComputer(candidate, bary);
                 if(min(bary) >= 0)
                 {
                     this->mtx.lock();
@@ -777,7 +765,12 @@ namespace SBV
             }
             for(int i = 0; i < sampleOuter.size(); i++)
             {
-                const vec4_t bary = invA(colon(), colon(0, 2)) * mShell.mOuterShell(colon(), sampleOuter[i]) + invA(colon(), 3);
+                vec3_t candidate = mShell.mOuterShell(colon(), sampleOuter[i]);
+                if(isVertOfCell(candidate, v))
+                    continue;
+
+                vec4_t bary;
+                baryComputer(candidate, bary);
                 if(min(bary) >= 0)
                 {
                     this->mtx.lock();
@@ -793,10 +786,12 @@ namespace SBV
         matrixs_t faces;
         std::set<size_t> innerSample;
         std::set<size_t> outerSample;
+        std::vector<size_t> related_verts_for_boundary_faces;
         bool found = false;
-        buildOneRingArea(vert, vertCollapseTo, faces, innerSample, outerSample);
+        buildOneRingArea(vert, vertCollapseTo, faces, related_verts_for_boundary_faces,
+                         innerSample, outerSample);
 
-        KernelRegion kernel(mTriangulation.vertices, faces, mTriangulation.vertices(colon(), vert), mShell, innerSample, outerSample,
+        KernelRegion kernel(mTriangulation.vertices, faces, related_verts_for_boundary_faces, mShell, innerSample, outerSample,
                                  mTriangulation, mTriangulation.vertType[vert]);
         out_error = std::numeric_limits<double>::max();
 

@@ -60,12 +60,14 @@ namespace SBV
         void organizeOutput();
         size_t getCollapsedVert(size_t vert);
         bool testLinkCondition(size_t firstVert, size_t secondVert);
-        void buildOneRingArea(size_t firstVert, size_t secondVert, matrixs_t& faces,
+        void buildOneRingArea(size_t firstVert, size_t secondVert, matrixs_t& boundary_faces, std::vector<size_t>& related_vert_for_boundary_face,
                               std::set<size_t>& innerSample, std::set<size_t>& outerSample);
         void findBoundaryFace(size_t firstVert, size_t secondVert, std::vector<std::tuple<size_t, size_t, size_t> >& boundaryFaces);
         void findShellSamples(size_t vert, std::set<size_t>& innerSample, std::set<size_t>& outerSample);
         bool findCollapsePos(size_t vert, size_t vertCollapseTo, vec3_t& position, double& out_error);
         bool checkNormal(const matrixs_t& oneRingFaces, const vec3_t& point, PointType pointType);
+        bool isVertOfCell(const vec3_t& samplePoint, const std::vector<size_t>& cellVerts);
+        bool isCollapsedCell(const std::vector<size_t>& cellVerts);
 
     private:
         TriangulatedShell& mTriangulation;

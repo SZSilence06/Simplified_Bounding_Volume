@@ -12,7 +12,8 @@ namespace SBV
     class KernelRegion
     {
     public:
-        KernelRegion(const matrixr_t& points, const matrixs_t& faces, const matrixr_t& onePointInRegion,
+        KernelRegion(const matrixr_t& points, const matrixs_t& faces,
+                     const std::vector<size_t>& related_vert_for_boundary_faces,
                      const Shell& shell, const std::set<size_t>& innerSample, const std::set<size_t>& outerSample,
                      const TriangulatedShell& triangulation, PointType collapsedPointType);
 
@@ -20,7 +21,7 @@ namespace SBV
         bool isInvalidRegion(const vec3_t& point) const;
 
     private:                      
-        void construct(const matrixr_t& onePointInRegion);
+        void construct(const std::vector<size_t>& related_vert_for_boundary_faces);
 
     private:
         const matrixr_t& mPoints;

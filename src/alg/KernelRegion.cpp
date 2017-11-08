@@ -8,7 +8,7 @@ using namespace zjucad::matrix;
 
 namespace SBV
 {
-    KernelRegion::KernelRegion(const matrixr_t& points, const matrixs_t& faces, const matrixr_t& onePointInRegion,
+    KernelRegion::KernelRegion(const matrixr_t& points, const matrixs_t& faces, const std::vector<size_t>& related_vert_for_boundary_faces,
                                const Shell& shell, const std::set<size_t>& innerSample, const std::set<size_t>& outerSample,
                                const TriangulatedShell& triangulation, PointType collapsedPointType)
         : mPoints(points),
@@ -19,10 +19,10 @@ namespace SBV
           mTriangulation(triangulation),
           mPointType(collapsedPointType)
     {
-        construct(onePointInRegion);
+        construct(related_vert_for_boundary_faces);
     }
 
-    void KernelRegion::construct(const matrixr_t& onePointInRegion)
+    void KernelRegion::construct(const std::vector<size_t>& related_vert_for_boundary_faces)
     {
         A.resize(mFaces.size(2), 4);
         for(int i = 0; i < mFaces.size(2); i++)
@@ -33,7 +33,7 @@ namespace SBV
 
             vec3_t n = cross(b- a, c- a);
             n /= norm(n);
-            if(dot(a - onePointInRegion, n) < 0)
+            if(dot(a - mPoints(colon(), related_vert_for_boundary_faces[i]), n) < 0)
             {
                 n = -n;
             }

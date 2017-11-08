@@ -35,7 +35,7 @@ namespace SBV
         BaryComputer baryComputer(cell);
 
         matrixr_t center = (cell(colon(), 0) + cell(colon(), 1) + cell(colon(), 2) + cell(colon(), 3)) / 4.0;
-        constexpr double k = cbrt(0.7);
+        constexpr double k = 0.3;
 
         matrixr_t newVerts[4];
         for(int i = 0; i < 4; i++)

@@ -17,6 +17,11 @@
 #include <vtkTriangle.h>
 #include <vtkGenericCell.h>
 
+extern "C"
+{
+#include "External/fastlap/fastlap.h"
+}
+
 using namespace zjucad::matrix;
 
 namespace SBV
@@ -164,6 +169,303 @@ namespace SBV
         }
     }*/
 
+    const double ONE3  = 0.3333333333333;
+
+    inline double Dot_Product(double* V1, double* V2)
+    {
+        return V1[0]*V2[0]+V1[1]*V2[1]+V1[2]*V2[2];
+    }
+
+    void Cross_Product(double* vector1, double* vector2, double* result_vector)
+    {
+      result_vector[0] = vector1[1]*vector2[2] - vector1[2]*vector2[1];
+      result_vector[1] = vector1[2]*vector2[0] - vector1[0]*vector2[2];
+      result_vector[2] = vector1[0]*vector2[1] - vector1[1]*vector2[0];
+    }
+
+    double normalize(double vector[3])
+    {
+      double length;
+      int i;
+
+      length = sqrt( vector[0]*vector[0]
+            + vector[1]*vector[1]
+            + vector[2]*vector[2]);
+
+      for (i=0; i<3; i++) vector[i] = vector[i] / length;
+
+      return length;
+    }
+
+    char *delcr(char* str)
+    {
+      int i, j, k;
+      for(k = 0; str[k] != '\0'; k++) if(str[k] == '\n') { str[k] = '\0'; break; }
+      for(i = 0; str[i] == ' ' || str[i] == '\t'; i++); /* count leading spaces */
+      if(i > 0) {
+        for(j = 0; str[j+i] != '\0'; j++) str[j] = str[j+i];
+        str[j] = '\0';
+      }
+      for(k--; str[k] == ' ' || str[k] == '\t'; k--) str[k] = '\0';
+      return(str);
+    }
+
+    void Dcentroid(int shape, double* pc, double* xcout)
+    {
+      double corner[4][3], X[3], Y[3], Z[3], vertex1[3], vertex3[3];
+      double sum, delta, dl, x1, y1, x2, x3, y3, xc, yc;
+      int i, j;
+      /* Load the corners. */
+      for(i=0; i<4; i++) {
+          for(j=0; j<3; j++) {
+          corner[i][j] = *(pc++);
+          }
+      }
+
+      /* Use vertex 0 as the origin and get diags and lengths. */
+      for(sum=0, i=0; i<3; i++) {
+        X[i] = delta = corner[2][i] - corner[0][i];
+        sum += delta * delta;
+        vertex1[i] = corner[1][i] - corner[0][i];
+        if(shape == QUADRILAT) {
+          vertex3[i] = corner[3][i] - corner[0][i];
+          Y[i] = corner[1][i] - corner[3][i];
+        }
+        else if(shape == TRIANGLE) {
+          vertex3[i] = corner[2][i] - corner[0][i];
+          Y[i] = corner[1][i] - corner[0][i];
+        }
+        else {
+          printf("Dcentroid FE: Shape indicator is neither triangle nor quadrilateral");
+          exit(0);
+        }
+      }
+      x2 = sqrt(sum);
+
+      /* Z-axis is normal to two diags. */
+      Cross_Product(X, Y, Z);
+      normalize(X);
+      normalize(Z);
+
+      /* Real Y-axis is normal to X and Z. */
+      Cross_Product(Z, X, Y);
+
+      /* Project into the panel axes. */
+      y1 = Dot_Product(vertex1, Y);
+      y3 = Dot_Product(vertex3, Y);
+      x1 = Dot_Product(vertex1, X);
+      x3 = Dot_Product(vertex3, X);
+
+      yc = ONE3 * (y1 + y3);
+      xc = ONE3 * (x2 + ((x1 * y1 - x3 * y3)/(y1 - y3)));
+
+      *(xcout+0) = corner[0][0] + xc * X[0] + yc * Y[0];
+      *(xcout+1) = corner[0][1] + xc * X[1] + yc * Y[1];
+      *(xcout+2) = corner[0][2] + xc * X[2] + yc * Y[2];
+    }
+
+    void testFastlap()
+    {
+        const int VERTS = 4, DIMEN = 3;
+        const int DIRICHLET = 0, NEUMANN = 1;
+        FILE *stream;
+        char line[BUFSIZ], title[BUFSIZ];
+        int linecnt=0;
+        char **chkp, *chk, infile[BUFSIZ], hostname[BUFSIZ];
+        double strtod();
+        double *exact_sol;
+        int size = 1152, nlhs, nrhs, numMom = 4, numLev = 4, i, j;
+        int cmderr = FALSE;
+        long strtol(), clock;
+        char *shapechar;
+        double *x, *poten, *dbydnpoten, *xcoll, *xnrm, *lhsvect, *rhsvect;
+        int *shape, *type, *dtype, *rhstype, *lhstype, *rhsindex, *lhsindex, job, fljob;
+        double error, max_diri=0., ave_diri=0., max_neum=0., ave_neum=0.;
+        double cnt_diri = 0, cnt_neum = 0;
+          /* Set the tolerance and max iterations for GMRES called by fastlap. */
+        double tol = 0.0001;
+        int maxit = 32;
+        int numit;
+
+        const char* file = "sphere.in";
+
+        if((stream = fopen(file, "r")) == NULL) {
+           fprintf(stderr, "\ndriverc FE: Can't open `%s' to read panel data.\n",
+               file);
+           exit(0);
+        }
+
+          time(&clock);
+          fprintf(stdout, " Date: %s", ctime(&clock));
+          if(gethostname(hostname, BUFSIZ) != -1)
+              fprintf(stdout, " Host: %s\n", hostname);
+          else fprintf(stdout, " Host: ? (gethostname() failure)\n");
+
+
+          printf("  Expansion order selected: %i\n",numMom);
+          printf("  Depth of tree selected: %i\n",numLev);
+
+          /* Allocate space for the panel vertices and boundary conditions. */
+          shape = (int*)calloc(size,sizeof(int));
+          x = (double*)calloc(size*VERTS*DIMEN,sizeof(double));
+          poten = (double*)calloc(size,sizeof(double));
+          dbydnpoten = (double*)calloc(size,sizeof(double));
+          type = (int*)calloc(size,sizeof(int));
+
+          /* Allocate space for fastlap arg list vectors. */
+          xcoll = (double*)calloc(size*DIMEN,sizeof(double));
+          xnrm = (double*)calloc(size*DIMEN,sizeof(double));
+          dtype = (int*)calloc(size,sizeof(int));
+          lhsvect = (double*)calloc(size,sizeof(double));
+          rhsvect = (double*)calloc(size,sizeof(double));
+          rhstype = (int*)calloc(size,sizeof(int));
+          lhstype = (int*)calloc(size,sizeof(int));
+          rhsindex = (int*)calloc(size*VERTS,sizeof(int));
+          lhsindex = (int*)calloc(size*VERTS,sizeof(int));
+
+          /* Allocate space for the exact solution vector for error assessment. */
+          exact_sol = (double*)calloc(size,sizeof(double));
+
+          /* read in panel data from a file. */
+          fgets(line, sizeof(line), stream);
+          strcpy(title, delcr(&line[1]));
+          while(fgets(line, sizeof(line), stream) != NULL) {
+            i = linecnt;
+            if(linecnt > (size-1)) {
+              fprintf(stderr, "\n More panels than asked for! \n");
+              exit(0);
+            }
+            if(line[0] == 'Q' || line[0] == 'q') {
+              shape[i] = QUADRILAT;
+              if(sscanf(line,
+                        "%s %lf %lf %lf %lf %lf %lf %lf %lf %lf %lf %lf %lf %lf %lf %d",
+                        &shapechar,
+                &x[i*VERTS*DIMEN],&x[i*VERTS*DIMEN+1],&x[i*VERTS*DIMEN+2],
+                &x[i*VERTS*DIMEN+3],&x[i*VERTS*DIMEN+4],&x[i*VERTS*DIMEN+5],
+                &x[i*VERTS*DIMEN+6],&x[i*VERTS*DIMEN+7],&x[i*VERTS*DIMEN+8],
+                &x[i*VERTS*DIMEN+9],&x[i*VERTS*DIMEN+10],&x[i*VERTS*DIMEN+11],
+                &poten[i],&dbydnpoten[i],&type[i])
+                 != 16) {
+                fprintf(stderr, "Bad quad format, line %d:\n%s\n",
+                        linecnt, line);
+                exit(0);
+              }
+            }
+            else if(line[0] == 'T' || line[0] == 't') {
+              shape[i] = TRIANGLE;
+              if(sscanf(line,
+                        "%s %lf %lf %lf %lf %lf %lf %lf %lf %lf %lf %lf %d",
+                        &shapechar,
+                &x[i*VERTS*DIMEN],&x[i*VERTS*DIMEN+1],&x[i*VERTS*DIMEN+2],
+                &x[i*VERTS*DIMEN+3],&x[i*VERTS*DIMEN+4],&x[i*VERTS*DIMEN+5],
+                &x[i*VERTS*DIMEN+6],&x[i*VERTS*DIMEN+7],&x[i*VERTS*DIMEN+8],
+                &poten[i],&dbydnpoten[i],&type[i])
+                 != 13) {
+                fprintf(stderr, "Bad tri format, line %d:\n%s\n",
+                        linecnt, line);
+                exit(0);
+              }
+            }
+            linecnt++;
+          }
+
+          printf("  Data file title: %s\n",title);
+          printf("  Lines read: %i\n",linecnt);
+          size = linecnt;
+
+          /* This is a Green formulation. */
+          fljob = 1;
+          /* Set up for the fastlap call and save the exact solution for comparison with the
+             computed solution.  Note that recovery of the correct signs for Green's Thm. are
+             obtained by kidding fastlap about the signs on the lhs and rhs vectors. */
+          for(i=0; i<size; i++) {
+            if(type[i] == DIRICHLET) {
+              rhstype[i] = CONSTANT_DIPOLE;
+              lhstype[i] = CONSTANT_SOURCE;
+              exact_sol[i] = dbydnpoten[i];
+              rhsvect[i] = -poten[i];
+              rhsindex[i*VERTS] = i;
+              lhsindex[i*VERTS] = i;
+              Dcentroid(shape[i], &x[i*VERTS*DIMEN], &xcoll[i*DIMEN]);
+              /* fprintf(stdout, "Panel:%d    Centroid:%.8g %.8g %.8g\n",i, xcoll[i*DIMEN],xcoll[i*DIMEN+1],xcoll[i*DIMEN+2]); */
+            }
+            else if(type[i] == NEUMANN) {
+              rhstype[i] = CONSTANT_SOURCE;
+              lhstype[i] = CONSTANT_DIPOLE;
+              exact_sol[i] = poten[i];
+              rhsvect[i] = dbydnpoten[i];
+              rhsindex[i*VERTS] = i;
+              lhsindex[i*VERTS] = i;
+              Dcentroid(shape[i], &x[i*VERTS*DIMEN], &xcoll[i*DIMEN]);
+              /* fprintf(stdout, "Panel:%d    Centroid:%.8g %.8g %.8g\n",i, xcoll[i*DIMEN],xcoll[i*DIMEN+1],xcoll[i*DIMEN+2]); */
+            }
+            else {
+              printf("driverc FE: You're missing a boundary condition type");
+              exit(0);
+            }
+          }
+          numit = fastlap(&size,&size,&size,x,shape,dtype,lhstype,rhstype,lhsindex,rhsindex,lhsvect,rhsvect,xcoll,xnrm,&numLev,&numMom,&maxit,&tol,&fljob);
+
+          fprintf(stdout, "\n\n %d iterations knocked down residual to:%.8g\n",
+              numit, tol);
+          /* Compute the average and maximum errors on the Neumann and Dirichlet
+             surfaces. Note again, the sign manipulation. */
+          double max_error_percent = 0;
+          for(i=0;i<size;i++) {
+            if(type[i] == DIRICHLET) {
+              lhsvect[i] = -lhsvect[i];
+              error = sqrt((exact_sol[i] - lhsvect[i])
+                   *(exact_sol[i] - lhsvect[i]));
+              max_diri = MAX(max_diri,error);
+              double error_percent = error / fabs(exact_sol[i]);
+              max_error_percent = max_error_percent > error_percent ? max_error_percent : error_percent;
+              ave_diri += error;
+              cnt_diri += 1.;
+              /* fprintf(stdout, "Panel:%d  exact, computed:%.8g %.8g \n",i,exact_sol[i],lhsvect[i]); */
+            }
+            else if(type[i] == NEUMANN) {
+              error = sqrt((exact_sol[i] - lhsvect[i])
+                   *(exact_sol[i] - lhsvect[i]));
+              max_neum = MAX(max_neum,error);
+              ave_neum += error;
+              cnt_neum += 1.;
+              /* fprintf(stdout, "Panel:%d  exact, computed:%.8g %.8g \n",i,exact_sol[i],lhsvect[i]); */
+            }
+          }
+          if(cnt_diri != 0) {
+              ave_diri /= cnt_diri;
+              fprintf(stdout, "\nAverage absolute error on Dirichlet surface =%.8g\n",
+                  ave_diri);
+              fprintf(stdout, "Maximum absolute error on Dirichlet surface =%.8g\n",
+                  max_diri);
+          }
+          if(cnt_neum != 0) {
+              ave_neum /= cnt_neum;
+              fprintf(stdout, "\nAverage absolute error on Neumann surface =%.8g\n",
+                  ave_neum);
+              fprintf(stdout, "Maximum absolute error on Neumann surface =%.8g\n",
+                  max_neum);
+          }
+
+          free(shape);
+          free(x);
+          free(poten);
+          free(dbydnpoten);
+          free(type);
+          free(xcoll);
+          free(xnrm);
+          free(dtype);
+          free(lhsvect);
+          free(rhsvect);
+          free(lhstype);
+          free(rhstype);
+          free(lhsindex);
+          free(rhsindex);
+          free(exact_sol);
+
+          return;
+    }
+
     void ShellGenerator::generate(double distance, double sampleRadius, Shell &shell)
     {
         mSampleRadius = sampleRadius;
@@ -171,11 +473,15 @@ namespace SBV
 
         matrixr_t normals;
 
+        //testFastlap();
+
         generateSamples(shell, normals);
         computeDerivative();
+        computeDerivative_fastlap();
         visualizeField(shell);
         exit(0);
         generateOuterShell(shell, normals);
+        //exit(0);
 
         shell.buildKdTree();
     }
@@ -275,12 +581,18 @@ namespace SBV
 
     void ShellGenerator::generateOuterShell(Shell& shell, const matrixr_t& inner_shell_normals)
     {
+        std::cout << "[INFO] generating outer shell..." << std::endl;
         shell.mOuterShell.resize(3, shell.mInnerShell.size(2));
+#pragma omp parallel for
         for(int i = 0; i < shell.mInnerShell.size(2); i++)
         {
+            //if(i != 1906)
+            //    continue;
+
             const vec3_t x = shell.mInnerShell(colon(), i);
             shell.mOuterShell(colon(), i) = trace(x, inner_shell_normals(colon(), i));
         }
+        std::cout << "[INFO] outer shell generated." << std::endl;
     }
 
     vec3_t ShellGenerator::trace(const vec3_t& x, const vec3_t& n)
@@ -309,6 +621,16 @@ namespace SBV
         return result;
     }
 
+    double ShellGenerator::getFieldValue(const vec3_t &x)
+    {
+        double result = 0;
+        for(int i = 0; i < mSamples.size(); i++)
+        {
+            result += kernel(x, mSamples[i]);
+        }
+        return result;
+    }
+
     double ShellGenerator::distance(const vec3_t &x, const vec3_t &x2)
     {
         const double r = norm(x - x2);
@@ -320,7 +642,7 @@ namespace SBV
 
     vec3_t ShellGenerator::getGradient(const vec3_t &x)
     {
-        const double STEP = 0.01;
+        const double STEP = 0.0001;
         double a = getFieldValue(x);
 
         vec3_t xx = x;
@@ -345,6 +667,8 @@ namespace SBV
     void ShellGenerator::generateSamples(Shell& shell, matrixr_t& normals)
     {
         Sampler::poissonDisk(mVertices, mTriangles, mSampleRadius, shell.mInnerShell, normals);
+
+        WKYLIB::Mesh::writePointsAndNormals(mOutputDirectory + "/inner_shell_normal.vtk", shell.mInnerShell, normals);
 
         //output mesh normals for test
         matrixr_t N(3, mVertices.size(2));
@@ -408,8 +732,9 @@ namespace SBV
         }
     }
 
-    void ShellGenerator::addBoundary(Shell& shell)
+    void ShellGenerator::addBoundary(const Shell& shell)
     {
+        //boundary is a scaled bounding sphere
         const double scale = 2;
         double xmax, xmin, ymax, ymin, zmax, zmin;
         buildAABB(shell, xmax, xmin, ymax, ymin, zmax, zmin);
@@ -484,6 +809,68 @@ namespace SBV
         }
 
         WKYLIB::Mesh::writeMeshAndNormals((mOutputDirectory + "/boundary.obj"), bV, bT, normals);
+
+        /*const double INF = 100000;
+        matrixr_t bV(3, 8);
+        bV(0, 0) = -INF; bV(1, 0) = -INF; bV(2, 0) = -INF;
+        bV(0, 1) = INF; bV(1, 1) = -INF; bV(2, 1) = -INF;
+        bV(0, 2) = -INF; bV(1, 2) = INF; bV(2, 2) = -INF;
+        bV(0, 3) = INF; bV(1, 3) = INF; bV(2, 3) = -INF;
+        bV(0, 4) = -INF; bV(1, 4) = -INF; bV(2, 4) = INF;
+        bV(0, 5) = INF; bV(1, 5) = -INF; bV(2, 5) = INF;
+        bV(0, 6) = -INF; bV(1, 6) = INF; bV(2, 6) = INF;
+        bV(0, 7) = INF; bV(1, 7) = INF; bV(2, 7) = INF;
+
+        matrixs_t bT(3, 12);
+        bT(0, 0) = 0; bT(1, 0) = 2; bT(2, 0) = 1;
+        bT(0, 1) = 1; bT(1, 1) = 2; bT(2, 1) = 3;
+        bT(0, 2) = 0; bT(1, 2) = 4; bT(2, 2) = 6;
+        bT(0, 3) = 0; bT(1, 3) = 6; bT(2, 3) = 2;
+        bT(0, 4) = 0; bT(1, 4) = 1; bT(2, 4) = 5;
+        bT(0, 5) = 0; bT(1, 5) = 5; bT(2, 5) = 4;
+        bT(0, 6) = 6; bT(1, 6) = 4; bT(2, 6) = 5;
+        bT(0, 7) = 6; bT(1, 7) = 5; bT(2, 7) = 7;
+        bT(0, 8) = 7; bT(1, 8) = 5; bT(2, 8) = 1;
+        bT(0, 9) = 7; bT(1, 9) = 1; bT(2, 9) = 3;
+        bT(0, 10) = 2; bT(1, 10) = 6; bT(2, 10) = 7;
+        bT(0, 11) = 2; bT(1, 11) = 7; bT(2, 11) = 3;
+
+        matrixr_t normals(3, bV.size(2));
+        for(int i = 0; i < bT.size(2); i++)
+        {
+            const vec3_t a = bV(colon(), bT(0, i));
+            const vec3_t b = bV(colon(), bT(1, i));
+            const vec3_t c = bV(colon(), bT(2, i));
+            vec3_t n = cross(b - a, c - a);
+            n /= norm(n);
+            normals(colon(), bT(0, i)) += n;
+            normals(colon(), bT(1, i)) += n;
+            normals(colon(), bT(2, i)) += n;
+        }
+        for(int i = 0; i < normals.size(2); i++)
+            normals(colon(), i) /= norm(normals(colon(), i));
+
+        for(int i = 0; i < bT.size(2); i++)
+        {
+            const vec3_t a = bV(colon(), bT(0, i));
+            const vec3_t b = bV(colon(), bT(1, i));
+            const vec3_t c = bV(colon(), bT(2, i));
+            vec3_t n = cross(b - a, c - a);
+            n /= norm(n);
+
+            SamplePoint sample;
+            sample.position = (a + b + c) / 3;
+            sample.normal = n;
+            sample.value = 0;
+            sample.size = WKYLIB::compute_area(a, b, c);
+            sample.tri = bV(colon(), bT(colon(), i));
+            localTransform(sample.tri(colon(), 0), sample.tri(colon(), 1), sample.tri(colon(), 2), sample.transform);
+            sample.invTransform = sample.transform;
+            inv(sample.invTransform);
+            mSamples.push_back(sample);
+        }
+
+        WKYLIB::Mesh::writeMeshAndNormals((mOutputDirectory + "/boundary.obj"), bV, bT, normals);*/
     }
 
     bool ShellGenerator::isOpposite(const SamplePoint &a, const SamplePoint &b)
@@ -513,6 +900,8 @@ namespace SBV
             }
         }
 
+        std::cout << B << std::endl;
+
         Eigen::Map<Eigen::MatrixXd> AA(&A.data()[0], A.size(1), A.size(2));
         Eigen::Map<Eigen::VectorXd> BB(&B.data()[0], B.size(1), B.size(2));
 
@@ -529,6 +918,82 @@ namespace SBV
         {
             mSamples[i].derivative = un[i];
         }
+    }
+
+    void ShellGenerator::computeDerivative_fastlap()
+    {
+        int size = mSamples.size();
+        double* x = new double[12*size];
+        for(int i = 0; i < mSamples.size(); i++)
+            for(int j = 0; j < 3; j++)
+                for(int k = 0; k < 3; k++)
+                    x[12*i + 3*j + k] = mSamples[i].tri(k, j);
+
+        int* shape = new int[size];
+        for(int i = 0; i < size; i++)
+            shape[i] = TRIANGLE;
+
+        int* dtype = new int[size];
+        for(int i = 0; i < size; i++)
+            dtype[i] = 0;
+
+        int* lhstype = new int[size];
+        int* rhstype = new int[size];
+        for(int i = 0; i < size; i++)
+        {
+            lhstype[i] = CONSTANT_DIPOLE;
+            rhstype[i] = CONSTANT_SOURCE;
+        }
+
+        int* lhsindex = new int[size * 4];
+        int* rhsindex = new int[size * 4];
+        for(int i = 0; i < size; i++)
+        {
+            lhsindex[i * 4] = i;
+            rhsindex[i * 4] = i;
+        }
+
+        double* lhsVect = new double[size];
+        double* rhsVect = new double[size];
+        for(int i = 0; i < size; i++)
+            rhsVect[i] = mSamples[i].value;
+
+        double* xcoll = new double[size * 3];
+        for(int i = 0; i < size; i++)
+        {
+            vec3_t center = (mSamples[i].tri(colon(), 0) + mSamples[i].tri(colon(), 1) + mSamples[i].tri(colon(), 2)) / 3;
+            for(int j = 0; j < 3; j++)
+                xcoll[i*3 + j] = center[j];
+        }
+
+        double* xnrm = new double[size * 3];
+        for(int i = 0; i < size; i++)
+            for(int j = 0; j < 3; j++)
+                xnrm[i*3 + j] = mSamples[i].normal[j];
+
+        int numLev = 4, numMom = 4, maxit = 32;
+        double tol = 1e-4;
+        int fljob = 1;
+
+        fastlap(&size, &size, &size, x, shape, dtype, lhstype, rhstype, lhsindex, rhsindex, lhsVect, rhsVect, xcoll, xnrm, &numLev, &numMom, &maxit, &tol, &fljob);
+
+        matrixr_t error(size, 1);
+        for(int i = 0; i < size; i++)
+            error[i] = lhsVect[i] - mSamples[i].derivative;
+
+        std::cout << "error is " << error << std::endl;
+
+        delete[] x;
+        delete[] shape;
+        delete[] dtype;
+        delete[] lhstype;
+        delete[] rhstype;
+        delete[] lhsindex;
+        delete[] rhsindex;
+        delete[] lhsVect;
+        delete[] rhsVect;
+        delete[] xcoll;
+        delete[] xnrm;
     }
 
     void ShellGenerator::viewTransform(const vec3_t &eye, vec3_t ux, vec3_t uz, matrixr_t &output)
@@ -713,9 +1178,8 @@ namespace SBV
         w[2] = 1;
         if(w0 >= 0)
             Igrad -= betaSum * w;
-        else
+        else if(w0 < 0)
             Igrad += betaSum * w;
-
 
         //transform back to world space
         vec4_t IgradTemp;
@@ -730,10 +1194,6 @@ namespace SBV
         double I1;
         vec3_t Igrad;
         integrateOverTriangle(x, sample, I1, Igrad);
-        //double kGN = sample.value * dot(Igrad, sample.normal);
-        //double kG = sample.derivative * I1;
-        //std::cout << "kGN : " << kGN << std::endl;
-        //std::cout << "kG : " << kG << std::endl;
         double result = (sample.value * dot(Igrad, sample.normal) - sample.derivative * I1) / (-4 * PI);
         return result;
     }

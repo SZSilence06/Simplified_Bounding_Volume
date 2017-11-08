@@ -35,8 +35,8 @@ namespace WKYLIB {
             }
 
             clock_gettime(CLOCK_MONOTONIC, &time2);
-            elapsed_millisecond += time2.tv_sec * 1000 + time2.tv_nsec / 1000000
-                    - (time1.tv_sec * 1000 + time1.tv_nsec / 1000000);
+            elapsed_millisecond += time2.tv_sec * 1000 + time2.tv_nsec * 1.0f / 1000000
+                    - (time1.tv_sec * 1000 + time1.tv_nsec * 1.0f / 1000000);
             suspended = true;
         }
 
