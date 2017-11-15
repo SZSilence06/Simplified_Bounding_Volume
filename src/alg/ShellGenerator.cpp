@@ -474,6 +474,7 @@ namespace SBV
         matrixr_t normals;
 
         //testFastlap();
+        //exit(0);
 
         generateSamples(shell, normals);
         computeDerivative();
@@ -687,6 +688,16 @@ namespace SBV
             N(colon(), i) /= norm(N(colon(), i));
         WKYLIB::Mesh::writeMeshAndNormals((mOutputDirectory + "/mesh.obj"), mVertices, mTriangles, N);
 
+        //for test fastlap
+        std::ifstream in("value.dat");
+        std::vector<double> values;
+        for(int i = 0; i < mTriangles.size(2); i++) {
+            double read;
+            in >> read;
+            values.push_back(read);
+        }
+        in.close();
+
         for(int i = 0; i < mTriangles.size(2); i++)
         {
             const vec3_t a = mVertices(colon(), mTriangles(0, i));
@@ -698,7 +709,7 @@ namespace SBV
             SamplePoint sample;
             sample.position = (a + b + c) / 3;
             sample.normal = -n;
-            sample.value = 1;
+            sample.value = values[i];
             sample.size = WKYLIB::compute_area(a, b, c);
             sample.tri = mVertices(colon(), mTriangles(colon(), i));
             localTransform(sample.tri(colon(), 0), sample.tri(colon(), 1), sample.tri(colon(), 2), sample.transform);
@@ -710,7 +721,7 @@ namespace SBV
             //mSamples.push_back(sample);
         }
 
-        addBoundary(shell);
+        //addBoundary(shell);
     }
 
     void ShellGenerator::buildAABB(const Shell& shell, double &xmax, double &xmin, double &ymax, double &ymin, double &zmax, double &zmin)
@@ -895,12 +906,11 @@ namespace SBV
                 double I1;
                 vec3_t Igrad;
                 integrateOverTriangle(mSamples[i].position, mSamples[j], I1, Igrad);
-                A(i, j) = I1 / (4 * PI);
-                B[i] += (mSamples[j].value * dot(Igrad, mSamples[j].normal)) / (4 * PI);
+                A(i, j) = I1;
+                //A(i, j) = I1 / (4 * PI);
+                //B[i] += (mSamples[j].value * dot(Igrad, mSamples[j].normal)) / (4 * PI);
             }
         }
-
-        std::cout << B << std::endl;
 
         Eigen::Map<Eigen::MatrixXd> AA(&A.data()[0], A.size(1), A.size(2));
         Eigen::Map<Eigen::VectorXd> BB(&B.data()[0], B.size(1), B.size(2));
@@ -941,8 +951,8 @@ namespace SBV
         int* rhstype = new int[size];
         for(int i = 0; i < size; i++)
         {
-            lhstype[i] = CONSTANT_DIPOLE;
-            rhstype[i] = CONSTANT_SOURCE;
+            lhstype[i] = CONSTANT_SOURCE;
+            rhstype[i] = CONSTANT_DIPOLE;
         }
 
         int* lhsindex = new int[size * 4];
@@ -961,15 +971,10 @@ namespace SBV
         double* xcoll = new double[size * 3];
         for(int i = 0; i < size; i++)
         {
-            vec3_t center = (mSamples[i].tri(colon(), 0) + mSamples[i].tri(colon(), 1) + mSamples[i].tri(colon(), 2)) / 3;
-            for(int j = 0; j < 3; j++)
-                xcoll[i*3 + j] = center[j];
+            Dcentroid(TRIANGLE, &x[i*12], &xcoll[i*3]);
         }
 
         double* xnrm = new double[size * 3];
-        for(int i = 0; i < size; i++)
-            for(int j = 0; j < 3; j++)
-                xnrm[i*3 + j] = mSamples[i].normal[j];
 
         int numLev = 4, numMom = 4, maxit = 32;
         double tol = 1e-4;

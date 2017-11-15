@@ -85,6 +85,15 @@ namespace WKYLIB
          * @return true if succeeded, and false otherwise.
          */
         WKY_API bool writeMeshAndNormals(const std::string& file, const matrixr_t& vertices, const matrixs_t& triangles, const matrixr_t& normals);
+
+        /**
+         * @brief raed triangle mesh from a obj format file.
+         * @param file : input file path.
+         * @param vertices : vertices to read.
+         * @param triangles : triangles to read.
+         * @return true if succeeded, and false otherwise.
+         */
+        WKY_API bool readMesh(const std::string& file, matrixr_t& vertices, matrixs_t& triangles);
     }
 }
 

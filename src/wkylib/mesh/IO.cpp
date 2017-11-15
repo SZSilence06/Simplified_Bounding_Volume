@@ -446,5 +446,66 @@ namespace WKYLIB
             out.close();
             return true;
         }
+
+        WKY_API bool readMesh(const std::string& file, matrixr_t& vertices, matrixs_t& triangles)
+        {
+            std::ifstream in;
+            char sign = 0;
+
+            in.open(file);
+            if(in.fail())
+            {
+                return false;
+            }
+
+            std::vector<matrixr_t> verts;
+            std::vector<matrixs_t> tris;
+            while(in)
+            {
+                char buf[1024];
+                in.getline(buf, sizeof(buf));
+                sign = 0;
+                std::stringstream ss;
+                ss << buf;
+
+                ss >> sign;
+                if(sign == 'v')
+                {
+                    double a, b, c;
+                    ss >> a >> b >> c;
+
+                    matrixr_t vert(3,1);
+                    vert[0] = a;
+                    vert[1] = b;
+                    vert[2] = c;
+                    verts.push_back(vert);
+                }
+                else if(sign == 'f')
+                {
+                    int a, b, c;
+                    ss >> a >> b >> c;
+
+                    matrixs_t triangle(3, 1);
+                    triangle[0] = a - 1;
+                    triangle[1] = b - 1;
+                    triangle[2] = c - 1;
+                    tris.push_back(triangle);
+                }
+            }
+
+            vertices.resize(3, verts.size());
+            for(int i = 0; i < verts.size(); i++)
+            {
+                vertices(colon(), i) = verts[i];
+            }
+
+            triangles.resize(3, tris.size());
+            for(int i = 0; i < tris.size(); i++)
+            {
+                triangles(colon(), i) = tris[i];
+            }
+
+            return true;
+        }
     }
 }

@@ -26,7 +26,8 @@ add_library(alg ${headers} ${sources})
 
 target_link_libraries(alg
     wkylib
-    External
+    poisson_disk
+    fastlap
     lapack
     ${CGAL_LIBRARY}
     ${GMP_LIBRARIES}

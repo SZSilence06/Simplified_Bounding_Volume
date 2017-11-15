@@ -184,7 +184,7 @@ int main(int argc, char**argv)
     parseCmdLines(argc, argv);
 
     SBV::Mesh mesh;
-    if(jtf::mesh::load_obj(g_inputMeshPath.c_str(), mesh.triangles, mesh.vertices))
+    if(WKYLIB::Mesh::readMesh(g_inputMeshPath, mesh.vertices, mesh.triangles) == false)
     {
         std::cout << "Fail to load mesh: " + g_inputMeshPath << std::endl;
         return 0;
