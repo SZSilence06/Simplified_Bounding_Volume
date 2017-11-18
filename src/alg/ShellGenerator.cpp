@@ -479,7 +479,7 @@ namespace SBV
         generateSamples(shell, normals);
         computeDerivative();
         computeDerivative_fastlap();
-        visualizeField(shell);
+        visualizeField(shell, false);
         exit(0);
         generateOuterShell(shell, normals);
         //exit(0);
@@ -507,8 +507,8 @@ namespace SBV
     }
 
     template <typename OS>
-    void grid2vtk(OS &os, double xmin, double xmax, double ymin, double ymax, double zmin, double zmax, int res) {
-        const int resX = 1;
+    void grid2vtk(OS &os, double xmin, double xmax, double ymin, double ymax, double zmin, double zmax, int res, bool planar) {
+        const int resX = planar ? 1 : res;
         const int resY = res;
         const int resZ = res;
 
@@ -521,8 +521,16 @@ namespace SBV
       const double dz = (zmax - zmin)/(res-1);
 
       os << "X_COORDINATES " << resX << " float\n";
-      for (size_t i = res / 2 - 1; i < res / 2; ++i)
-        os << xmin+i*dx << std::endl;
+      if(planar)
+      {
+          for (size_t i = res / 2 - 1; i < res / 2; ++i)
+              os << xmin+i*dx << std::endl;
+      }
+      else
+      {
+          for (size_t i = 0; i < res; ++i)
+              os << xmin+i*dx << std::endl;
+      }
 
       os << "Y_COORDINATES " << res << " float\n";
       for (size_t i = 0; i < res; ++i)
@@ -533,7 +541,7 @@ namespace SBV
         os << zmin+i*dz << std::endl;
     }
 
-    void ShellGenerator::visualizeField(const Shell& shell)
+    void ShellGenerator::visualizeField(const Shell& shell, bool planar)
     {
         std::cout << "[INFO] Generating field..." << std::endl;
         const double scale = 2.5;
@@ -543,13 +551,13 @@ namespace SBV
         scaleAABB(xmin, xmax, ymin, ymax, zmin, zmax, scale);
 
         std::ofstream of(mOutputDirectory + "/field.vtk");
-        grid2vtk(of, xmin, xmax, ymin, ymax, zmin, zmax, res);
+        grid2vtk(of, xmin, xmax, ymin, ymax, zmin, zmax, res, planar);
 
         const double xStep = (xmax - xmin) / (res - 1);
         const double yStep = (ymax - ymin) / (res - 1);
         const double zStep = (zmax - zmin) / (res - 1);
 
-        const int resX = 1;
+        const int resX = planar ? 1 : res;
         const int resY = res;
         const int resZ = res;
         matrixr_t fieldData(resX * resY * resZ, 1);
@@ -557,20 +565,27 @@ namespace SBV
 #pragma omp parallel for
         for(size_t i = 0; i < resZ; i++) {
             for(size_t j = 0; j < resY; j++) {
-                for(size_t k = res / 2 - 1; k < res / 2; k++)
-                {  
-                    const size_t idx = i * resY * resX + j * resX + 0;
-                    //if(idx != 43249)
-                    //{
-                    //    fieldData[idx] = 0;
-                    //    continue;
-                    //}
-                    vec3_t pos;
-                    pos[0] = xmin + k * xStep;
-                    pos[1] = ymin + j * yStep;
-                    pos[2] = zmin + i * zStep;
-                    double value = getFieldValue(pos);
-                    fieldData[idx] = value;
+                if(planar) {
+                    for(size_t k = res / 2 - 1; k < res / 2; k++) {
+                        const size_t idx = i * resY * resX + j * resX + 0;
+                        vec3_t pos;
+                        pos[0] = xmin + k * xStep;
+                        pos[1] = ymin + j * yStep;
+                        pos[2] = zmin + i * zStep;
+                        double value = getFieldValue(pos);
+                        fieldData[idx] = value;
+                    }
+                }
+                else {
+                    for(size_t k = 0; k < resX; k++) {
+                        const size_t idx = i * resY * resX + j * resX + k;
+                        vec3_t pos;
+                        pos[0] = xmin + k * xStep;
+                        pos[1] = ymin + j * yStep;
+                        pos[2] = zmin + i * zStep;
+                        double value = getFieldValue(pos);
+                        fieldData[idx] = value;
+                    }
                 }
             }
         }
@@ -587,9 +602,6 @@ namespace SBV
 #pragma omp parallel for
         for(int i = 0; i < shell.mInnerShell.size(2); i++)
         {
-            //if(i != 1906)
-            //    continue;
-
             const vec3_t x = shell.mInnerShell(colon(), i);
             shell.mOuterShell(colon(), i) = trace(x, inner_shell_normals(colon(), i));
         }
@@ -709,7 +721,7 @@ namespace SBV
             SamplePoint sample;
             sample.position = (a + b + c) / 3;
             sample.normal = -n;
-            sample.value = values[i];
+            sample.value = 1;
             sample.size = WKYLIB::compute_area(a, b, c);
             sample.tri = mVertices(colon(), mTriangles(colon(), i));
             localTransform(sample.tri(colon(), 0), sample.tri(colon(), 1), sample.tri(colon(), 2), sample.transform);
@@ -721,7 +733,7 @@ namespace SBV
             //mSamples.push_back(sample);
         }
 
-        //addBoundary(shell);
+        addBoundary(shell);
     }
 
     void ShellGenerator::buildAABB(const Shell& shell, double &xmax, double &xmin, double &ymax, double &ymin, double &zmax, double &zmin)
@@ -978,7 +990,7 @@ namespace SBV
 
         int numLev = 4, numMom = 4, maxit = 32;
         double tol = 1e-4;
-        int fljob = 1;
+        int fljob = INDIRECT;
 
         fastlap(&size, &size, &size, x, shape, dtype, lhstype, rhstype, lhsindex, rhsindex, lhsVect, rhsVect, xcoll, xnrm, &numLev, &numMom, &maxit, &tol, &fljob);
 
@@ -987,6 +999,11 @@ namespace SBV
             error[i] = lhsVect[i] - mSamples[i].derivative;
 
         std::cout << "error is " << error << std::endl;
+
+        for(int i = 0; i < size; i++)
+        {
+            mSamples[i].derivative = lhsVect[i];
+        }
 
         delete[] x;
         delete[] shape;
@@ -1199,7 +1216,8 @@ namespace SBV
         double I1;
         vec3_t Igrad;
         integrateOverTriangle(x, sample, I1, Igrad);
-        double result = (sample.value * dot(Igrad, sample.normal) - sample.derivative * I1) / (-4 * PI);
+        //double result = (sample.value * dot(Igrad, sample.normal) - sample.derivative * I1) / (-4 * PI);
+        double result = I1 * sample.derivative;
         return result;
     }
 }

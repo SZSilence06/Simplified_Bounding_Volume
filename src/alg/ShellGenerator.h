@@ -45,7 +45,7 @@ namespace SBV
         void computeDerivative();
         void computeDerivative_fastlap();
         void buildAABB(const Shell& shell, double& xmax, double& xmin, double& ymax, double& ymin, double& zmax, double& zmin);
-        void visualizeField(const Shell& shell);
+        void visualizeField(const Shell& shell, bool planar);
         bool isOpposite(const SamplePoint& a, const SamplePoint& b);
 
         double G(const vec3_t& x, const vec3_t& x2) { return 1 / (-4 * PI * distance(x, x2)); }
