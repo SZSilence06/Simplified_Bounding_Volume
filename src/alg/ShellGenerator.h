@@ -2,6 +2,7 @@
 #define WKY_SHELL_GENERATOR_H
 
 #include "Common.h"
+#include "Tracer.h"
 
 namespace pcl
 {
@@ -24,19 +25,6 @@ namespace SBV
         //void makePCLCloud(const matrixr_t& points, const matrixr_t& normals, pcl::PCLPointCloud2& cloud);
         //void writeHeader(const matrixr_t &points, pcl::PCLPointCloud2& cloud);
         //void makeZJUMesh(const pcl::PolygonMesh& mesh, matrixr_t& vertices, matrixs_t& triangles);
-
-        //for computing Green Function
-        struct SamplePoint
-        {
-            vec3_t position;
-            vec3_t normal;
-            double value = 0;
-            double derivative = 0;
-            double size = 0;   //indicating the size of the triangle which the sample point lies in.
-            mat3x3_t tri;      //indicating the triangle which the sample point lies in.
-            matrixr_t transform;  //matrix for transforming to local
-            matrixr_t invTransform;
-        };
 
         void generateSamples(Shell& shell, matrixr_t& normals);
         void addBoundary(const Shell& shell);

@@ -1,8 +1,18 @@
 file(GLOB headers *.h)
 file(GLOB sources *.cpp)
+file(GLOB cuda_sources *.cu)
+set(cuda_headers Tracer.h)
 
 find_package(CGAL REQUIRED)
 include_directories(${CGAL_INCLUDE_DIRS})
+
+find_package(CUDA REQUIRED)
+if(CUDA_FOUND)
+    include_directories(${CUDA_INCLUDE_DIRS})
+    #list(APPEND CUDA_NVCC_FLAGS -arch=sm_35 --expt-relaxed-constexpr -Xcudafe \"--diag_suppress=extra_semicolon\" )
+    set(CUDA_SEPARABLE_COMPILATION ON)
+endif()
+
 
 #find_package(PCL REQUIRED COMPONENTS common io surface features search filters)
 #include_directories(${PCL_INCLUDE_DIRS})
@@ -11,7 +21,7 @@ include_directories(${CGAL_INCLUDE_DIRS})
 find_package(VTK REQUIRED)
 include(${VTK_USE_FILE})
 
-add_definitions(${PCL_DEFINITIONS})
+#add_definitions(${PCL_DEFINITIONS})
 
 find_package(OpenMP)
 if(OPENMP_FOUND)
@@ -23,8 +33,10 @@ endif()
 add_subdirectory(External)
 
 add_library(alg ${headers} ${sources})
+cuda_add_library(alg-cuda ${cuda_headers} ${cuda_sources})
 
 target_link_libraries(alg
+    alg-cuda
     wkylib
     poisson_disk
     fastlap
