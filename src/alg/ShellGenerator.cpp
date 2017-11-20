@@ -477,9 +477,9 @@ namespace SBV
         //exit(0);
 
         generateSamples(shell, normals);
-        computeDerivative();
+        //computeDerivative();
         computeDerivative_fastlap();
-        visualizeField(shell, false);
+        visualizeField(shell, true);
         exit(0);
         generateOuterShell(shell, normals);
         //exit(0);
@@ -1018,7 +1018,7 @@ namespace SBV
         delete[] xnrm;
     }
 
-    void ShellGenerator::viewTransform(const vec3_t &eye, vec3_t ux, vec3_t uz, matrixr_t &output)
+    void ShellGenerator::viewTransform(const vec3_t &eye, vec3_t ux, vec3_t uz, mat4x4_t &output)
     {
         uz /= norm(uz);
         ux /= norm(ux);
@@ -1042,7 +1042,7 @@ namespace SBV
         output(3, 3) = 1;
     }
 
-    void ShellGenerator::localTransform(const vec3_t &a, const vec3_t &b, const vec3_t &c, matrixr_t &output)
+    void ShellGenerator::localTransform(const vec3_t &a, const vec3_t &b, const vec3_t &c, mat4x4_t &output)
     {
         vec3_t ux = b - a;
         vec3_t uz = cross(ux, c - a);

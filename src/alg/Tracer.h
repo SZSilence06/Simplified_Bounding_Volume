@@ -14,8 +14,8 @@ namespace SBV
         double derivative = 0;
         double size = 0;   //indicating the size of the triangle which the sample point lies in.
         mat3x3_t tri;      //indicating the triangle which the sample point lies in.
-        matrixr_t transform;  //matrix for transforming to local
-        matrixr_t invTransform;
+        mat4x4_t transform;  //matrix for transforming to local
+        mat4x4_t invTransform;
     };
 
     class Tracer{

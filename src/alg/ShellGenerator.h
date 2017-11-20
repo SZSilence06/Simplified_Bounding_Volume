@@ -51,8 +51,8 @@ namespace SBV
 
         double distance(const vec3_t& x, const vec3_t& x2);
 
-        void viewTransform(const vec3_t& eye, vec3_t ux, vec3_t uz, matrixr_t& output);
-        void localTransform(const vec3_t& a, const vec3_t& b, const vec3_t& c, matrixr_t& output);
+        void viewTransform(const vec3_t& eye, vec3_t ux, vec3_t uz, mat4x4_t& output);
+        void localTransform(const vec3_t& a, const vec3_t& b, const vec3_t& c, mat4x4_t& output);
         double integrateOverTriangle(const vec3_t& x, const SamplePoint& point, double& I1, vec3_t& Igrad);
 
     private:

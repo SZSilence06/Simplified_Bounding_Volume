@@ -17,6 +17,7 @@ file(GLOB sources *.cpp)
 add_subdirectory(mesh)
 add_subdirectory(Geometry)
 add_subdirectory(Cuda)
+#add_subdirectory(Test)
 
 add_library(wkylib ${headers} ${sources})
 

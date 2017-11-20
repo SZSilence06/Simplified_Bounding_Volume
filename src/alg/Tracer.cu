@@ -1,7 +1,15 @@
 #include "Tracer.h"
+#include <zjucad/matrix/matrix.h>
+
+using namespace zjucad::matrix;
 
 namespace SBV {
-    __device__ static double integrateOverTriangle(const vec3_t& x, const SamplePoint &point, double& I1, vec3_t& Igrad)
+    template<class T>
+    __device__ static inline T my_min(const T& a, const T& b) {
+        return a < b ? a : b;
+    }
+
+    __device__ static void integrateOverTriangle(const vec3_t& x, const SamplePoint &point, double& I1, vec3_t& Igrad)
     {
         mat4x4_t triangle;
         triangle(colon(0, 2), colon(0, 2)) = point.tri;
@@ -11,9 +19,6 @@ namespace SBV {
         double l3 = localTriangle(0, 1);
         double u3 = localTriangle(0, 2);
         double v3 = localTriangle(1, 2);
-
-        if(l3 < 0)
-            throw std::runtime_error("l3 < 0.");
 
         vec4_t tempX;
         tempX(colon(0, 2), colon()) = x;
@@ -28,7 +33,7 @@ namespace SBV {
         double l2 = sqrt(u3*u3 + v3*v3);
 
         // threshold for small numbers
-        double threshold = 1e-6 * std::min(std::min(l1,l2), l3);
+        double threshold = 1e-6 * my_min(my_min(l1,l2), l3);
         if(fabs(w0) < threshold)
             w0 = 0;
 
@@ -80,19 +85,10 @@ namespace SBV {
                     temp = fabs(log(splus[i]) / sminus[i]);
                 else
                     temp = (tplus[i]+splus[i]) / (tminus[i]+sminus[i]);
-                if(temp < 0)
-                    std::cerr << "[WARNING] computing log of negative number. i = " << i
-                              << " tplus[0] = " << tplus[0]
-                              << " tminus[0] = " << tminus[0]
-                              << " splus[0] = " << splus[0]
-                              << " sminus[0] = " << sminus[0]
-                              << ". line " << __LINE__ << std::endl;
             }
             else
             {
                  temp = (Rplus[i]+splus[i]) / (Rminus[i]+sminus[i]);
-                 if(temp < 0)
-                     std::cerr << "[WARNING] computing log of negative number. i = " << i << ". line " << __LINE__ << std::endl;
             }
             f2[i] = log(temp);
             //fix value for points on the triangle corners
@@ -181,10 +177,53 @@ namespace SBV {
         return result;
     }
 
-    __global__ void kernel_trace(const SamplePoint* samples, int* sampleCount, vec3_t* point, double* distance)
+    __device__ vec3_t getGradient(const SamplePoint* samples, int* sampleCount, const vec3_t &x)
     {
+        const double STEP = 0.0001;
+        double a = getFieldValue(samples, sampleCount, x);
 
+        vec3_t xx = x;
+        xx[0] += STEP;
+        double b = getFieldValue(samples, sampleCount, xx);
+
+        vec3_t xy = x;
+        xy[1] += STEP;
+        double c = getFieldValue(samples, sampleCount, xy);
+
+        vec3_t xz = x;
+        xz[2] += STEP;
+        double d = getFieldValue(samples, sampleCount, xz);
+
+        vec3_t result;
+        result[0] = (b - a) / STEP;
+        result[1] = (c - a) / STEP;
+        result[2] = (d - a) / STEP;
+        return result;
     }
 
+    __global__ void kernel_trace(const SamplePoint* samples, int* sampleCount, vec3_t* points, vec3_t* normals, int* pointCount, double* distance)
+    {
+        const double STEP = 0.01;
+        double t = 0;
+        const int INDEX = blockIdx.x;
+        vec3_t result = points[INDEX];
+        vec3_t n = normals[INDEX];
+        while(t < *distance)
+        {
+            if(t == 0)
+            {
+                result += STEP * n;
+            }
+            else
+            {
+                vec3_t grad = getGradient(samples, sampleCount, result);
+                double norm_grad = norm(grad);
+                grad /= norm_grad;
+                result -= STEP * grad;
+            }
+            t += STEP;
+        }
+        points[INDEX] = result;
+    }
 }
 
