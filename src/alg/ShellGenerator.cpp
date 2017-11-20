@@ -479,8 +479,8 @@ namespace SBV
         generateSamples(shell, normals);
         //computeDerivative();
         computeDerivative_fastlap();
-        visualizeField(shell, true);
-        exit(0);
+        //visualizeField(shell, true);
+        //exit(0);
         generateOuterShell(shell, normals);
         //exit(0);
 
@@ -598,13 +598,18 @@ namespace SBV
     void ShellGenerator::generateOuterShell(Shell& shell, const matrixr_t& inner_shell_normals)
     {
         std::cout << "[INFO] generating outer shell..." << std::endl;
-        shell.mOuterShell.resize(3, shell.mInnerShell.size(2));
+
+        /*shell.mOuterShell.resize(3, shell.mInnerShell.size(2));
 #pragma omp parallel for
         for(int i = 0; i < shell.mInnerShell.size(2); i++)
         {
             const vec3_t x = shell.mInnerShell(colon(), i);
             shell.mOuterShell(colon(), i) = trace(x, inner_shell_normals(colon(), i));
-        }
+        }*/
+
+        Tracer tracer(mSamples);
+        tracer.tracePoints(shell.mInnerShell, inner_shell_normals, mDistance, shell.mOuterShell);
+
         std::cout << "[INFO] outer shell generated." << std::endl;
     }
 

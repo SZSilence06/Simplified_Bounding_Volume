@@ -2,6 +2,9 @@
 #include <zjucad/matrix/matrix.h>
 #include <wkylib/Cuda/CudaPointer.h>
 #include <wkylib/Cuda/CudaVector.h>
+#include <eigen3/Eigen/Dense>
+
+EIGEN_WORLD_VERSION
 
 using namespace zjucad::matrix;
 using namespace WKYLIB::Cuda;

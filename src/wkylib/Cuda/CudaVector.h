@@ -2,7 +2,8 @@
 #define WKY_CUDA_VECTOR_H
 
 #include "CudaAllocator.h"
-#include <thrust/device_vector.h>
+#include <vector>
+#include <cassert>
 
 namespace WKYLIB
 {
@@ -32,6 +33,11 @@ namespace WKYLIB
                 {
                     allocator::construct(mElements + i, other[i]);
                 }
+            }
+
+            CudaVector(const std::vector<T>& other)
+            {
+                assign(other);
             }
 
             CudaVector(CudaVector<T>&& rhs)
@@ -113,18 +119,6 @@ namespace WKYLIB
             }
 
             void assign(const std::vector<T>& vector)
-            {
-                destroyAll();
-                mSize = vector.size();
-                mCapacity = vector.capacity();
-                mElements = allocator::allocate(mCapacity);
-                for(int i = 0; i < vector.size(); i++)
-                {
-                    allocator::construct(mElements + i, vector[i]);
-                }
-            }
-
-            void assign(const thrust::host_vector<T>& vector)
             {
                 destroyAll();
                 mSize = vector.size();
