@@ -2,31 +2,44 @@
 #include <zjucad/matrix/matrix.h>
 #include <wkylib/Cuda/CudaPointer.h>
 #include <wkylib/Cuda/CudaVector.h>
+#include <eigen3/Eigen/Dense>
 
 using namespace zjucad::matrix;
 using namespace WKYLIB::Cuda;
 
 namespace SBV {
+    struct GPU_SamplePoint
+    {
+        Eigen::Vector3d position;
+        Eigen::Vector3d normal;
+        double value = 0;
+        double derivative = 0;
+        double size = 0;   //indicating the size of the triangle which the sample point lies in.
+        Eigen::Matrix3d tri;      //indicating the triangle which the sample point lies in.
+        Eigen::Matrix4d  transform;  //matrix for transforming to local
+        Eigen::Matrix4d  invTransform;
+    };
+
     template<class T>
     __device__ static inline T my_min(const T& a, const T& b) {
         return a < b ? a : b;
     }
 
-    __device__ static void integrateOverTriangle(const vec3_t& x, const SamplePoint &point, double& I1, vec3_t& Igrad)
+    __device__ static void integrateOverTriangle(const Eigen::Vector3d& x, const GPU_SamplePoint &point, double& I1, Eigen::Vector3d& Igrad)
     {
-        mat4x4_t triangle;
-        triangle(colon(0, 2), colon(0, 2)) = point.tri;
-        triangle(3, colon(0, 2)) = ones<double>(1, 3);
-        mat4x4_t localTriangle = point.transform * triangle;
+        Eigen::Matrix4d triangle;
+        triangle.block<3, 3>(0, 0) = point.tri;
+        triangle(3, 0) = triangle(3, 1) = triangle(3, 2) = 1;
+        Eigen::Matrix4d localTriangle = point.transform * triangle;
 
         double l3 = localTriangle(0, 1);
         double u3 = localTriangle(0, 2);
         double v3 = localTriangle(1, 2);
 
-        vec4_t tempX;
+        Eigen::Vector4d tempX;
         tempX(colon(0, 2), colon()) = x;
         tempX[3] = 1;
-        vec4_t localX = point.transform * tempX;
+        Eigen::Vector4d localX = point.transform * tempX;
         double u0 = localX[0];
         double v0 = localX[1];
         double w0 = localX[2];
@@ -41,7 +54,7 @@ namespace SBV {
             w0 = 0;
 
         // eq (3)
-        vec3_t sminus, splus;
+        Eigen::Vector3d sminus, splus;
         sminus[0] = -((l3-u3)*(l3-u0)+v3*v0)/l1;
         sminus[1] = -(u3*(u3-u0)+v3*(v3-v0))/l2;
         sminus[2] = -u0;
@@ -50,13 +63,13 @@ namespace SBV {
         splus[2] = l3-u0;
 
         // eq (4)
-        vec3_t t0;
+        Eigen::Vector3d t0;
         t0[0] = ((u3-l3)*v0+v3*(l3-u0))/l1;
         t0[1] = (v3*u0-u3*v0)/l2;
         t0[2] = v0;
 
         // eq (5)
-        vec3_t tplus, tminus;
+        Eigen::Vector3d tplus, tminus;
         tplus[0] = sqrt((u3-u0)*(u3-u0) + (v3-v0)*(v3-v0));
         tplus[1] = sqrt(u0*u0 + v0*v0);
         tplus[2] = sqrt((l3-u0)*(l3-u0) + v0*v0);
@@ -65,12 +78,12 @@ namespace SBV {
         tminus[2] = tplus[1];
 
         // line 1, pp. 1450
-        vec3_t R0;
+        Eigen::Vector3d R0;
         for(int i = 0; i < 3; i++)
             R0[i] = sqrt(t0[i]*t0[i] + w0*w0);
 
         //line 2, pp. 1450
-        vec3_t Rplus, Rminus;
+        Eigen::Vector3d Rplus, Rminus;
         for(int i = 0; i < 3; i++)
         {
             Rplus[i] = sqrt(tplus[i]*tplus[i] + w0*w0);
@@ -78,7 +91,7 @@ namespace SBV {
         }
 
         // eq (11)
-        vec3_t f2;
+        Eigen::Vector3d f2;
         for(int i = 0; i < 3; i++)
         {
             double temp;
@@ -101,7 +114,7 @@ namespace SBV {
 
 
         // eq (13) and eq (14)
-        vec3_t beta;
+        Eigen::Vector3d beta;
         double betaSum;
         if(w0 == 0)
         {
@@ -128,7 +141,7 @@ namespace SBV {
         I1 -= fabs(w0) * betaSum;
 
         // normals of the triangle edges, Fig. 1(b)
-        vec3_t m[3];
+        Eigen::Vector3d m[3];
         m[0][0] = v3;
         m[0][1] = l3 - u3;
         m[0][2] = 0;
@@ -142,10 +155,10 @@ namespace SBV {
             m[i] /= norm(m[i]);
 
         // eq (34), integral of kernel grad(1/R)
-        Igrad = zeros<double>(3, 1);
+        Igrad = Eigen::Vector3d::Zero();
         for(int i = 0; i < 3; i++)
             Igrad -= m[i] * f2[i];
-        vec3_t w = zeros<double>(3, 1);
+        Eigen::Vector3d w = Eigen::Vector3d::Zero();
         w[2] = 1;
         if(w0 >= 0)
             Igrad -= betaSum * w;
@@ -153,24 +166,24 @@ namespace SBV {
             Igrad += betaSum * w;
 
         //transform back to world space
-        vec4_t IgradTemp;
-        IgradTemp(colon(0, 2), 0) = Igrad;
+        Eigen::Vector4d IgradTemp;
+        IgradTemp.block<3, 1>(0, 0) = Igrad;
         IgradTemp[3] = 0;
-        vec4_t IgradGlob = point.invTransform * IgradTemp;
-        Igrad = IgradGlob(colon(0, 2), 0);
+        Eigen::Vector4d IgradGlob = point.invTransform * IgradTemp;
+        Igrad = IgradGlob.block<3, 1>(0, 0);
     }
 
-    __device__ static double kernel(const vec3_t& x, const SamplePoint& sample)
+    __device__ static double kernel(const Eigen::Vector3d& x, const GPU_SamplePoint& sample)
     {
         double I1;
-        vec3_t Igrad;
+        Eigen::Vector3d Igrad;
         integrateOverTriangle(x, sample, I1, Igrad);
         //double result = (sample.value * dot(Igrad, sample.normal) - sample.derivative * I1) / (-4 * PI);
         double result = I1 * sample.derivative;
         return result;
     }
 
-    __device__ static double getFieldValue(const SamplePoint* samples, int* sampleCount, const vec3_t &x)
+    __device__ static double getFieldValue(const GPU_SamplePoint* samples, int* sampleCount, const Eigen::Vector3d &x)
     {
         double result = 0;
         for(int i = 0; i < *sampleCount; i++)
@@ -180,37 +193,38 @@ namespace SBV {
         return result;
     }
 
-    __device__ vec3_t getGradient(const SamplePoint* samples, int* sampleCount, const vec3_t &x)
+    __device__ Eigen::Vector3d getGradient(const GPU_SamplePoint* samples, int* sampleCount, const Eigen::Vector3d &x)
     {
         const double STEP = 0.0001;
         double a = getFieldValue(samples, sampleCount, x);
 
-        vec3_t xx = x;
+        Eigen::Vector3d xx = x;
         xx[0] += STEP;
         double b = getFieldValue(samples, sampleCount, xx);
 
-        vec3_t xy = x;
+        Eigen::Vector3d xy = x;
         xy[1] += STEP;
         double c = getFieldValue(samples, sampleCount, xy);
 
-        vec3_t xz = x;
+        Eigen::Vector3d xz = x;
         xz[2] += STEP;
         double d = getFieldValue(samples, sampleCount, xz);
 
-        vec3_t result;
+        Eigen::Vector3d result;
         result[0] = (b - a) / STEP;
         result[1] = (c - a) / STEP;
         result[2] = (d - a) / STEP;
         return result;
     }
 
-    __global__ static void kernel_trace(const SamplePoint* samples, int* sampleCount, vec3_t* points, vec3_t* normals, int* pointCount, double* distance)
+    __global__ static void kernel_trace(const GPU_SamplePoint* samples, int* sampleCount, Eigen::Vector3d* points,
+                                        Eigen::Vector3d* normals, int* pointCount, double* distance)
     {
         const double STEP = 0.01;
         double t = 0;
         const int INDEX = blockIdx.x;
-        vec3_t result = points[INDEX];
-        vec3_t n = normals[INDEX];
+        Eigen::Vector3d result = points[INDEX];
+        Eigen::Vector3d n = normals[INDEX];
 
         printf("%f\n", *distance);
         while(t < *distance)
@@ -221,7 +235,7 @@ namespace SBV {
             }
             else
             {
-                vec3_t grad = getGradient(samples, sampleCount, result);
+                Eigen::Vector3d grad = getGradient(samples, sampleCount, result);
                 double norm_grad = norm(grad);
                 grad /= norm_grad;
                 result -= STEP * grad;
@@ -231,13 +245,47 @@ namespace SBV {
         points[INDEX] = result;
     }
 
-    static void buildGPUVector(const matrixr_t& mat, CudaVector<vec3_t>& out)
+    static void buildGPUVector(const matrixr_t& mat, CudaVector<Eigen::Vector3d>& out)
     {
-        std::vector<vec3_t> vec;
+        std::vector<Eigen::Vector3d> vec;
         vec.reserve(mat.size(2));
-        for(int i = 0; i < mat.size(2); i++)
-            vec.push_back(mat(colon(), i));
-        out = CudaVector<vec3_t>(vec);
+        for(int i = 0; i < mat.size(2); i++) {
+            Eigen::Vector3d v;
+            v[0] = mat(0, i);
+            v[1] = mat(1, i);
+            v[2] = mat(2, i);
+            vec.push_back(v);
+        }
+
+        out = CudaVector<Eigen::Vector3d>(vec);
+    }
+
+    template<class T1, class T2>
+    static void toEigen(const T1& zjumat, T2& out)
+    {
+        for(int i = 0; i < zjumat.size(1); i++)
+            for(int j = 0; j < zjumat.size(2); j++)
+                out(i, j) = zjumat(i, j);
+    }
+
+    static void buildGPUSamples(const std::vector<SamplePoint>& samples, CudaVector<GPU_SamplePoint>& out)
+    {
+        std::vector<GPU_SamplePoint> vec;
+        vec.reserve(samples.size());
+        for(int i = 0; i < samples.size(); i++)
+        {
+            GPU_SamplePoint g;
+            g.derivative = samples[i].derivative;
+            toEigen(samples[i].invTransform, g.invTransform);
+            toEigen(samples[i].normal, g.normal);
+            toEigen(samples[i].position, g.position);
+            toEigen(samples[i].transform, g.transform);
+            toEigen(samples[i].tri, g.tri);
+            g.size = samples[i].size;
+            g.value = samples[i].value;
+            vec.push_back(g);
+        }
+        out = CudaVector<GPU_SamplePoint>(vec);
     }
 
     void Tracer::tracePoints(const matrixr_t &points, const matrixr_t &normals, double length, matrixr_t &traceResult)
@@ -245,10 +293,11 @@ namespace SBV {
         CudaPointer<int> gpu_sampleCount(mSamples.size());
         CudaPointer<int> gpu_pointCount(points.size(2));
         CudaPointer<double> gpu_distance(length);
-        CudaVector<SamplePoint> gpu_samples(mSamples);
+        CudaVector<GPU_SamplePoint> gpu_samples;
+        buildGPUSamples(mSamples, gpu_samples);
 
         //pass gpu_points from host to cuda kernel via std::vector
-        CudaVector<vec3_t> gpu_points, gpu_normals;
+        CudaVector<Eigen::Vector3d> gpu_points, gpu_normals;
         buildGPUVector(points, gpu_points);
         buildGPUVector(normals, gpu_normals);
 
@@ -259,8 +308,11 @@ namespace SBV {
         cudaDeviceSynchronize();
 
         traceResult.resize(3, points.size(2));
-        for(int i = 0; i < points.size(2); i++)
-            traceResult(colon(), i) = gpu_points[i];
+        for(int i = 0; i < points.size(2); i++) {
+            traceResult(0, i) = gpu_points[i][0];
+            traceResult(1, i) = gpu_points[i][1];
+            traceResult(2, i) = gpu_points[i][2];
+        }
     }
 }
 
