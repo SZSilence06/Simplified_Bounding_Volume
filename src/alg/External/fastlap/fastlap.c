@@ -580,6 +580,13 @@ double *tol;
 
   iter = gmres(sys,snglist,fptlist,p,r,ap,z,bp,bap,size,maxiter,tol);
   fflush(stdout);
+
+  //added by KaiyiWANG
+  FREE(r);
+  FREE(z);
+  FREE(bp);
+  FREE(bap);
+
   return(iter);
 }
 
@@ -808,6 +815,20 @@ int size, maxiter;
 #endif
   }
   *tol = rnorm;
+
+  //added by KaiyiWANG
+  FREE(c);
+  //FREE(s);
+  //FREE(g);
+  //FREE(y);
+
+  for(int iter2 = 1; iter2 <= iter; iter2++) {
+    starttimer;
+    /* allocate the back vectors if they haven't been already */
+    FREE(bv[iter2]);
+    FREE(bh[iter2]);
+  }
+
   return(iter);
 }
 

@@ -223,7 +223,6 @@ namespace SBV {
         const double STEP = 0.01;        
         int tid = blockIdx.x * blockDim.x + threadIdx.x;
         while(tid < *pointCount) {
-            printf("%d\n", tid);
             Eigen::Vector3d result = points[tid];
             Eigen::Vector3d n = normals[tid];
             double t = STEP;

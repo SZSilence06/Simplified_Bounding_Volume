@@ -247,6 +247,16 @@ ssystem *sys;
       colOffset += ncols;
     }
   }
+
+  //added by KaiyiWANG
+  for(i=0; i < maxsize; i++) {
+    FREE(mat[i]);
+    FREE(matT[i]);
+    FREE(matW[i]);
+  }
+  FREE(mat);
+  FREE(matT);
+  FREE(matW);
 }
 
 /*
@@ -332,6 +342,11 @@ ssystem *sys;
       colOffset += ncols;
     }
   }
+
+  //added by KaiyiWANG
+  FREE(colmat);
+  FREE(rwork);
+  FREE(ipiv);
 }
 
 /* 

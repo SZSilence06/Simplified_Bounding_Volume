@@ -59,6 +59,8 @@ extern cube *cstack[];		/* defined in mulGlobal.c */
 #define MALCORE malloc
 //#define MALCORE ualloc
 
+#define FREE(PTR) free(PTR)
+
 extern long memcount;
 extern long memQ2M;
 extern long memQ2L;

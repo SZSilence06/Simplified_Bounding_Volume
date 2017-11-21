@@ -486,11 +486,11 @@ int order;
 
   //added by KaiyiWANG
   for(i = 0; i < 4; i++) {
-    free(XP[i]);
-    free(YP[i]);
+    FREE(XP[i]);
+    FREE(YP[i]);
   }
-  for(i=0; i <= momOrder; i++) free(I[i]);
-  free(I);
+  for(i=0; i <= momOrder; i++) FREE(I[i]);
+  FREE(I);
 }
 
 
@@ -770,33 +770,33 @@ int order;
   } 
 
   //added by KaiyiWANG
-  for(i = 0; i <= order; i++) free(Mmn[i]);
-  free(Mmn);
+  for(i = 0; i <= order; i++) FREE(Mmn[i]);
+  FREE(Mmn);
 
-   for(i = 0; i <= order; i++) free(Mtmn[i]);
-  free(Mtmn);
+   for(i = 0; i <= order; i++) FREE(Mtmn[i]);
+  FREE(Mtmn);
 
-  for(i = 0; i <= order; i++) free(Mrmn[i]);
-  free(Mrmn);
+  for(i = 0; i <= order; i++) FREE(Mrmn[i]);
+  FREE(Mrmn);
 
-  for(i = 0; i <= order; i++) free(Mrtmn[i]);
-  free(Mrtmn);
+  for(i = 0; i <= order; i++) FREE(Mrtmn[i]);
+  FREE(Mrtmn);
 
-  for(i = 0; i <= order; i++) free(Nmn[i]);
-  free(Nmn);
+  for(i = 0; i <= order; i++) FREE(Nmn[i]);
+  FREE(Nmn);
 
-  for(i = 0; i <= order; i++) free(Ntmn[i]);
-  free(Ntmn);
+  for(i = 0; i <= order; i++) FREE(Ntmn[i]);
+  FREE(Ntmn);
 
-  for(i = 0; i <= order; i++) free(Nrmn[i]);
-  free(Nrmn);
+  for(i = 0; i <= order; i++) FREE(Nrmn[i]);
+  FREE(Nrmn);
 
-  for(i = 0; i <= order; i++) free(Nrtmn[i]);
-  free(Nrtmn);
+  for(i = 0; i <= order; i++) FREE(Nrtmn[i]);
+  FREE(Nrtmn);
 
-  free(Binom);
-  free(Pmn);
-  free(Fact);
+  FREE(Binom);
+  FREE(Pmn);
+  FREE(Fact);
 }
 
 
