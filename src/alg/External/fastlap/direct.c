@@ -63,6 +63,7 @@ double **mat;
 	   half of the double-sized array will have the RHS coeff, the second
 	   half the (hidden) LHS. */
       pf = fpts[i];
+
       for(j=0; j < numsngs; j++) {
 	pq = sngs[j];
                           /* jt: new parameters for calcp() */

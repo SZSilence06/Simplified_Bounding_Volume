@@ -37,7 +37,7 @@ namespace SBV {
         double v3 = localTriangle(1, 2);
 
         Eigen::Vector4d tempX;
-        tempX(colon(0, 2), colon()) = x;
+        tempX.block<3, 1>(0, 0) = x;
         tempX[3] = 1;
         Eigen::Vector4d localX = point.transform * tempX;
         double u0 = localX[0];
@@ -152,7 +152,7 @@ namespace SBV {
         m[2][1] = -l3;
         m[2][2] = 0;
         for(int i = 0; i < 3; i++)
-            m[i] /= norm(m[i]);
+            m[i] /= m[i].norm();
 
         // eq (34), integral of kernel grad(1/R)
         Igrad = Eigen::Vector3d::Zero();
@@ -220,29 +220,25 @@ namespace SBV {
     __global__ static void kernel_trace(const GPU_SamplePoint* samples, int* sampleCount, Eigen::Vector3d* points,
                                         Eigen::Vector3d* normals, int* pointCount, double* distance)
     {
-        const double STEP = 0.01;
-        double t = 0;
-        const int INDEX = blockIdx.x;
-        Eigen::Vector3d result = points[INDEX];
-        Eigen::Vector3d n = normals[INDEX];
-
-        printf("%f\n", *distance);
-        while(t < *distance)
-        {
-            if(t == 0)
-            {
-                result += STEP * n;
-            }
-            else
+        const double STEP = 0.01;        
+        int tid = blockIdx.x * blockDim.x + threadIdx.x;
+        while(tid < *pointCount) {
+            printf("%d\n", tid);
+            Eigen::Vector3d result = points[tid];
+            Eigen::Vector3d n = normals[tid];
+            double t = STEP;
+            result += STEP * n;
+            while(t < *distance)
             {
                 Eigen::Vector3d grad = getGradient(samples, sampleCount, result);
-                double norm_grad = norm(grad);
+                double norm_grad = grad.norm();
                 grad /= norm_grad;
                 result -= STEP * grad;
+                t += STEP;
             }
-            t += STEP;
+            points[tid] = result;
+            tid += blockDim.x * gridDim.x;
         }
-        points[INDEX] = result;
     }
 
     static void buildGPUVector(const matrixr_t& mat, CudaVector<Eigen::Vector3d>& out)
@@ -301,9 +297,7 @@ namespace SBV {
         buildGPUVector(points, gpu_points);
         buildGPUVector(normals, gpu_normals);
 
-        vec3_t test = gpu_points[0];
-
-        kernel_trace  <<< 256, 1>>> (&mSamples[0], gpu_sampleCount.get(), &gpu_points[0],
+        kernel_trace  <<< 64, 64>>> (&gpu_samples[0], gpu_sampleCount.get(), &gpu_points[0],
                 &gpu_normals[0], gpu_pointCount.get(), gpu_distance.get());
         cudaDeviceSynchronize();
 

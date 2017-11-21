@@ -54,10 +54,10 @@ extern cube *cstack[];		/* defined in mulGlobal.c */
   - MALLOC() used when memory can be anything
     core should be malloc() or ualloc()
 ***********************************************************************/
-/* #define CALCORE(NUM, TYPE) calloc((unsigned)(NUM),sizeof(TYPE)) */
-#define CALCORE(NUM, TYPE) ualloc((unsigned)(NUM)*sizeof(TYPE))
-/* #define MALCORE malloc */
-#define MALCORE ualloc
+#define CALCORE(NUM, TYPE) calloc((unsigned)(NUM),sizeof(TYPE))
+//#define CALCORE(NUM, TYPE) ualloc((unsigned)(NUM)*sizeof(TYPE))
+#define MALCORE malloc
+//#define MALCORE ualloc
 
 extern long memcount;
 extern long memQ2M;
@@ -121,7 +121,7 @@ extern long memMSC;
 #define CALLOC(PNTR, NUM, TYPE, FLAG, MTYP)                                 \
 {                                                                           \
      if((NUM)*sizeof(TYPE)==0);			                            \
-     else if(((PNTR)=(TYPE*)CALCORE(NUM, TYPE))==NULL) {                    \
+     else if(((PNTR)=(TYPE*)CALCORE(NUM, TYPE))==NULL) {\
        (void)fprintf(stderr,                                                \
 	 "FLE-%s: out of memory at line %d\n",                              \
 	       __FILE__, __LINE__);                                         \

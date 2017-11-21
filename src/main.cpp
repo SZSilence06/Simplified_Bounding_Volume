@@ -20,6 +20,7 @@
 #include "alg/Simplifier.h"
 #include "alg/ShellGenerator.h"
 #include "alg/Shell.h"
+#include "alg/Logger.h"
 
 std::string g_inputMeshPath = "";
 std::string g_outputPath = "";
@@ -165,6 +166,9 @@ void genDefaultParams()
 
 void generateShells(const SBV::Mesh& mesh, SBV::Shell& shell)
 {
+    WKYLIB::DebugTimer timerGenerateShell("Generate Shell");
+    timerGenerateShell.start();
+
     SBV::ShellGenerator generator(mesh.vertices, mesh.triangles, g_outputPath);
     generator.generate(g_maxDistance, g_sampleRadius, shell);
 
@@ -177,6 +181,11 @@ void generateShells(const SBV::Mesh& mesh, SBV::Shell& shell)
         WKYLIB::Mesh::writePoints(g_outputPath + "/inner_shell.vtk", shell.mInnerShell);
         WKYLIB::Mesh::writePoints(g_outputPath + "/outer_shell.vtk", shell.mOuterShell);
     }
+
+    timerGenerateShell.end();
+    SBV::Logger& logger = SBV::Logger::getInstance();
+    logger.setFile(g_outputPath + "/log.txt");
+    logger.log("Generate Shell : " + std::to_string(timerGenerateShell.getTime()) + " ms.");
 }
 
 int main(int argc, char**argv)

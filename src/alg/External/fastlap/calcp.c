@@ -483,6 +483,14 @@ int order;
     }
   }
   calcSphericalPanel(panel, I, order);
+
+  //added by KaiyiWANG
+  for(i = 0; i < 4; i++) {
+    free(XP[i]);
+    free(YP[i]);
+  }
+  for(i=0; i <= momOrder; i++) free(I[i]);
+  free(I);
 }
 
 
@@ -760,6 +768,35 @@ int order;
       multiD[sindex(n,m,rterms)] = -Nrtmn[m][n];
     }
   } 
+
+  //added by KaiyiWANG
+  for(i = 0; i <= order; i++) free(Mmn[i]);
+  free(Mmn);
+
+   for(i = 0; i <= order; i++) free(Mtmn[i]);
+  free(Mtmn);
+
+  for(i = 0; i <= order; i++) free(Mrmn[i]);
+  free(Mrmn);
+
+  for(i = 0; i <= order; i++) free(Mrtmn[i]);
+  free(Mrtmn);
+
+  for(i = 0; i <= order; i++) free(Nmn[i]);
+  free(Nmn);
+
+  for(i = 0; i <= order; i++) free(Ntmn[i]);
+  free(Ntmn);
+
+  for(i = 0; i <= order; i++) free(Nrmn[i]);
+  free(Nrmn);
+
+  for(i = 0; i <= order; i++) free(Nrtmn[i]);
+  free(Nrtmn);
+
+  free(Binom);
+  free(Pmn);
+  free(Fact);
 }
 
 
@@ -905,6 +942,7 @@ int order;
       Binom[m][n] = ((m - (n-1))  * Binom[m][n-1]) / n;
     }
   }
+
   return(Binom);
 }
 

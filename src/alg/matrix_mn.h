@@ -22,24 +22,24 @@ public:
     struct stack_memory {
         T dat_[M*N];
 
-        ZJUCAD_CPU_GPU_FUNC iterator begin() { return dat_; }
-        ZJUCAD_CPU_GPU_FUNC iterator end() { return dat_ + M*N; }
-        ZJUCAD_CPU_GPU_FUNC const_iterator begin() const { return dat_; }
-        ZJUCAD_CPU_GPU_FUNC const_iterator end() const { return dat_ + M*N; }
+        iterator begin() { return dat_; }
+        iterator end() { return dat_ + M*N; }
+        const_iterator begin() const { return dat_; }
+        const_iterator end() const { return dat_ + M*N; }
     };
 
     typedef stack_memory raw_data_type;
     typedef const stack_memory const_raw_data_type;
 
-    ZJUCAD_CPU_GPU_FUNC matrix_mn(){}
+    matrix_mn(){}
 	template <typename E>
-    ZJUCAD_CPU_GPU_FUNC matrix_mn(const matrix_expression<E> &e){
+    matrix_mn(const matrix_expression<E> &e){
 		*this = e();
 	}
 
 	// size
-    ZJUCAD_CPU_GPU_FUNC size_type size(void) const {return M*N;}
-    ZJUCAD_CPU_GPU_FUNC size_type size(int dim) const {return (dim==1)?M:N;}
+    size_type size(void) const {return M*N;}
+    size_type size(int dim) const {return (dim==1)?M:N;}
 
     void resize(size_type size) {
     assert(M == size && N == 1);
@@ -49,25 +49,25 @@ public:
 	}
 
 	// element access
-    ZJUCAD_CPU_GPU_FUNC const_reference operator[](idx_type i) const {return dat_.dat_[i];}
-    ZJUCAD_CPU_GPU_FUNC const_reference operator()(idx_type i) const {return dat_.dat_[i];}
-    ZJUCAD_CPU_GPU_FUNC const_reference operator()(idx_type row, idx_type col) const {
+    const_reference operator[](idx_type i) const {return dat_.dat_[i];}
+    const_reference operator()(idx_type i) const {return dat_.dat_[i];}
+    const_reference operator()(idx_type row, idx_type col) const {
         return dat_.dat_[row+col*M];
 	}
-    ZJUCAD_CPU_GPU_FUNC reference operator[](idx_type i) {return dat_.dat_[i];}
-    ZJUCAD_CPU_GPU_FUNC reference operator()(idx_type i) {return dat_.dat_[i];}
-    ZJUCAD_CPU_GPU_FUNC reference operator()(idx_type row, idx_type col) {
+    reference operator[](idx_type i) {return dat_.dat_[i];}
+    reference operator()(idx_type i) {return dat_.dat_[i];}
+    reference operator()(idx_type row, idx_type col) {
         return dat_.dat_[row+col*M];
 	}
 
 	// iterator access
-    ZJUCAD_CPU_GPU_FUNC const_iterator begin(void) const {return dat_.begin();}
-    ZJUCAD_CPU_GPU_FUNC const_iterator end(void) const {return dat_.end();}
-    ZJUCAD_CPU_GPU_FUNC iterator begin(void) {return dat_.begin();}
-    ZJUCAD_CPU_GPU_FUNC iterator end(void) {return dat_.end();}
+    const_iterator begin(void) const {return dat_.begin();}
+    const_iterator end(void) const {return dat_.end();}
+    iterator begin(void) {return dat_.begin();}
+    iterator end(void) {return dat_.end();}
 
 	template <typename E>
-    ZJUCAD_CPU_GPU_FUNC const matrix_mn<T, M, N>& operator=(const matrix_expression<E> &e){
+    const matrix_mn<T, M, N>& operator=(const matrix_expression<E> &e){
 		assert(size(1) == e().size(1) || size(2) == e().size(2));
 #ifdef __CUDACC__
         gpu_copy(e().begin(), e().end(), begin());
@@ -77,8 +77,8 @@ public:
 		return *this;
 	}
 
-    ZJUCAD_CPU_GPU_FUNC const_raw_data_type &data(void) const {return dat_;}
-    ZJUCAD_CPU_GPU_FUNC raw_data_type &data(void) {return dat_;}
+    const_raw_data_type &data(void) const {return dat_;}
+    raw_data_type &data(void) {return dat_;}
 
 	PROXY_ACCESS;
 	MATRIX_SELF_OP;
