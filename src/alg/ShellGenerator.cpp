@@ -999,12 +999,6 @@ namespace SBV
 
         fastlap(&size, &size, &size, x, shape, dtype, lhstype, rhstype, lhsindex, rhsindex, lhsVect, rhsVect, xcoll, xnrm, &numLev, &numMom, &maxit, &tol, &fljob);
 
-        matrixr_t error(size, 1);
-        for(int i = 0; i < size; i++)
-            error[i] = lhsVect[i] - mSamples[i].derivative;
-
-        std::cout << "error is " << error << std::endl;
-
         for(int i = 0; i < size; i++)
         {
             mSamples[i].derivative = lhsVect[i];
