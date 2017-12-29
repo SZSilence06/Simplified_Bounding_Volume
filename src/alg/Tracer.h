@@ -2,22 +2,10 @@
 #define WKY_SBV_TRACER_H
 
 #include "Common.h"
+#include "FieldComputer.h"
 
 namespace SBV
 {
-    //for computing Green Function
-    struct SamplePoint
-    {
-        vec3_t position;
-        vec3_t normal;
-        double value = 0;
-        double derivative = 0;
-        double size = 0;   //indicating the size of the triangle which the sample point lies in.
-        mat3x3_t tri;      //indicating the triangle which the sample point lies in.
-        mat4x4_t transform;  //matrix for transforming to local
-        mat4x4_t invTransform;
-    };
-
     class Tracer{
     public:
         Tracer(const std::vector<SamplePoint>& samples) : mSamples(samples) {}

@@ -1,4 +1,4 @@
-#include "Tracer.h"
+#include "FieldComputer.h"
 #include <zjucad/matrix/matrix.h>
 #include <wkylib/Cuda/CudaPointer.h>
 #include <wkylib/Cuda/CudaVector.h>
@@ -23,8 +23,6 @@ namespace SBV {
 
     const int THREADS_PER_BLOCK = 256;
     const int BLOCK_COUNT = 4;
-
-    double* gpu_integrate_result;
 
     template<class T>
     __device__ static inline T my_min(const T& a, const T& b) {
@@ -189,63 +187,6 @@ namespace SBV {
         return result;
     }
 
-    __device__ static double getFieldValue(const GPU_SamplePoint* samples, int* sampleCount, const Eigen::Vector3d &x)
-    {
-        double result = 0;
-        for(int i = 0; i < *sampleCount; i++)
-        {
-            result += kernel(x, samples[i]);
-        }
-        return result;
-    }
-
-    __device__ Eigen::Vector3d getGradient(const GPU_SamplePoint* samples, int* sampleCount, const Eigen::Vector3d &x)
-    {
-        const double STEP = 0.0001;
-        double a = getFieldValue(samples, sampleCount, x);
-
-        Eigen::Vector3d xx = x;
-        xx[0] += STEP;
-        double b = getFieldValue(samples, sampleCount, xx);
-
-        Eigen::Vector3d xy = x;
-        xy[1] += STEP;
-        double c = getFieldValue(samples, sampleCount, xy);
-
-        Eigen::Vector3d xz = x;
-        xz[2] += STEP;
-        double d = getFieldValue(samples, sampleCount, xz);
-
-        Eigen::Vector3d result;
-        result[0] = (b - a) / STEP;
-        result[1] = (c - a) / STEP;
-        result[2] = (d - a) / STEP;
-        return result;
-    }
-
-    __global__ static void kernel_trace(const GPU_SamplePoint* samples, int* sampleCount, Eigen::Vector3d* points,
-                                        Eigen::Vector3d* normals, int* pointCount, double* distance)
-    {
-        const double STEP = 0.01;        
-        int tid = blockIdx.x * blockDim.x + threadIdx.x;
-        while(tid < *pointCount) {
-            Eigen::Vector3d result = points[tid];
-            Eigen::Vector3d n = normals[tid];
-            double t = STEP;
-            result += STEP * n;
-            while(t < *distance)
-            {
-                Eigen::Vector3d grad = getGradient(samples, sampleCount, result);
-                double norm_grad = grad.norm();
-                grad /= norm_grad;
-                result -= STEP * grad;
-                t += STEP;
-            }
-            points[tid] = result;
-            tid += blockDim.x * gridDim.x;
-        }
-    }
-
     __global__ static void kernel_integrate(const GPU_SamplePoint* samples, int* sampleCount, Eigen::Vector3d* x,
                                             double* result)
     {
@@ -271,21 +212,8 @@ namespace SBV {
             result[blockIdx.x] = cache[0];
     }
 
-    __global__ void kernel_test(int n, double* result) {
-        int tid = threadIdx.x + blockIdx.x * blockDim.x;
-        for (int i = tid; i < n; i += blockDim.x * gridDim.x) {
-             int a  = 1;
-        }
-        result[0] = 1;
-    }
-
-    void test()
-    {
-        kernel_test <<<1, 1>>> (100, gpu_integrate_result);
-        cudaStreamSynchronize(0);
-    }
-
-    static double CPU_getFieldValue(const GPU_SamplePoint* samples, int* sampleCount, const Eigen::Vector3d& x) {
+    static double CPU_getFieldValue(const GPU_SamplePoint* samples, int* sampleCount,
+                                    double* gpu_result, const Eigen::Vector3d& x) {
         double cpu_result[BLOCK_COUNT];
 
         Eigen::Vector3d* gpu_x = nullptr;
@@ -296,9 +224,9 @@ namespace SBV {
 
         cudaMemcpy(gpu_x, &x, sizeof(Eigen::Vector3d), cudaMemcpyHostToDevice);
 
-        kernel_integrate <<<BLOCK_COUNT, THREADS_PER_BLOCK>>>(samples, sampleCount, gpu_x, gpu_integrate_result);
+        kernel_integrate <<<BLOCK_COUNT, THREADS_PER_BLOCK>>>(samples, sampleCount, gpu_x, gpu_result);
 
-        cudaMemcpy(cpu_result, gpu_integrate_result, sizeof(double) * BLOCK_COUNT, cudaMemcpyDeviceToHost);
+        cudaMemcpy(cpu_result, gpu_result, sizeof(double) * BLOCK_COUNT, cudaMemcpyDeviceToHost);
 
         cudaFree(gpu_x);
         //cudaFree(gpu_result);
@@ -307,45 +235,6 @@ namespace SBV {
         for(int i = 0; i < BLOCK_COUNT; i++)
             result += cpu_result[i];
         return result;
-    }
-
-    static Eigen::Vector3d CPU_getGradient(const GPU_SamplePoint* samples, int* sampleCount, const Eigen::Vector3d &x)
-    {
-        const double STEP = 0.0001;
-        double a = CPU_getFieldValue(samples, sampleCount, x);
-
-        Eigen::Vector3d xx = x;
-        xx[0] += STEP;
-        double b = CPU_getFieldValue(samples, sampleCount, xx);
-
-        Eigen::Vector3d xy = x;
-        xy[1] += STEP;
-        double c = CPU_getFieldValue(samples, sampleCount, xy);
-
-        Eigen::Vector3d xz = x;
-        xz[2] += STEP;
-        double d = CPU_getFieldValue(samples, sampleCount, xz);
-
-        Eigen::Vector3d result;
-        result[0] = (b - a) / STEP;
-        result[1] = (c - a) / STEP;
-        result[2] = (d - a) / STEP;
-        return result;
-    }
-
-    static void buildGPUVector(const matrixr_t& mat, CudaVector<Eigen::Vector3d>& out)
-    {
-        std::vector<Eigen::Vector3d> vec;
-        vec.reserve(mat.size(2));
-        for(int i = 0; i < mat.size(2); i++) {
-            Eigen::Vector3d v;
-            v[0] = mat(0, i);
-            v[1] = mat(1, i);
-            v[2] = mat(2, i);
-            vec.push_back(v);
-        }
-
-        out = CudaVector<Eigen::Vector3d>(vec);
     }
 
     template<class T1, class T2>
@@ -376,92 +265,55 @@ namespace SBV {
         out = CudaVector<GPU_SamplePoint>(vec);
     }
 
-    /*void Tracer::tracePoints(const matrixr_t &points, const matrixr_t &normals, double length, matrixr_t &traceResult)
+   class FieldComputerImpl
+   {
+   public:
+       FieldComputerImpl(const std::vector<SamplePoint>& samples)
+       {
+           this->gpu_sampleCount = CudaPointer<int>(samples.size());
+           buildGPUSamples(samples, this->gpu_samples);
+
+           cudaMalloc(&this->gpu_integrate_result, sizeof(double) * BLOCK_COUNT);
+       }
+
+       ~FieldComputerImpl()
+       {
+            cudaFree(this->gpu_integrate_result);
+       }
+
+       double getFieldValue(const vec3_t &x)
+       {
+           Eigen::Vector3d xx;
+           xx[0] = x[0];
+           xx[1] = x[1];
+           xx[2] = x[2];
+           double result =  CPU_getFieldValue(&this->gpu_samples[0], this->gpu_sampleCount.get(),
+                   this->gpu_integrate_result,
+                   xx);
+           return result;
+       }
+
+   private:
+       CudaPointer<int> gpu_sampleCount;
+       CudaVector<GPU_SamplePoint> gpu_samples;
+       double* gpu_integrate_result;
+   };
+
+
+    void FieldComputer::init(const std::vector<SamplePoint> &samples)
     {
-        CudaPointer<int> gpu_sampleCount(mSamples.size());
-        CudaPointer<int> gpu_pointCount(points.size(2));
-        CudaPointer<double> gpu_distance(length);
-        CudaVector<GPU_SamplePoint> gpu_samples;
-        buildGPUSamples(mSamples, gpu_samples);
-
-        //pass gpu_points from host to cuda kernel via std::vector
-        CudaVector<Eigen::Vector3d> gpu_points, gpu_normals;
-        buildGPUVector(points, gpu_points);
-        buildGPUVector(normals, gpu_normals);
-
-        kernel_trace  <<< 64, 64>>> (&gpu_samples[0], gpu_sampleCount.get(), &gpu_points[0],
-                &gpu_normals[0], gpu_pointCount.get(), gpu_distance.get());
-        cudaDeviceSynchronize();
-
-        traceResult.resize(3, points.size(2));
-        for(int i = 0; i < points.size(2); i++) {
-            traceResult(0, i) = gpu_points[i][0];
-            traceResult(1, i) = gpu_points[i][1];
-            traceResult(2, i) = gpu_points[i][2];
-        }
-    }*/
-
-    static void CPU_trace(const GPU_SamplePoint* samples, int* sampleCount, Eigen::Vector3d* points,
-                                        Eigen::Vector3d* normals, int pointCount, double distance)
-    {
-        const double STEP = distance / 10;
-//#pragma omp parallel for
-        for(int i = 0; i < pointCount; i++) {
-            std::cout << "Tracing point " << i << " / " << pointCount << std::endl;
-            Eigen::Vector3d result = points[i];
-            Eigen::Vector3d n = normals[i];
-            double t = STEP;
-            result += STEP * n;
-            while(t < distance)
-            {
-                Eigen::Vector3d grad = CPU_getGradient(samples, sampleCount, result);
-                double norm_grad = grad.norm();
-                grad /= norm_grad;
-                result -= STEP * grad;
-                t += STEP;
-            }
-            points[i] = result;
-        }
+        this->impl = new FieldComputerImpl(samples);
     }
 
-    static void buildCPUVector(const matrixr_t& mat, std::vector<Eigen::Vector3d>& out)
+    FieldComputer::~FieldComputer()
     {
-        out.reserve(mat.size(2));
-        for(int i = 0; i < mat.size(2); i++) {
-            Eigen::Vector3d v;
-            v[0] = mat(0, i);
-            v[1] = mat(1, i);
-            v[2] = mat(2, i);
-            out.push_back(v);
-        }
+        if(this->impl)
+            delete this->impl;
     }
 
-    void Tracer::tracePoints(const matrixr_t &points, const matrixr_t &normals, double length, matrixr_t &traceResult)
+    double FieldComputer::getFieldValue(const vec3_t &x)
     {
-        CudaPointer<int> gpu_sampleCount(mSamples.size());
-        CudaPointer<int> gpu_pointCount(points.size(2));
-        CudaPointer<double> gpu_distance(length);
-        CudaVector<GPU_SamplePoint> gpu_samples;
-        buildGPUSamples(mSamples, gpu_samples);
-
-        cudaMalloc(&gpu_integrate_result, sizeof(double) * BLOCK_COUNT);
-
-        //pass gpu_points from host to cuda kernel via std::vector
-        std::vector<Eigen::Vector3d> cpu_points, cpu_normals;
-        buildCPUVector(points, cpu_points);
-        buildCPUVector(normals, cpu_normals);
-
-        CPU_trace(&gpu_samples[0], gpu_sampleCount.get(), &cpu_points[0],
-                &cpu_normals[0], *gpu_pointCount, *gpu_distance);
-
-        traceResult.resize(3, points.size(2));
-        for(int i = 0; i < points.size(2); i++) {
-            traceResult(0, i) = cpu_points[i][0];
-            traceResult(1, i) = cpu_points[i][1];
-            traceResult(2, i) = cpu_points[i][2];
-        }
-
-        cudaFree(gpu_integrate_result);
+        return this->impl->getFieldValue(x);
     }
 }
 

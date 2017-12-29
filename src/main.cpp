@@ -28,6 +28,7 @@ double g_maxDistance = -1;
 double g_sampleRadius = -1;
 bool g_genTempResult = false;
 double g_alpha = std::numeric_limits<double>::max();
+int g_sampleCount = -1;
 
 using namespace WKYLIB;
 
@@ -70,6 +71,7 @@ void parseCmdLines(int argc, char**argv)
     cmdParser.addParamDef("-t", CmdLine::CmdParamType::BOOL);
     cmdParser.addParamDef("-h", CmdLine::CmdParamType::BOOL);
     cmdParser.addParamDef("-v", CmdLine::CmdParamType::BOOL);
+    cmdParser.addParamDef("-n", CmdLine::CmdParamType::INT);
 
     if(cmdParser.parse() == false)
     {
@@ -130,6 +132,7 @@ void parseCmdLines(int argc, char**argv)
     cmdParser.getDouble("-r", g_sampleRadius);
     cmdParser.getDouble("-a", g_alpha);
     cmdParser.getBool("-t", g_genTempResult);
+    cmdParser.getInt("-n", g_sampleCount);
 }
 
 void genDefaultParams()
@@ -210,6 +213,7 @@ int main(int argc, char**argv)
     simplifier.setSampleRadius(g_sampleRadius);
     simplifier.setAlpha(g_alpha);
     simplifier.setGenTempResult(g_genTempResult);
+    simplifier.setSampleCount(g_sampleCount);
 
     simplifier.simplify();
 

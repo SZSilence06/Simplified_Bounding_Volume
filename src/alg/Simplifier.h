@@ -33,6 +33,11 @@ namespace SBV {
             this->mSampleRadius = sampleRadius;
         }
 
+        void setSampleCount(int sampleCount)
+        {
+            this->mSampleCount = sampleCount;
+        }
+
         void setAlpha(double alpha)
         {
             this->mAlpha = alpha;
@@ -66,6 +71,7 @@ namespace SBV {
         double mSampleRadius = -1;
         double mAlpha = 0.2;
         bool mNeedGenTempResult = false;
+        int mSampleCount = -1;
 
         DebugTimer mTimerRefine = DebugTimer("refinement");
         DebugTimer mTimerBoundaryHalfEdge = DebugTimer("Boundary Collapse(Half Edge)");

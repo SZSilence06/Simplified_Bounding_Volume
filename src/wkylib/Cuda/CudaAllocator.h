@@ -44,7 +44,7 @@ namespace WKYLIB
             }
 
             template<class... Args >
-            __host__ __device__ static void construct(T* object, Args&& ... args)
+            static void construct(T* object, Args&& ... args)
             {
                 new (object) T(std::forward<Args>(args)...);
             }
