@@ -2,6 +2,8 @@
 #include "Sampler.h"
 #include "Shell.h"
 #include "MyPoisson.h"
+#include "FieldComputer.h"
+#include "Logger.h"
 //#include <pcl/io/vtk_io.h>
 #include <hjlib/math/blas_lapack.h>
 #include <zjucad/matrix/lapack.h>
@@ -10,6 +12,7 @@
 #include <eigen3/Eigen/IterativeLinearSolvers>
 #include <wkylib/mesh/IO.h>
 #include <wkylib/geometry.h>
+#include <wkylib/debug_util.h>
 #include "vtk.h"
 #include <vtkSphereSource.h>
 #include <vtkSmartPointer.h>
@@ -478,11 +481,30 @@ namespace SBV
 
         generateSamples(shell, normals);
         //computeDerivative();
+
+        WKYLIB::DebugTimer timerComputeField("Computing Field");
+        timerComputeField.start();
         computeDerivative_fastlap();
-        //visualizeField(shell, true);
-        //exit(0);
+        timerComputeField.end();
+        SBV::Logger& logger = SBV::Logger::getInstance();
+        logger.setFile(mOutputDirectory + "/log.txt");
+        logger.log("Compute Field : " + std::to_string(timerComputeField.getTime()) + " ms.");
+
+        if(distance >= 10000)
+        {
+            mField.init(mSamples);
+            visualizeField(shell, false);
+            exit(0);
+        }
+
+        WKYLIB::DebugTimer timerTrace("Tracing points");
+        timerTrace.start();
+
         generateOuterShell(shell, normals);
         //exit(0);
+
+        timerTrace.end();
+        logger.log("Trace points : " + std::to_string(timerTrace.getTime()) + " ms.");
 
         shell.buildKdTree();
     }
@@ -562,9 +584,10 @@ namespace SBV
         const int resZ = res;
         matrixr_t fieldData(resX * resY * resZ, 1);
 
-#pragma omp parallel for
+//#pragma omp parallel for
         for(size_t i = 0; i < resZ; i++) {
             for(size_t j = 0; j < resY; j++) {
+                std::cout << "computing line " << i << " coloum " << j << "..." << std::endl;
                 if(planar) {
                     for(size_t k = res / 2 - 1; k < res / 2; k++) {
                         const size_t idx = i * resY * resX + j * resX + 0;
@@ -613,40 +636,9 @@ namespace SBV
         std::cout << "[INFO] outer shell generated." << std::endl;
     }
 
-    vec3_t ShellGenerator::trace(const vec3_t& x, const vec3_t& n)
-    {
-        const double STEP = 0.01;
-        double t = 0;
-        vec3_t result = x;
-        while(t < mDistance)
-        {
-            if(t == 0)
-            {
-                result += STEP * n;
-            }
-            else
-            {
-                vec3_t grad = getGradient(result);
-                double norm_grad = norm(grad);
-                if(norm_grad == 0) {
-                    std::cerr << "[warning] gradient equals zero" << std::endl;
-                }
-                grad /= norm_grad;
-                result -= STEP * grad;
-            }
-            t += STEP;
-        }
-        return result;
-    }
-
     double ShellGenerator::getFieldValue(const vec3_t &x)
     {
-        double result = 0;
-        for(int i = 0; i < mSamples.size(); i++)
-        {
-            result += kernel(x, mSamples[i]);
-        }
-        return result;
+        return mField.getFieldValue(x);
     }
 
     double ShellGenerator::distance(const vec3_t &x, const vec3_t &x2)
@@ -763,7 +755,7 @@ namespace SBV
     void ShellGenerator::addBoundary(const Shell& shell)
     {
         //boundary is a scaled bounding sphere
-        const double scale = 2;
+        const double scale = 3;
         double xmax, xmin, ymax, ymin, zmax, zmin;
         buildAABB(shell, xmax, xmin, ymax, ymin, zmax, zmin);
         scaleAABB(xmin, xmax, ymin, ymax, zmin, zmax, scale);
@@ -993,7 +985,7 @@ namespace SBV
 
         double* xnrm = new double[size * 3];
 
-        int numLev = 4, numMom = 4, maxit = 32;
+        int numLev = 10, numMom = 4, maxit = 32;
         double tol = 1e-4;
         int fljob = INDIRECT;
 

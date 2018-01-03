@@ -13,6 +13,7 @@ namespace pcl
 namespace SBV
 {
     class Shell;
+    class FieldComputer;
 
     class ShellGenerator
     {
@@ -64,6 +65,8 @@ namespace SBV
         const double PI = acos(-1);
 
         std::vector<SamplePoint> mSamples;
+
+        FieldComputer mField;
     };
 }
 

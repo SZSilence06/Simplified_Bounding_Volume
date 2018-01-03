@@ -166,7 +166,7 @@ namespace SBV
         }
 
 
-        mTimerZeroSetGeneral.start();
+        /*mTimerZeroSetGeneral.start();
         EdgeCollapse collapserGeneral(mTriangulation, mShell, EdgeCollapse::ZERO_SET, false, 0.005);
         collapserGeneral.collapse();
         mTimerZeroSetGeneral.end();
@@ -178,7 +178,7 @@ namespace SBV
             jtf::mesh::save_obj((mOutputDirectory + "/zero_set_collapsed_zero_set(general).obj").c_str(), mTriangulation.getZeroSet().triangles,
                                        mTriangulation.getZeroSet().vertices);
             mTriangulation.outputBoundaryFaces(mOutputDirectory + "/zero_set_collapsed(general)");
-        }
+        }*/
     }
 
     void Simplifier::writeSummary()
