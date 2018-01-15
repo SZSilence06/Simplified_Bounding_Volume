@@ -287,7 +287,7 @@ namespace SBV {
            xx[0] = x[0];
            xx[1] = x[1];
            xx[2] = x[2];
-           double result =  CPU_getFieldValue(&this->gpu_samples[0], this->gpu_sampleCount.get(),
+           double result = CPU_getFieldValue(&this->gpu_samples[0], this->gpu_sampleCount.get(),
                    this->gpu_integrate_result,
                    xx);
            return result;

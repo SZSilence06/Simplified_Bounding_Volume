@@ -4,6 +4,7 @@
 #include "MyPoisson.h"
 #include "FieldComputer.h"
 #include "Logger.h"
+#include "FMM.h"
 //#include <pcl/io/vtk_io.h>
 #include <hjlib/math/blas_lapack.h>
 #include <zjucad/matrix/lapack.h>
@@ -629,6 +630,38 @@ namespace SBV
             const vec3_t x = shell.mInnerShell(colon(), i);
             shell.mOuterShell(colon(), i) = trace(x, inner_shell_normals(colon(), i));
         }*/
+
+        // test FMM
+        FMM fmm;
+        fmm.setMaxLevel(6);
+        std::vector<mat3x3_t> triangles;
+        std::vector<double> boundary_derivatives;
+        for(size_t i = 0; i < mSamples.size(); i++) {
+            triangles.push_back(mSamples[i].tri);
+            boundary_derivatives.push_back(mSamples[i].derivative);
+        }
+        fmm.build(triangles, boundary_derivatives);
+        vec3_t testPoint;
+        testPoint[0] = 0; testPoint[1] = 0; testPoint[2] = 0;
+
+        mField.init(mSamples);
+
+        double testValue, testValue2;
+        WKYLIB::DebugTimer timerFMM("FMM");
+        timerFMM.start();
+        for(size_t i = 0; i < 100; i++)
+            testValue = fmm.getPotential(testPoint);
+        timerFMM.end();
+
+        WKYLIB::DebugTimer timerDirect("Direct");
+        timerDirect.start();
+        for(size_t i = 0; i < 100; i++)
+            testValue2 = getFieldValue(testPoint);
+        timerDirect.end();
+
+        std::cout << "by directly : " << testValue2 << std::endl;
+        std::cout << "by FMM : " << testValue << std::endl;
+        exit(0);
 
         Tracer tracer(mSamples);
         tracer.tracePoints(shell.mInnerShell, inner_shell_normals, mDistance, shell.mOuterShell);
