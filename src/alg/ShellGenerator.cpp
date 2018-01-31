@@ -633,7 +633,8 @@ namespace SBV
 
         // test FMM
         FMM fmm;
-        fmm.setMaxLevel(6);
+        fmm.setMaxLevel(5);
+        fmm.setDownLevel(5);
         std::vector<mat3x3_t> triangles;
         std::vector<double> boundary_derivatives;
         for(size_t i = 0; i < mSamples.size(); i++) {
@@ -641,6 +642,7 @@ namespace SBV
             boundary_derivatives.push_back(mSamples[i].derivative);
         }
         fmm.build(triangles, boundary_derivatives);
+        std::cout << "[INFO] FMM built." << std::endl;
         vec3_t testPoint;
         testPoint[0] = 0; testPoint[1] = 0; testPoint[2] = 0;
 
@@ -649,13 +651,13 @@ namespace SBV
         double testValue, testValue2;
         WKYLIB::DebugTimer timerFMM("FMM");
         timerFMM.start();
-        for(size_t i = 0; i < 100; i++)
+        for(size_t i = 0; i < 1000; i++)
             testValue = fmm.getPotential(testPoint);
         timerFMM.end();
 
         WKYLIB::DebugTimer timerDirect("Direct");
         timerDirect.start();
-        for(size_t i = 0; i < 100; i++)
+        for(size_t i = 0; i < 1000; i++)
             testValue2 = getFieldValue(testPoint);
         timerDirect.end();
 

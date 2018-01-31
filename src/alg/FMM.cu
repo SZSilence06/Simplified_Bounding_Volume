@@ -1,24 +1,79 @@
 #include "FMM.h"
+#include "GPU_FMM.h"
 #include <cmath>
 #include <complex>
 #include <boost/math/special_functions/legendre.hpp>
 #include <iostream>
 #include <cstring>
+#include <sstream>
+#include <eigen3/Eigen/Dense>
+#include <wkylib/Cuda/CudaVector.h>
+#include <wkylib/Cuda/CudaPointer.h>
 
 using namespace zjucad::matrix;
+using namespace WKYLIB::Cuda;
+
+namespace SBV {
+    namespace __FMM_Internal {  
+        static double g_factorial[100];
+        static double g_factorial_reciprocal[100];
+        static double g_double_factorial[100];
+
+        __global__ void kernel_downwardPass(GPU_FMM* fmm, int* level)
+        {
+            int x = blockIdx.x * blockDim.x + threadIdx.x;
+            int y = blockIdx.y * blockDim.y + threadIdx.y;
+            int z = blockIdx.z * blockDim.z + threadIdx.z;
+
+            int res = (int)pow(2.0, (double)*level);
+            while(z < res) {
+                while(y < res) {
+                    while(x < res) {
+                        GPU_Cell* cell = fmm->mCells[*level][x][y][z];
+                        for(int i = 0; i < cell->interList.size(); i++) {
+                            GPU_Cell* interCell = cell->interList[i];
+                            GPU_LocalExp localExp;
+                            fmm->GPU_M2L(interCell->multipoleExp, interCell->centroid, cell->centroid, localExp);
+                            for(int n = 0; n < fmm->mOrder; n++) {
+                                for(int m = -n; m <= n; m++) {
+                                    cell->localExp.moment(n, m) += localExp.moment(n, m);
+                                }
+                            }
+                        }
+                        if(cell->parent) {
+                            GPU_LocalExp localExp;
+                            fmm->GPU_L2L(cell->parent->localExp, cell->parent->centroid, cell->centroid, localExp);
+                            for(int n = 0; n < fmm->mOrder; n++) {
+                                for(int m = -n; m <= n; m++) {
+                                    cell->localExp.moment(n, m) += localExp.moment(n, m);
+                                }
+                            }
+                        }
+                        x += blockDim.x * gridDim.x;
+                    }
+                    x %= res;
+                    y += blockDim.y * gridDim.y;
+                }
+                y %= res;
+                z += blockDim.z * gridDim.z;
+            }
+        }
+    }
+}
 
 namespace SBV
 {
-    int g_factorial[9];
-    double g_factorial_reciprocal[9];
+    using namespace __FMM_Internal;
 
     inline void precomputeFactorial()
     {
-        g_factorial[0] = g_factorial_reciprocal[0] = 1;
-        for(int i = 1; i < 9; i++)
+        g_factorial[0] = g_factorial_reciprocal[0] = g_double_factorial[0] = 1;
+        for(int i = 1; i < 100; i++)
             g_factorial[i] = g_factorial[i - 1] * i;
-        for(int i = 1; i < 9; i++)
+        for(int i = 1; i < 100; i++)
             g_factorial_reciprocal[i] = 1.0 / g_factorial[i];
+        for(int i = 1; i < 100; i++)
+            g_double_factorial[i] = -(2 * i - 1) * g_double_factorial[i - 1];
     }
 
     inline static vec3_t centroid(const mat3x3_t& triangle)
@@ -33,11 +88,39 @@ namespace SBV
         phi = std::atan2(x[1], x[0]);
     }
 
+    double my_legendre_p(int n, int m, double x)
+    {
+        if(std::abs(m) > std::abs(n))
+            return 0;
+
+        if(m < 0) {
+            int sign = (m&1) ? -1 : 1;
+            return g_factorial[n+m] / g_factorial[n-m] * sign * my_legendre_p(n, -m, x);
+        }
+
+        double p1 = std::pow(1 - x * x, (double)m / 2) * g_double_factorial[m];
+        if(m == n)
+            return p1;
+
+        int l = m + 1;
+        double p2 = (2 * m + 1) * x * p1;
+        while(l < n) {
+            std::swap(p1, p2);
+            p2 = ((2 * l + 1) * x * p1 - (l + m) * p2) / (l + 1 - m);
+            l++;
+        }
+        return p2;
+    }
+
     inline static std::complex<double> R(const vec3_t& x, int m, int n)
     {
         double r, theta, phi;
         toSphericalCoordinate(x, r, theta, phi);
-        double coeff = g_factorial_reciprocal[n + m] * boost::math::legendre_p(n, m, std::cos(theta)) * std::pow(r, n);
+        double coeff;
+        if(std::abs(m) > std::abs(n))
+            coeff = 0;
+        else
+            coeff = g_factorial_reciprocal[n + m] * my_legendre_p(n, m, std::cos(theta)) * std::pow(r, n);
         double mphi = m * phi;
         std::complex<double> result;
         result.real(coeff * std::cos(mphi));
@@ -45,11 +128,12 @@ namespace SBV
         return result;
     }
 
-    inline static std::complex<double> S(const vec3_t x, int m, int n)
+
+    inline static std::complex<double> S(const vec3_t& x, int m, int n)
     {
         double r, theta, phi;
         toSphericalCoordinate(x, r, theta, phi);
-        double coeff = g_factorial[n - m] * boost::math::legendre_p(n, m, std::cos(theta)) / std::pow(r, n + 1);
+        double coeff = g_factorial[n - m] * my_legendre_p(n, m, std::cos(theta)) / std::pow(r, n + 1);
         double mphi = m * phi;
         std::complex<double> result;
         result.real(coeff * std::cos(mphi));
@@ -125,12 +209,12 @@ namespace SBV
         double w0 = localX[2];
 
         // edge lengths
-        double l1 = sqrt((l3-u3) * (l3-u3) + v3*v3);
-        double l2 = sqrt(u3*u3 + v3*v3);
+        double l1 = std::sqrt((l3-u3) * (l3-u3) + v3*v3);
+        double l2 = std::sqrt(u3*u3 + v3*v3);
 
         // threshold for small numbers
         double threshold = 1e-6 * std::min(std::min(l1,l2), l3);
-        if(fabs(w0) < threshold)
+        if(std::fabs(w0) < threshold)
             w0 = 0;
 
         // eq (3)
@@ -150,9 +234,9 @@ namespace SBV
 
         // eq (5)
         vec3_t tplus, tminus;
-        tplus[0] = sqrt((u3-u0)*(u3-u0) + (v3-v0)*(v3-v0));
-        tplus[1] = sqrt(u0*u0 + v0*v0);
-        tplus[2] = sqrt((l3-u0)*(l3-u0) + v0*v0);
+        tplus[0] = std::sqrt((u3-u0)*(u3-u0) + (v3-v0)*(v3-v0));
+        tplus[1] = std::sqrt(u0*u0 + v0*v0);
+        tplus[2] = std::sqrt((l3-u0)*(l3-u0) + v0*v0);
         tminus[0] = tplus[2];
         tminus[1] = tplus[0];
         tminus[2] = tplus[1];
@@ -160,14 +244,14 @@ namespace SBV
         // line 1, pp. 1450
         vec3_t R0;
         for(int i = 0; i < 3; i++)
-            R0[i] = sqrt(t0[i]*t0[i] + w0*w0);
+            R0[i] = std::sqrt(t0[i]*t0[i] + w0*w0);
 
         //line 2, pp. 1450
         vec3_t Rplus, Rminus;
         for(int i = 0; i < 3; i++)
         {
-            Rplus[i] = sqrt(tplus[i]*tplus[i] + w0*w0);
-            Rminus[i] = sqrt(tminus[i]*tminus[i] + w0*w0);
+            Rplus[i] = std::sqrt(tplus[i]*tplus[i] + w0*w0);
+            Rminus[i] = std::sqrt(tminus[i]*tminus[i] + w0*w0);
         }
 
         // eq (11)
@@ -177,8 +261,8 @@ namespace SBV
             double temp;
             if(w0 == 0)
             {
-                if(fabs(t0[i]) < threshold)
-                    temp = fabs(log(splus[i]) / sminus[i]);
+                if(std::fabs(t0[i]) < threshold)
+                    temp = std::fabs(std::log(splus[i]) / sminus[i]);
                 else
                     temp = (tplus[i]+splus[i]) / (tminus[i]+sminus[i]);
                 if(temp < 0)
@@ -195,7 +279,7 @@ namespace SBV
                  if(temp < 0)
                      std::cerr << "[WARNING] computing log of negative number. i = " << i << ". line " << __LINE__ << std::endl;
             }
-            f2[i] = log(temp);
+            f2[i] = std::log(temp);
             //fix value for points on the triangle corners
             if(f2[i] != f2[i])  //nan
                 f2[i] = 0;
@@ -209,7 +293,7 @@ namespace SBV
         {
             for(int i = 0; i < 3; i++)
             {
-                if(fabs(t0[i]) < threshold)
+                if(std::fabs(t0[i]) < threshold)
                     beta[i] = 0;
                 else
                     beta[i] = atan(splus[i] / t0[i]) - atan(sminus[i] / t0[i]);
@@ -218,7 +302,7 @@ namespace SBV
         else
         {
             for(int i = 0; i < 3; i++)
-                beta[i] = atan((t0[i]*splus[i]) / (R0[i]*R0[i] + Rplus[i]*fabs(w0))) - atan((t0[i]*sminus[i]) / (R0[i]*R0[i] + Rminus[i]*fabs(w0)));
+                beta[i] = atan((t0[i]*splus[i]) / (R0[i]*R0[i] + Rplus[i]*std::fabs(w0))) - atan((t0[i]*sminus[i]) / (R0[i]*R0[i] + Rminus[i]*std::fabs(w0)));
         }
         betaSum = beta[0] + beta[1] + beta[2];
 
@@ -227,39 +311,49 @@ namespace SBV
         double I1 = 0;
         for(int i = 0; i < 3; i++)
             I1 += t0[i]*f2[i];
-        I1 -= fabs(w0) * betaSum;
+        I1 -= std::fabs(w0) * betaSum;
         return I1;
     }
 
     void FMM::build(const std::vector<mat3x3_t>& triangles, const std::vector<double> &boundary_derivatives)
     {
+        std::cout << "[INFO] Initializing FMM..." << std::endl;
+
         precomputeFactorial();
         allocateCells();
         computeFinestStep(triangles);
         initFinestLevel(triangles, boundary_derivatives);
+
+        std::cout << "[INFO] Upward Pass..." << std::endl;
         upwardPass();
+
+        std::cout << "[INFO] Downward Pass..." << std::endl;
         downwardPass();
     }
 
     double FMM::getPotential(const vec3_t &x)
     {
         size_t xIndex, yIndex, zIndex;
-        getCellIndex(x, xIndex, yIndex, zIndex, mMaxLevel - 1);
+        getCellIndex(x, xIndex, yIndex, zIndex, mDownLevel - 1);
         double result = 0;
 
-        CellPtr cell = mCells[mMaxLevel - 1][xIndex][yIndex][zIndex];
+        CellPtr cell = mCells[mDownLevel - 1][xIndex][yIndex][zIndex];
         if(cell == nullptr) {
-            cell = createCell(mMaxLevel - 1, xIndex, yIndex, zIndex, false);
+            std::cout << "[INFO] creating down cell for evaluation" << std::endl;
+            cell = createCell(mDownLevel - 1, xIndex, yIndex, zIndex, false);
         }
 
-        CellPtr cell2 = cell;
         // evaluate using multipole expansion
-        while(cell2 != nullptr) {
-            for(auto& interCell : cell2->interList) {
-                result += multipoleEvaluate(interCell->multipoleExp, x, interCell->centroid);
-            }
-            cell2 = cell2->parent;
-        }
+        // CellPtr cell2 = cell;
+        // while(cell2 != nullptr) {
+        //    for(auto& interCell : cell2->interList) {
+        //        result += multipoleEvaluate(interCell->multipoleExp, x, interCell->centroid);
+        //    }
+        //    cell2 = cell2->parent;
+        // }
+
+        // evaluate using local expansion
+        result += localEvaluate(cell->localExp, x, cell->centroid);
 
         // evaluate directly
         for(auto& neighbour : cell->neighbours) {
@@ -293,18 +387,20 @@ namespace SBV
 
         int maxRes = std::pow(2, mMaxLevel - 1);
 
-        mXStep.resize(mMaxLevel);
-        mYStep.resize(mMaxLevel);
-        mZStep.resize(mMaxLevel);
+        mStep.resize(mMaxLevel);
 
-        mXStep[mMaxLevel - 1] = (mXMax - mXMin) / maxRes;
-        mYStep[mMaxLevel - 1] = (mYMax - mYMin) / maxRes;
-        mZStep[mMaxLevel - 1] = (mZMax - mZMin) / maxRes;
+        mStep[mMaxLevel - 1] = (mXMax - mXMin) / maxRes;
         for(int level = mMaxLevel - 2; level >= 0; level--) {
-            mXStep[level] = mXStep[level+1] * 2;
-            mYStep[level] = mYStep[level+1] * 2;
-            mZStep[level] = mZStep[level+1] * 2;
+            mStep[level] = mStep[level+1] * 2;
         }
+    }
+
+    inline static void scaleInterval(double& min, double& max, double scale)
+    {
+        double center = (min + max) / 2;
+        double half_width = (center - min) * scale;
+        min = center - half_width;
+        max = center + half_width;
     }
 
     void FMM::computeBBox(const std::vector<mat3x3_t> &triangles)
@@ -328,6 +424,14 @@ namespace SBV
                 mZMax = mZMax > z ? mZMax : z;
             }
         }
+
+        double maxWidth = std::max(std::max(mXMax - mXMin, mYMax - mYMin), mZMax - mZMin);
+        double scaleX = maxWidth / (mXMax - mXMin);
+        double scaleY = maxWidth / (mYMax - mYMin);
+        double scaleZ = maxWidth / (mZMax - mZMin);
+        scaleInterval(mXMin, mXMax, scaleX);
+        scaleInterval(mYMin, mYMax, scaleY);
+        scaleInterval(mZMin, mZMax, scaleZ);
     }
 
     void FMM::initFinestLevel(const std::vector<mat3x3_t> &triangles, const std::vector<double> &boundary_derivatives)
@@ -350,42 +454,44 @@ namespace SBV
 
     void FMM::getCellIndex(const vec3_t &center, size_t &xIndex, size_t &yIndex, size_t &zIndex, size_t level)
     {
-        if(fabs(center[0] - mXMin) < 1e-6)
+        if(std::fabs(center[0] - mXMin) < 1e-6)
             xIndex = 0;
-        else if(fabs(center[0] - mXMax) < 1e-6)
+        else if(std::fabs(center[0] - mXMax) < 1e-6)
             xIndex = std::pow(2, level) - 1;
         else
-            xIndex = (center[0] - mXMin) / (mXStep[level]);
+            xIndex = (center[0] - mXMin) / (mStep[level]);
 
-        if(fabs(center[1] - mYMin) < 1e-6)
+        if(std::fabs(center[1] - mYMin) < 1e-6)
             yIndex = 0;
-        else if(fabs(center[1] - mYMax) < 1e-6)
+        else if(std::fabs(center[1] - mYMax) < 1e-6)
             yIndex = std::pow(2, level) - 1;
         else
-            yIndex = (center[1] - mYMin) / (mYStep[level]);
+            yIndex = (center[1] - mYMin) / (mStep[level]);
 
-        if(fabs(center[2] - mZMin) < 1e-6)
+        if(std::fabs(center[2] - mZMin) < 1e-6)
             zIndex = 0;
-        else if(fabs(center[2] - mZMax) < 1e-6)
+        else if(std::fabs(center[2] - mZMax) < 1e-6)
             zIndex = std::pow(2, level) - 1;
         else
-            zIndex = (center[2] - mZMin) / (mZStep[level]);
+            zIndex = (center[2] - mZMin) / (mStep[level]);
     }
 
     CellPtr FMM::createCell(size_t level, size_t xIndex, size_t yIndex, size_t zIndex, bool hasFace)
     {
         CellPtr cell = CellPtr(new FMMCell());
         mCells[level][xIndex][yIndex][zIndex] = cell;
-        cell->centroid[0] = mXMin + (xIndex + 0.5) * mXStep[level];
-        cell->centroid[1] = mYMin + (yIndex + 0.5) * mYStep[level];
-        cell->centroid[2] = mZMin + (zIndex + 0.5) * mZStep[level];
+        cell->centroid[0] = mXMin + (xIndex + 0.5) * mStep[level];
+        cell->centroid[1] = mYMin + (yIndex + 0.5) * mStep[level];
+        cell->centroid[2] = mZMin + (zIndex + 0.5) * mStep[level];
         cell->xIndex = xIndex;
         cell->yIndex = yIndex;
         cell->zIndex = zIndex;
+        cell->level = level;
         cell->hasFace = hasFace;
         if(hasFace)
             mActiveCells[level].push_back(cell);
 
+        this->mutex_createCell.lock();
         // handle parent cells
         if(level > 0) {
             size_t xIndexParent = xIndex / 2;
@@ -438,6 +544,7 @@ namespace SBV
                 }
             }
         }
+        this->mutex_createCell.unlock();
 
         return cell;
     }
@@ -465,7 +572,91 @@ namespace SBV
 
     void FMM::downwardPass()
     {
+        for(int level = 0; level < mDownLevel; level++) {
+            int res = std::pow(2, level);
 
+#pragma omp parallel for
+            for(size_t x = 0; x < res; x++) {
+                for(size_t y = 0; y < res; y++) {
+                    for(size_t z = 0; z < res; z++) {
+                        CellPtr cell = mCells[level][x][y][z];
+                        if(cell == nullptr) {
+                            cell = createCell(level, x, y, z, false);
+                        }
+                    }
+                }
+            }
+        }
+
+        GPU_FMM gpu_fmm_tmp;
+        CudaPointer<GPU_FMM> gpu_fmm(gpu_fmm_tmp);
+        gpu_fmm->buildFromCPU(*this);
+
+        dim3 blocks(4, 4, 4);
+        dim3 threads(4, 4, 4);
+
+        for(int level = 0; level < mDownLevel; level++) {
+            std::cout << "[INFO] computing level " << level << std::endl;
+
+            CudaPointer<int> gpu_level(level);
+            kernel_downwardPass <<< blocks, threads >>> (gpu_fmm.get(), gpu_level.get());
+            cudaDeviceSynchronize();
+
+            int res = std::pow(2, level);
+
+            for(size_t x = 0; x < res; x++) {
+                for(size_t y = 0; y < res; y++) {
+                    for(size_t z = 0; z < res; z++) {
+                        GPU_Cell* gpu_cell = gpu_fmm->mCells[level][x][y][z];
+                        CellPtr cell = mCells[level][x][y][z];
+                        for(int n = 0; n <= mOrder; n++) {
+                            for(int m = -n; m <= n; m++) {
+                                cell->localExp.moment(n, m) = gpu_cell->localExp.moment(n, m);
+                            }
+                        }
+                    }
+                }
+            }
+        } 
+
+
+        /*
+        for(int level = 0; level < mDownLevel; level++) {
+            std::cout << "[INFO] computing level " << level << std::endl;
+            int res = std::pow(2, level);
+
+#pragma omp parallel for
+            for(size_t x = 0; x < res; x++) {
+                for(size_t y = 0; y < res; y++) {
+                    for(size_t z = 0; z < res; z++) {
+                        CellPtr cell = mCells[level][x][y][z];
+                        if(cell == nullptr) {
+                            cell = createCell(level, x, y, z, false);
+                        }
+
+                        for(auto interCell : cell->interList) {
+                            LocalExp localExp;
+                            M2L(interCell->multipoleExp, interCell->centroid, cell->centroid, localExp);
+                            for(int n = 0; n < mOrder; n++) {
+                                for(int m = -n; m <= n; m++) {
+                                    cell->localExp.moment(n, m) += localExp.moment(n, m);
+                                }
+                            }
+                        }
+                        if(cell->parent) {
+                            LocalExp localExp;
+                            L2L(cell->parent->localExp, cell->parent->centroid, cell->centroid, localExp);
+                            for(int n = 0; n < mOrder; n++) {
+                                for(int m = -n; m <= n; m++) {
+                                    cell->localExp.moment(n, m) += localExp.moment(n, m);
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        */
     }
 
     void FMM::computeMultipoleForFinest()
@@ -524,12 +715,52 @@ namespace SBV
         }
     }
 
+    void FMM::M2L(const MultipoleExp &inputMoment, const vec3_t &xc, const vec3_t &x0, LocalExp &result)
+    {
+        for(int n = 0; n <= mOrder; n++) {
+            for(int m = -n; m <= n; m++) {
+                for(int n2 = 0; n2 <= mOrder; n2++) {
+                    for(int m2 = -n2; m2 <= n2; m2++) {
+                        std::complex<double> temp = std::conj(S(x0 - xc, m + m2, n + n2)) * inputMoment.moment(n2, m2);
+                        if(n % 2)
+                            temp = -temp;
+                        result.moment(n,m) += temp;
+                    }
+                }
+            }
+        }
+    }
+
+    void FMM::L2L(const LocalExp &inputMoment, const vec3_t &x0, const vec3_t &x1, LocalExp &result)
+    {
+        for(int n = 0; n <= mOrder; n++) {
+            for(int m = -n; m <= n; m++) {
+                for(int n2 = n; n2 <= mOrder; n2++) {
+                    for(int m2 = -n2; m2 <= n2; m2++) {
+                        result.moment(n,m) += R(x1 - x0, m2 - m, n2 - n) * inputMoment.moment(n2, m2);
+                    }
+                }
+            }
+        }
+    }
+
     double FMM::multipoleEvaluate(const MultipoleExp &mul, const vec3_t &x, const vec3_t &xc)
     {
         std::complex<double> sum;
         for(int n = 0; n <= mOrder; n++) {
             for(int m = -n; m <= n; m++) {
                 sum += std::conj(S(x - xc, m, n)) * mul.moment(n, m);
+            }
+        }
+        return sum.real();
+    }
+
+    double FMM::localEvaluate(const LocalExp &mul, const vec3_t &x, const vec3_t &x0)
+    {
+        std::complex<double> sum;
+        for(int n = 0; n <= mOrder; n++) {
+            for(int m = -n; m <= n; m++) {
+                sum += R(x - x0, m, n) * mul.moment(n, m);
             }
         }
         return sum.real();

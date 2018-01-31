@@ -69,11 +69,7 @@ public:
 	template <typename E>
     const matrix_mn<T, M, N>& operator=(const matrix_expression<E> &e){
 		assert(size(1) == e().size(1) || size(2) == e().size(2));
-#ifdef __CUDACC__
-        gpu_copy(e().begin(), e().end(), begin());
-#else
         std::copy(e().begin(), e().end(), begin());
-#endif
 		return *this;
 	}
 
