@@ -65,6 +65,8 @@ namespace SBV
 
         void build(const std::vector<mat3x3_t>& triangles, const std::vector<double>& boundary_derivatives);
 
+        double testGPU(const vec3_t& x);
+
     private:
         void allocateCells();
         void computeBBox(const std::vector<mat3x3_t> &triangles);

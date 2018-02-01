@@ -271,20 +271,6 @@ namespace SBV {
             result[blockIdx.x] = cache[0];
     }
 
-    __global__ void kernel_test(int n, double* result) {
-        int tid = threadIdx.x + blockIdx.x * blockDim.x;
-        for (int i = tid; i < n; i += blockDim.x * gridDim.x) {
-             int a  = 1;
-        }
-        result[0] = 1;
-    }
-
-    void test()
-    {
-        kernel_test <<<1, 1>>> (100, gpu_integrate_result);
-        cudaStreamSynchronize(0);
-    }
-
     static double CPU_getFieldValue(const GPU_SamplePoint* samples, int* sampleCount, const Eigen::Vector3d& x) {
         double cpu_result[BLOCK_COUNT];
 

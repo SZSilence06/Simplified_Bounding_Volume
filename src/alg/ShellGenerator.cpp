@@ -633,8 +633,8 @@ namespace SBV
 
         // test FMM
         FMM fmm;
-        fmm.setMaxLevel(5);
-        fmm.setDownLevel(5);
+        fmm.setMaxLevel(6);
+        fmm.setDownLevel(6);
         std::vector<mat3x3_t> triangles;
         std::vector<double> boundary_derivatives;
         for(size_t i = 0; i < mSamples.size(); i++) {
@@ -661,8 +661,11 @@ namespace SBV
             testValue2 = getFieldValue(testPoint);
         timerDirect.end();
 
+        double testValue3 = fmm.testGPU(testPoint);
+
         std::cout << "by directly : " << testValue2 << std::endl;
         std::cout << "by FMM : " << testValue << std::endl;
+        std::cout << "by FMM on GPU : " << testValue3 << std::endl;
         exit(0);
 
         Tracer tracer(mSamples);

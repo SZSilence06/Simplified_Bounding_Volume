@@ -1,5 +1,5 @@
 #include "FMM.h"
-#include "GPU_FMM.h"
+#include "GPU_FMM.cuh"
 #include <cmath>
 #include <complex>
 #include <boost/math/special_functions/legendre.hpp>
@@ -149,170 +149,6 @@ namespace SBV
         vec3_t ab = b - a;
         vec3_t ac = c - a;
         return 0.5 * (norm(cross(ab,ac)));
-    }
-
-    static void viewTransform(const vec3_t &eye, vec3_t ux, vec3_t uz, mat4x4_t &output)
-    {
-        uz /= norm(uz);
-        ux /= norm(ux);
-        const vec3_t uy = cross(uz, ux);
-
-        output(0, 0) = ux[0];
-        output(0, 1) = ux[1];
-        output(0, 2) = ux[2];
-        output(0, 3) = -dot(eye, ux);
-        output(1, 0) = uy[0];
-        output(1, 1) = uy[1];
-        output(1, 2) = uy[2];
-        output(1, 3) = -dot(eye, uy);
-        output(2, 0) = uz[0];
-        output(2, 1) = uz[1];
-        output(2, 2) = uz[2];
-        output(2, 3) = -dot(eye, uz);
-        output(3, 0) = 0;
-        output(3, 1) = 0;
-        output(3, 2) = 0;
-        output(3, 3) = 1;
-    }
-
-    static void localTransform(const vec3_t &a, const vec3_t &b, const vec3_t &c, mat4x4_t &output)
-    {
-        vec3_t ux = b - a;
-        vec3_t uz = cross(ux, c - a);
-        output.resize(4, 4);
-        viewTransform(a, ux, uz, output);
-    }
-
-    //closed-form calculation according to Graglia 1993.
-    static double integrateOverTriangle(const vec3_t& x, const mat3x3_t &triangle)
-    {
-        mat4x4_t triangle_4;
-        triangle_4(colon(0, 2), colon(0, 2)) = triangle;
-        triangle_4(3, colon(0, 2)) = ones<double>(1, 3);
-        mat4x4_t transform;
-        localTransform(triangle(colon(), 0), triangle(colon(), 1), triangle(colon(), 2), transform);
-        mat4x4_t localTriangle = transform * triangle_4;
-
-        double l3 = localTriangle(0, 1);
-        double u3 = localTriangle(0, 2);
-        double v3 = localTriangle(1, 2);
-
-        if(l3 < 0)
-            throw std::runtime_error("l3 < 0.");
-
-        vec4_t tempX;
-        tempX(colon(0, 2), colon()) = x;
-        tempX[3] = 1;
-        vec4_t localX = transform * tempX;
-        double u0 = localX[0];
-        double v0 = localX[1];
-        double w0 = localX[2];
-
-        // edge lengths
-        double l1 = std::sqrt((l3-u3) * (l3-u3) + v3*v3);
-        double l2 = std::sqrt(u3*u3 + v3*v3);
-
-        // threshold for small numbers
-        double threshold = 1e-6 * std::min(std::min(l1,l2), l3);
-        if(std::fabs(w0) < threshold)
-            w0 = 0;
-
-        // eq (3)
-        vec3_t sminus, splus;
-        sminus[0] = -((l3-u3)*(l3-u0)+v3*v0)/l1;
-        sminus[1] = -(u3*(u3-u0)+v3*(v3-v0))/l2;
-        sminus[2] = -u0;
-        splus[0] = ((u3-l3)*(u3-u0)+v3*(v3-v0))/l1;
-        splus[1] = (u3*u0+v3*v0)/l2;
-        splus[2] = l3-u0;
-
-        // eq (4)
-        vec3_t t0;
-        t0[0] = ((u3-l3)*v0+v3*(l3-u0))/l1;
-        t0[1] = (v3*u0-u3*v0)/l2;
-        t0[2] = v0;
-
-        // eq (5)
-        vec3_t tplus, tminus;
-        tplus[0] = std::sqrt((u3-u0)*(u3-u0) + (v3-v0)*(v3-v0));
-        tplus[1] = std::sqrt(u0*u0 + v0*v0);
-        tplus[2] = std::sqrt((l3-u0)*(l3-u0) + v0*v0);
-        tminus[0] = tplus[2];
-        tminus[1] = tplus[0];
-        tminus[2] = tplus[1];
-
-        // line 1, pp. 1450
-        vec3_t R0;
-        for(int i = 0; i < 3; i++)
-            R0[i] = std::sqrt(t0[i]*t0[i] + w0*w0);
-
-        //line 2, pp. 1450
-        vec3_t Rplus, Rminus;
-        for(int i = 0; i < 3; i++)
-        {
-            Rplus[i] = std::sqrt(tplus[i]*tplus[i] + w0*w0);
-            Rminus[i] = std::sqrt(tminus[i]*tminus[i] + w0*w0);
-        }
-
-        // eq (11)
-        vec3_t f2;
-        for(int i = 0; i < 3; i++)
-        {
-            double temp;
-            if(w0 == 0)
-            {
-                if(std::fabs(t0[i]) < threshold)
-                    temp = std::fabs(std::log(splus[i]) / sminus[i]);
-                else
-                    temp = (tplus[i]+splus[i]) / (tminus[i]+sminus[i]);
-                if(temp < 0)
-                    std::cerr << "[WARNING] computing log of negative number. i = " << i
-                              << " tplus[0] = " << tplus[0]
-                              << " tminus[0] = " << tminus[0]
-                              << " splus[0] = " << splus[0]
-                              << " sminus[0] = " << sminus[0]
-                              << ". line " << __LINE__ << std::endl;
-            }
-            else
-            {
-                 temp = (Rplus[i]+splus[i]) / (Rminus[i]+sminus[i]);
-                 if(temp < 0)
-                     std::cerr << "[WARNING] computing log of negative number. i = " << i << ". line " << __LINE__ << std::endl;
-            }
-            f2[i] = std::log(temp);
-            //fix value for points on the triangle corners
-            if(f2[i] != f2[i])  //nan
-                f2[i] = 0;
-        }
-
-
-        // eq (13) and eq (14)
-        vec3_t beta;
-        double betaSum;
-        if(w0 == 0)
-        {
-            for(int i = 0; i < 3; i++)
-            {
-                if(std::fabs(t0[i]) < threshold)
-                    beta[i] = 0;
-                else
-                    beta[i] = atan(splus[i] / t0[i]) - atan(sminus[i] / t0[i]);
-            }
-        }
-        else
-        {
-            for(int i = 0; i < 3; i++)
-                beta[i] = atan((t0[i]*splus[i]) / (R0[i]*R0[i] + Rplus[i]*std::fabs(w0))) - atan((t0[i]*sminus[i]) / (R0[i]*R0[i] + Rminus[i]*std::fabs(w0)));
-        }
-        betaSum = beta[0] + beta[1] + beta[2];
-
-
-        // eq (19), integral of kernel 1/R
-        double I1 = 0;
-        for(int i = 0; i < 3; i++)
-            I1 += t0[i]*f2[i];
-        I1 -= std::fabs(w0) * betaSum;
-        return I1;
     }
 
     void FMM::build(const std::vector<mat3x3_t>& triangles, const std::vector<double> &boundary_derivatives)
@@ -766,8 +602,182 @@ namespace SBV
         return sum.real();
     }
 
+    static void viewTransform(const vec3_t &eye, vec3_t ux, vec3_t uz, mat4x4_t &output)
+    {
+        uz /= norm(uz);
+        ux /= norm(ux);
+        const vec3_t uy = cross(uz, ux);
+
+        output(0, 0) = ux[0];
+        output(0, 1) = ux[1];
+        output(0, 2) = ux[2];
+        output(0, 3) = -dot(eye, ux);
+        output(1, 0) = uy[0];
+        output(1, 1) = uy[1];
+        output(1, 2) = uy[2];
+        output(1, 3) = -dot(eye, uy);
+        output(2, 0) = uz[0];
+        output(2, 1) = uz[1];
+        output(2, 2) = uz[2];
+        output(2, 3) = -dot(eye, uz);
+        output(3, 0) = 0;
+        output(3, 1) = 0;
+        output(3, 2) = 0;
+        output(3, 3) = 1;
+    }
+
+    static void localTransform(const vec3_t &a, const vec3_t &b, const vec3_t &c, mat4x4_t &output)
+    {
+        vec3_t ux = b - a;
+        vec3_t uz = cross(ux, c - a);
+        output.resize(4, 4);
+        viewTransform(a, ux, uz, output);
+    }
+
+    //closed-form calculation according to Graglia 1993.
+    double integrateOverTriangle(const vec3_t& x, const mat3x3_t &triangle)
+    {
+        mat4x4_t triangle_4;
+        triangle_4(colon(0, 2), colon(0, 2)) = triangle;
+        triangle_4(3, colon(0, 2)) = ones<double>(1, 3);
+        mat4x4_t transform;
+        localTransform(triangle(colon(), 0), triangle(colon(), 1), triangle(colon(), 2), transform);
+        mat4x4_t localTriangle = transform * triangle_4;
+
+        double l3 = localTriangle(0, 1);
+        double u3 = localTriangle(0, 2);
+        double v3 = localTriangle(1, 2);
+
+        if(l3 < 0)
+            throw std::runtime_error("l3 < 0.");
+
+        vec4_t tempX;
+        tempX(colon(0, 2), colon()) = x;
+        tempX[3] = 1;
+        vec4_t localX = transform * tempX;
+        double u0 = localX[0];
+        double v0 = localX[1];
+        double w0 = localX[2];
+
+        // edge lengths
+        double l1 = std::sqrt((l3-u3) * (l3-u3) + v3*v3);
+        double l2 = std::sqrt(u3*u3 + v3*v3);
+
+        // threshold for small numbers
+        double threshold = 1e-6 * std::min(std::min(l1,l2), l3);
+        if(std::fabs(w0) < threshold)
+            w0 = 0;
+
+        // eq (3)
+        vec3_t sminus, splus;
+        sminus[0] = -((l3-u3)*(l3-u0)+v3*v0)/l1;
+        sminus[1] = -(u3*(u3-u0)+v3*(v3-v0))/l2;
+        sminus[2] = -u0;
+        splus[0] = ((u3-l3)*(u3-u0)+v3*(v3-v0))/l1;
+        splus[1] = (u3*u0+v3*v0)/l2;
+        splus[2] = l3-u0;
+
+        // eq (4)
+        vec3_t t0;
+        t0[0] = ((u3-l3)*v0+v3*(l3-u0))/l1;
+        t0[1] = (v3*u0-u3*v0)/l2;
+        t0[2] = v0;
+
+        // eq (5)
+        vec3_t tplus, tminus;
+        tplus[0] = std::sqrt((u3-u0)*(u3-u0) + (v3-v0)*(v3-v0));
+        tplus[1] = std::sqrt(u0*u0 + v0*v0);
+        tplus[2] = std::sqrt((l3-u0)*(l3-u0) + v0*v0);
+        tminus[0] = tplus[2];
+        tminus[1] = tplus[0];
+        tminus[2] = tplus[1];
+
+        // line 1, pp. 1450
+        vec3_t R0;
+        for(int i = 0; i < 3; i++)
+            R0[i] = std::sqrt(t0[i]*t0[i] + w0*w0);
+
+        //line 2, pp. 1450
+        vec3_t Rplus, Rminus;
+        for(int i = 0; i < 3; i++)
+        {
+            Rplus[i] = std::sqrt(tplus[i]*tplus[i] + w0*w0);
+            Rminus[i] = std::sqrt(tminus[i]*tminus[i] + w0*w0);
+        }
+
+        // eq (11)
+        vec3_t f2;
+        for(int i = 0; i < 3; i++)
+        {
+            double temp;
+            if(w0 == 0)
+            {
+                if(std::fabs(t0[i]) < threshold)
+                    temp = std::fabs(std::log(splus[i]) / sminus[i]);
+                else
+                    temp = (tplus[i]+splus[i]) / (tminus[i]+sminus[i]);
+                if(temp < 0)
+                    std::cerr << "[WARNING] computing log of negative number. i = " << i
+                              << " tplus[0] = " << tplus[0]
+                              << " tminus[0] = " << tminus[0]
+                              << " splus[0] = " << splus[0]
+                              << " sminus[0] = " << sminus[0]
+                              << ". line " << __LINE__ << std::endl;
+            }
+            else
+            {
+                 temp = (Rplus[i]+splus[i]) / (Rminus[i]+sminus[i]);
+                 if(temp < 0)
+                     std::cerr << "[WARNING] computing log of negative number. i = " << i << ". line " << __LINE__ << std::endl;
+            }
+            f2[i] = std::log(temp);
+            //fix value for points on the triangle corners
+            if(f2[i] != f2[i])  //nan
+                f2[i] = 0;
+        }
+
+
+        // eq (13) and eq (14)
+        vec3_t beta;
+        double betaSum;
+        if(w0 == 0)
+        {
+            for(int i = 0; i < 3; i++)
+            {
+                if(std::fabs(t0[i]) < threshold)
+                    beta[i] = 0;
+                else
+                    beta[i] = atan(splus[i] / t0[i]) - atan(sminus[i] / t0[i]);
+            }
+        }
+        else
+        {
+            for(int i = 0; i < 3; i++)
+                beta[i] = atan((t0[i]*splus[i]) / (R0[i]*R0[i] + Rplus[i]*std::fabs(w0))) - atan((t0[i]*sminus[i]) / (R0[i]*R0[i] + Rminus[i]*std::fabs(w0)));
+        }
+        betaSum = beta[0] + beta[1] + beta[2];
+
+
+        // eq (19), integral of kernel 1/R
+        double I1 = 0;
+        for(int i = 0; i < 3; i++)
+            I1 += t0[i]*f2[i];
+        I1 -= std::fabs(w0) * betaSum;
+        return I1;
+    }
+
     inline double FMM::directEvaluate(const FMMFace &face, const vec3_t &x)
     {
         return integrateOverTriangle(x, face.triangle) * face.derivative;
+    }
+
+    double FMM::testGPU(const vec3_t &x)
+    {
+        GPU_FMM gpu_fmm_tmp;
+        CudaPointer<GPU_FMM> gpu_fmm(gpu_fmm_tmp);
+        Eigen::Vector3d xx;
+        xx[0] = x[0]; xx[1] = x[1]; xx[2] = x[2];
+        gpu_fmm->buildFromCPU(*this);
+        return gpu_fmm->getPotential(xx);
     }
 }

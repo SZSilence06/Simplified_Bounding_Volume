@@ -74,22 +74,22 @@ namespace WKYLIB
                 return *this;
             }
 
-            iterator begin()
+            __host__ __device__ iterator begin()
             {
                 return mElements;
             }
 
-            iterator end()
+            __host__ __device__ iterator end()
             {
                 return mElements + mSize + 1;
             }
 
-            const_iterator cbegin() const
+            __host__ __device__ const_iterator cbegin() const
             {
                 return mElements;
             }
 
-            const_iterator cend() const
+            __host__ __device__ const_iterator cend() const
             {
                 return mElements + mSize + 1;
             }

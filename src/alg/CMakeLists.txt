@@ -1,5 +1,6 @@
 file(GLOB headers *.h)
 file(GLOB sources *.cpp)
+file(GLOB cuda_headers *.cuh)
 file(GLOB cuda_sources *.cu)
 
 find_package(CUDA REQUIRED)
@@ -12,7 +13,7 @@ if(CUDA_FOUND)
     set(CUDA_SEPARABLE_COMPILATION ON)
 endif()
 
-cuda_add_library(alg-cuda ${cuda_sources})
+cuda_add_library(alg-cuda ${cuda_headers} ${cuda_sources})
 
 find_package(CGAL REQUIRED)
 include_directories(${CGAL_INCLUDE_DIRS})
