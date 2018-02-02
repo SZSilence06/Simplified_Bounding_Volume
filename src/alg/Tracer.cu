@@ -1,4 +1,6 @@
 #include "Tracer.h"
+#include "FMM.h"
+#include "GPU_FMM.cuh"
 #include <zjucad/matrix/matrix.h>
 #include <wkylib/Cuda/CudaPointer.h>
 #include <wkylib/Cuda/CudaVector.h>
@@ -189,32 +191,27 @@ namespace SBV {
         return result;
     }
 
-    __device__ static double getFieldValue(const GPU_SamplePoint* samples, int* sampleCount, const Eigen::Vector3d &x)
+    __device__ static double getFieldValue(const GPU_FMM* fmm, const Eigen::Vector3d &x)
     {
-        double result = 0;
-        for(int i = 0; i < *sampleCount; i++)
-        {
-            result += kernel(x, samples[i]);
-        }
-        return result;
+        return fmm->getPotential(x);
     }
 
-    __device__ Eigen::Vector3d getGradient(const GPU_SamplePoint* samples, int* sampleCount, const Eigen::Vector3d &x)
+    __device__ Eigen::Vector3d getGradient(const GPU_FMM* fmm, const Eigen::Vector3d &x)
     {
         const double STEP = 0.0001;
-        double a = getFieldValue(samples, sampleCount, x);
+        double a = getFieldValue(fmm, x);
 
         Eigen::Vector3d xx = x;
         xx[0] += STEP;
-        double b = getFieldValue(samples, sampleCount, xx);
+        double b = getFieldValue(fmm, xx);
 
         Eigen::Vector3d xy = x;
         xy[1] += STEP;
-        double c = getFieldValue(samples, sampleCount, xy);
+        double c = getFieldValue(fmm, xy);
 
         Eigen::Vector3d xz = x;
         xz[2] += STEP;
-        double d = getFieldValue(samples, sampleCount, xz);
+        double d = getFieldValue(fmm, xz);
 
         Eigen::Vector3d result;
         result[0] = (b - a) / STEP;
@@ -223,7 +220,7 @@ namespace SBV {
         return result;
     }
 
-    __global__ static void kernel_trace(const GPU_SamplePoint* samples, int* sampleCount, Eigen::Vector3d* points,
+    __global__ static void kernel_trace(const GPU_FMM* fmm, Eigen::Vector3d* points,
                                         Eigen::Vector3d* normals, int* pointCount, double* distance)
     {
         const double STEP = 0.01;        
@@ -235,7 +232,7 @@ namespace SBV {
             result += STEP * n;
             while(t < *distance)
             {
-                Eigen::Vector3d grad = getGradient(samples, sampleCount, result);
+                Eigen::Vector3d grad = getGradient(fmm, result);
                 double norm_grad = grad.norm();
                 grad /= norm_grad;
                 result -= STEP * grad;
@@ -422,9 +419,25 @@ namespace SBV {
         }
     }
 
+    Tracer::Tracer(const std::vector<SamplePoint> &samples) :
+        mSamples(samples)
+    {
+        mFmm = std::unique_ptr<FMM>(new FMM());
+        mFmm->setMaxLevel(6);
+        mFmm->setDownLevel(6);
+
+        std::vector<mat3x3_t> triangles;
+        std::vector<double> boundary_derivatives;
+        for(size_t i = 0; i < mSamples.size(); i++) {
+            triangles.push_back(mSamples[i].tri);
+            boundary_derivatives.push_back(mSamples[i].derivative);
+        }
+        mFmm->build(triangles, boundary_derivatives);
+    }
+
     void Tracer::tracePoints(const matrixr_t &points, const matrixr_t &normals, double length, matrixr_t &traceResult)
     {
-        CudaPointer<int> gpu_sampleCount(mSamples.size());
+        /*CudaPointer<int> gpu_sampleCount(mSamples.size());
         CudaPointer<int> gpu_pointCount(points.size(2));
         CudaPointer<double> gpu_distance(length);
         CudaVector<GPU_SamplePoint> gpu_samples;
@@ -447,7 +460,29 @@ namespace SBV {
             traceResult(2, i) = cpu_points[i][2];
         }
 
-        cudaFree(gpu_integrate_result);
+        cudaFree(gpu_integrate_result);*/
+
+        CudaPointer<int> gpu_pointCount(points.size(2));
+        CudaPointer<double> gpu_distance(length);
+
+        GPU_FMM gpu_fmm_tmp;
+        CudaPointer<GPU_FMM> gpu_fmm(gpu_fmm_tmp);
+        gpu_fmm->buildFromCPU(*mFmm);
+
+        //pass gpu_points from host to cuda kernel via std::vector
+        CudaVector<Eigen::Vector3d> gpu_points, gpu_normals;
+        buildGPUVector(points, gpu_points);
+        buildGPUVector(normals, gpu_normals);
+
+        kernel_trace <<<BLOCK_COUNT, THREADS_PER_BLOCK>>> (gpu_fmm.get(), &gpu_points[0], &gpu_normals[0], gpu_pointCount.get(), gpu_distance.get());
+        cudaDeviceSynchronize();
+
+        traceResult.resize(3, points.size(2));
+        for(int i = 0; i < points.size(2); i++) {
+            traceResult(0, i) = gpu_points[i][0];
+            traceResult(1, i) = gpu_points[i][1];
+            traceResult(2, i) = gpu_points[i][2];
+        }
     }
 }
 

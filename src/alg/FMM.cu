@@ -165,6 +165,8 @@ namespace SBV
 
         std::cout << "[INFO] Downward Pass..." << std::endl;
         downwardPass();
+
+         std::cout << "[INFO] FMM built." << std::endl;
     }
 
     double FMM::getPotential(const vec3_t &x)

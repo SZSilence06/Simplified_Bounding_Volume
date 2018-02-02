@@ -128,7 +128,7 @@ namespace SBV
         gpu_vec.assign(cpu_tmp_vec);
     }
 
-    __host__ __device__ double GPU_FMM::GPU_legendre_p(int n, int m, double x)
+    __host__ __device__ double GPU_FMM::GPU_legendre_p(int n, int m, double x) const
     {
         if(fabs((double)m) > fabs((double)n))
             return 0;
@@ -161,7 +161,7 @@ namespace SBV
         phi = atan2(x[1], x[0]);
     }
 
-    __host__ __device__ inline thrust::complex<double> GPU_FMM::GPU_R(const Eigen::Vector3d& x, int m, int n)
+    __host__ __device__ inline thrust::complex<double> GPU_FMM::GPU_R(const Eigen::Vector3d& x, int m, int n) const
     {
         double r, theta, phi;
         GPU_toSphericalCoordinate(x, r, theta, phi);
@@ -177,7 +177,7 @@ namespace SBV
         return result;
     }
 
-    __host__ __device__ inline thrust::complex<double> GPU_FMM::GPU_S(const Eigen::Vector3d& x, int m, int n)
+    __host__ __device__ inline thrust::complex<double> GPU_FMM::GPU_S(const Eigen::Vector3d& x, int m, int n) const
     {
         double r, theta, phi;
         GPU_toSphericalCoordinate(x, r, theta, phi);
@@ -189,7 +189,7 @@ namespace SBV
         return result;
     }
 
-    __host__ __device__ void GPU_FMM::GPU_M2L(const GPU_MultipoleExp &inputMoment, const Eigen::Vector3d &xc, const Eigen::Vector3d &x0, GPU_LocalExp &result)
+    __host__ __device__ void GPU_FMM::GPU_M2L(const GPU_MultipoleExp &inputMoment, const Eigen::Vector3d &xc, const Eigen::Vector3d &x0, GPU_LocalExp &result) const
     {
         for(int n = 0; n <= mOrder; n++) {
             for(int m = -n; m <= n; m++) {
@@ -205,7 +205,7 @@ namespace SBV
         }
     }
 
-    __host__ __device__ void GPU_FMM::GPU_L2L(const GPU_LocalExp &inputMoment, const Eigen::Vector3d &x0, const Eigen::Vector3d &x1, GPU_LocalExp &result)
+    __host__ __device__ void GPU_FMM::GPU_L2L(const GPU_LocalExp &inputMoment, const Eigen::Vector3d &x0, const Eigen::Vector3d &x1, GPU_LocalExp &result) const
     {
         for(int n = 0; n <= mOrder; n++) {
             for(int m = -n; m <= n; m++) {
@@ -218,7 +218,7 @@ namespace SBV
         }
     }
 
-    __host__ __device__ double GPU_FMM::getPotential(const Eigen::Vector3d& x)
+    __host__ __device__ double GPU_FMM::getPotential(const Eigen::Vector3d& x) const
     {
         size_t xIndex, yIndex, zIndex;
         getCellIndex(x, xIndex, yIndex, zIndex, mDownLevel - 1);
@@ -250,7 +250,7 @@ namespace SBV
         return result;
     }
 
-    __host__ __device__ void GPU_FMM::getCellIndex(const Eigen::Vector3d &center, size_t &xIndex, size_t &yIndex, size_t &zIndex, size_t level)
+    __host__ __device__ void GPU_FMM::getCellIndex(const Eigen::Vector3d &center, size_t &xIndex, size_t &yIndex, size_t &zIndex, size_t level) const
     {
         double res = pow(2.0, (double)level);
         if(fabs(center[0] - mXMin) < 1e-6)
@@ -275,7 +275,7 @@ namespace SBV
             zIndex = (center[2] - mZMin) / (mStep[level]);
     }
 
-    __host__ __device__ double GPU_FMM::localEvaluate(const GPU_LocalExp &mul, const Eigen::Vector3d &x, const Eigen::Vector3d &x0)
+    __host__ __device__ double GPU_FMM::localEvaluate(const GPU_LocalExp &mul, const Eigen::Vector3d &x, const Eigen::Vector3d &x0) const
     {
         thrust::complex<double> sum;
         for(int n = 0; n <= mOrder; n++) {
@@ -286,7 +286,7 @@ namespace SBV
         return sum.real();
     }
 
-    __host__ __device__ inline double GPU_FMM::directEvaluate(const GPU_Face &face, const Eigen::Vector3d &x)
+    __host__ __device__ inline double GPU_FMM::directEvaluate(const GPU_Face &face, const Eigen::Vector3d &x) const
     {
         return Util::GPU_integrateOverTriangle(x, face.triangle) * face.derivative;
     }

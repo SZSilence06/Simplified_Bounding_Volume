@@ -632,7 +632,7 @@ namespace SBV
         }*/
 
         // test FMM
-        FMM fmm;
+        /*FMM fmm;
         fmm.setMaxLevel(6);
         fmm.setDownLevel(6);
         std::vector<mat3x3_t> triangles;
@@ -666,7 +666,7 @@ namespace SBV
         std::cout << "by directly : " << testValue2 << std::endl;
         std::cout << "by FMM : " << testValue << std::endl;
         std::cout << "by FMM on GPU : " << testValue3 << std::endl;
-        exit(0);
+        exit(0);*/
 
         Tracer tracer(mSamples);
         tracer.tracePoints(shell.mInnerShell, inner_shell_normals, mDistance, shell.mOuterShell);

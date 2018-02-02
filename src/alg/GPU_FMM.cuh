@@ -61,21 +61,21 @@ namespace SBV
 
         void buildFromCPU(const FMM &fmm);
 
-        __host__ __device__ double getPotential(const Eigen::Vector3d& x);
+        __host__ __device__ double getPotential(const Eigen::Vector3d& x) const;
 
     private:
         void CpuCell2Gpu(CellPtr cpu_cell, GPU_Cell* gpu_cell);
         void CpuCellVec2Gpu(const std::vector<CellPtr>& cpu_vec, WKYLIB::Cuda::CudaVector<GPU_Cell*> &gpu_vec);
 
-        __host__ __device__ double GPU_legendre_p(int n, int m, double x);
+        __host__ __device__ double GPU_legendre_p(int n, int m, double x) const;
         __host__ __device__ inline static void GPU_toSphericalCoordinate(const Eigen::Vector3d& x, double& r, double& theta, double& phi);
-        __host__ __device__ inline thrust::complex<double> GPU_R(const Eigen::Vector3d& x, int m, int n);
-        __host__ __device__ inline thrust::complex<double> GPU_S(const Eigen::Vector3d& x, int m, int n);
-        __host__ __device__ void GPU_M2L(const GPU_MultipoleExp &inputMoment, const Eigen::Vector3d &xc, const Eigen::Vector3d &x0, GPU_LocalExp &result);
-        __host__ __device__ void GPU_L2L(const GPU_LocalExp &inputMoment, const Eigen::Vector3d &x0, const Eigen::Vector3d &x1, GPU_LocalExp &result);
-        __host__ __device__ void getCellIndex(const Eigen::Vector3d& center, size_t& xIndex, size_t& yIndex, size_t& zIndex, size_t level);
-        __host__ __device__ double localEvaluate(const GPU_LocalExp& mul, const Eigen::Vector3d& x, const Eigen::Vector3d& x0);
-        __host__ __device__ double directEvaluate(const GPU_Face& face, const Eigen::Vector3d& x);
+        __host__ __device__ inline thrust::complex<double> GPU_R(const Eigen::Vector3d& x, int m, int n) const;
+        __host__ __device__ inline thrust::complex<double> GPU_S(const Eigen::Vector3d& x, int m, int n) const;
+        __host__ __device__ void GPU_M2L(const GPU_MultipoleExp &inputMoment, const Eigen::Vector3d &xc, const Eigen::Vector3d &x0, GPU_LocalExp &result) const;
+        __host__ __device__ void GPU_L2L(const GPU_LocalExp &inputMoment, const Eigen::Vector3d &x0, const Eigen::Vector3d &x1, GPU_LocalExp &result) const;
+        __host__ __device__ void getCellIndex(const Eigen::Vector3d& center, size_t& xIndex, size_t& yIndex, size_t& zIndex, size_t level) const;
+        __host__ __device__ double localEvaluate(const GPU_LocalExp& mul, const Eigen::Vector3d& x, const Eigen::Vector3d& x0) const;
+        __host__ __device__ double directEvaluate(const GPU_Face& face, const Eigen::Vector3d& x) const;
 
     private:
         int mMaxLevel = 0;
