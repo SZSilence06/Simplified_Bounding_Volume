@@ -182,16 +182,16 @@ namespace SBV
         }
 
         // evaluate using multipole expansion
-        // CellPtr cell2 = cell;
-        // while(cell2 != nullptr) {
-        //    for(auto& interCell : cell2->interList) {
-        //        result += multipoleEvaluate(interCell->multipoleExp, x, interCell->centroid);
-        //    }
-        //    cell2 = cell2->parent;
-        // }
+         CellPtr cell2 = cell;
+         while(cell2 != nullptr) {
+            for(auto& interCell : cell2->interList) {
+                result += multipoleEvaluate(interCell->multipoleExp, x, interCell->centroid);
+            }
+            cell2 = cell2->parent;
+         }
 
         // evaluate using local expansion
-        result += localEvaluate(cell->localExp, x, cell->centroid);
+        //result += localEvaluate(cell->localExp, x, cell->centroid);
 
         // evaluate directly
         for(auto& neighbour : cell->neighbours) {
@@ -455,11 +455,10 @@ namespace SBV
                     }
                 }
             }
-        } 
+        }
 
 
-        /*
-        for(int level = 0; level < mDownLevel; level++) {
+        /*for(int level = 0; level < mDownLevel; level++) {
             std::cout << "[INFO] computing level " << level << std::endl;
             int res = std::pow(2, level);
 
@@ -493,8 +492,7 @@ namespace SBV
                     }
                 }
             }
-        }
-        */
+        }*/
     }
 
     void FMM::computeMultipoleForFinest()

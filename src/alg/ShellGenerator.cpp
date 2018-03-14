@@ -493,7 +493,16 @@ namespace SBV
 
         if(distance >= 10000)
         {
-            mField.init(mSamples);
+            //mField.init(mSamples);
+            mFmm.setMaxLevel(6);
+            mFmm.setDownLevel(6);
+            std::vector<mat3x3_t> triangles;
+            std::vector<double> boundary_derivatives;
+            for(size_t i = 0; i < mSamples.size(); i++) {
+                triangles.push_back(mSamples[i].tri);
+                boundary_derivatives.push_back(mSamples[i].derivative);
+            }
+            mFmm.build(triangles, boundary_derivatives);
             visualizeField(shell, false);
             exit(0);
         }
@@ -585,7 +594,7 @@ namespace SBV
         const int resZ = res;
         matrixr_t fieldData(resX * resY * resZ, 1);
 
-//#pragma omp parallel for
+#pragma omp parallel for
         for(size_t i = 0; i < resZ; i++) {
             for(size_t j = 0; j < resY; j++) {
                 std::cout << "computing line " << i << " coloum " << j << "..." << std::endl;
@@ -676,7 +685,8 @@ namespace SBV
 
     double ShellGenerator::getFieldValue(const vec3_t &x)
     {
-        return mField.getFieldValue(x);
+       // return mField.getFieldValue(x);
+        return mFmm.getPotential(x);
     }
 
     double ShellGenerator::distance(const vec3_t &x, const vec3_t &x2)

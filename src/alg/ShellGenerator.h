@@ -3,6 +3,7 @@
 
 #include "Common.h"
 #include "Tracer.h"
+#include "FMM.h"
 
 namespace pcl
 {
@@ -67,6 +68,7 @@ namespace SBV
         std::vector<SamplePoint> mSamples;
 
         FieldComputer mField;
+        FMM mFmm;
     };
 }
 

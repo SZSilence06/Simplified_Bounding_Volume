@@ -591,65 +591,64 @@ int numterms;
   for(i=depth; i > 0; i--, side /= 2) {
     for(j=0; j < side; j++) {
       for(k=0; k < side; k++) {
-	for(l=0; l < side; l++) {
-          nc = cubes[i][j][k][l];
- 	  if((nc != NULL) && (nc->upcube == TRUE)) {
-	    if(i == depth) {
-/*cdel	      printf("exact up cube: %d %d %d %d \n",i,j,k,l);*/
-	      ASSERT(nc->upnumvects != 0);
-	      if(nc->upnumeles[0] <= numterms) {
-		nc->exactUp = TRUE;
-		nc->multisize = nc->upnumeles[0];
-	      }
-	      else {
-		nc->exactUp = FALSE;
-		nc->multisize = realNumterms;
-	      }
-	    }
-	    else {
-	      /* Count the number of non-empty kids and their sngularities. */
-	      for(allexact=TRUE, m=0, numsngs=0, nc->upnumvects=0; 
-		  m < nc->numkids; m++) {
-		nkid = nc->kids[m];
-		if((nkid != NULL) && (nkid->upcube == TRUE)) {
-		  nc->upnumvects += 1;
-		  if(nkid->exactUp == FALSE) allexact = FALSE;
-		  else numsngs += nkid->upnumeles[0];
-		}
-	      }
-	      /* If all nonempty kids exact, and # sngs <= # terms, mark 
-		 this cube exact too, copy sngs, and promote pointers to 
-		 strength vector.  Note this EXPLOITS special ordering of 
-		 the strength vector. */
-	      if((allexact == FALSE) || (numsngs > numterms)) { 
-		nc->exactUp = FALSE;
-		nc->multisize = realNumterms;
-	      }
-/*cftk this test is redundant.*/
-	      else if((allexact == TRUE) && (numsngs <= numterms)) { 
-		nc->exactUp = TRUE;
-		nc->upnumvects = 1;
-		CALLOC(nc->upvects, 1, double*, ON, AMSC);
-		CALLOC(nc->upnumeles, 1, int, ON, AMSC);
-		nc->upnumeles[0] = numsngs;
-		nc->multisize = numsngs;
-		CALLOC(nc->sngs, numsngs, snglrty*, ON, AMSC);
-		for(m=0, first=TRUE, numsngs=0; m < nc->numkids; m++) {
-		  nkid = nc->kids[m]; 
-		  if((nkid != NULL) && (nkid->upcube == TRUE)) {
-		    if(first == TRUE) {
-		      nc->upvects[0] = nkid->upvects[0];
-		      first = FALSE;
-		    }
-		    for(n=0; n < nkid->upnumeles[0]; n++) {
-		      nc->sngs[numsngs++] = nkid->sngs[n];
-		    }
-		  }
-		}
-	      }
-	    }
-	  }
-	}
+          for(l=0; l < side; l++) {
+              nc = cubes[i][j][k][l];
+              if((nc != NULL) && (nc->upcube == TRUE)) {
+                  if(i == depth) {
+    /*cdel	      printf("exact up cube: %d %d %d %d \n",i,j,k,l);*/
+                      ASSERT(nc->upnumvects != 0);
+                      if(nc->upnumeles[0] <= numterms) {
+                          nc->exactUp = TRUE;
+                          nc->multisize = nc->upnumeles[0];
+                      }
+                      else {
+                          nc->exactUp = FALSE;
+                          nc->multisize = realNumterms;
+                      }
+                  }
+                  else {
+              /* Count the number of non-empty kids and their sngularities. */
+                      for(allexact=TRUE, m=0, numsngs=0, nc->upnumvects=0; m < nc->numkids; m++) {
+                          nkid = nc->kids[m];
+                          if((nkid != NULL) && (nkid->upcube == TRUE)) {
+                              nc->upnumvects += 1;
+                              if(nkid->exactUp == FALSE) allexact = FALSE;
+                              else numsngs += nkid->upnumeles[0];
+                          }
+                      }
+              /* If all nonempty kids exact, and # sngs <= # terms, mark
+             this cube exact too, copy sngs, and promote pointers to
+             strength vector.  Note this EXPLOITS special ordering of
+             the strength vector. */
+                      if((allexact == FALSE) || (numsngs > numterms)) {
+                          nc->exactUp = FALSE;
+                          nc->multisize = realNumterms;
+                      }
+    /*cftk this test is redundant.*/
+                      else if((allexact == TRUE) && (numsngs <= numterms)) {
+                          nc->exactUp = TRUE;
+                          nc->upnumvects = 1;
+                          CALLOC(nc->upvects, 1, double*, ON, AMSC);
+                          CALLOC(nc->upnumeles, 1, int, ON, AMSC);
+                          nc->upnumeles[0] = numsngs;
+                          nc->multisize = numsngs;
+                          CALLOC(nc->sngs, numsngs, snglrty*, ON, AMSC);
+                          for(m=0, first=TRUE, numsngs=0; m < nc->numkids; m++) {
+                              nkid = nc->kids[m];
+                              if((nkid != NULL) && (nkid->upcube == TRUE)) {
+                                  if(first == TRUE) {
+                                      nc->upvects[0] = nkid->upvects[0];
+                                      first = FALSE;
+                                  }
+                                  for(n=0; n < nkid->upnumeles[0]; n++) {
+                                      nc->sngs[numsngs++] = nkid->sngs[n];
+                                  }
+                              }
+                          }
+                      }
+                  }
+              }
+          }
       }
     }
   }
