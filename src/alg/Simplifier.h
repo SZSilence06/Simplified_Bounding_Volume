@@ -56,7 +56,7 @@ namespace SBV {
         void setGenTempResult(bool value)
         {
             this->mNeedGenTempResult = value;
-        }
+        }   
 
     public:
         struct ZeroSet

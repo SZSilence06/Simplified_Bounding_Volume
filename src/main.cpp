@@ -7,6 +7,7 @@
  * Possible options :
  *                     -t      Generate intermediate results.
  *                     -v      Display version information.
+ *                     -f      Visualize field instead of simplifying the geometry.
  */
 
 #include <iostream>
@@ -27,6 +28,7 @@ std::string g_outputPath = "";
 double g_maxDistance = -1;
 double g_sampleRadius = -1;
 bool g_genTempResult = false;
+bool g_visualizeField = false;
 double g_alpha = std::numeric_limits<double>::max();
 
 using namespace WKYLIB;
@@ -38,7 +40,8 @@ void displayHelp()
                  "[-r [sample radius]] [-options]" << std::endl
               << "Possible options :" << std::endl
               << "                    -t      Generate temp results." << std::endl
-              << "                    -v      Display version information." <<std::endl;
+              << "                    -v      Display version information." <<std::endl
+              << "                    -f      Visualize field instead of simplifying the geometry." << std::endl;
 }
 
 void displayVersion()
@@ -70,6 +73,7 @@ void parseCmdLines(int argc, char**argv)
     cmdParser.addParamDef("-t", CmdLine::CmdParamType::BOOL);
     cmdParser.addParamDef("-h", CmdLine::CmdParamType::BOOL);
     cmdParser.addParamDef("-v", CmdLine::CmdParamType::BOOL);
+    cmdParser.addParamDef("-f", CmdLine::CmdParamType::BOOL);
 
     if(cmdParser.parse() == false)
     {
@@ -130,6 +134,7 @@ void parseCmdLines(int argc, char**argv)
     cmdParser.getDouble("-r", g_sampleRadius);
     cmdParser.getDouble("-a", g_alpha);
     cmdParser.getBool("-t", g_genTempResult);
+    cmdParser.getBool("-f", g_visualizeField);
 }
 
 void genDefaultParams()
@@ -170,7 +175,7 @@ void generateShells(const SBV::Mesh& mesh, SBV::Shell& shell)
     timerGenerateShell.start();
 
     SBV::ShellGenerator generator(mesh.vertices, mesh.triangles, g_outputPath);
-    generator.generate(g_maxDistance, g_sampleRadius, shell);
+    generator.generate(g_maxDistance, g_sampleRadius, shell, g_visualizeField);
 
     //WKYLIB::Mesh::readPoints(g_outputPath + "/inner_shell.vtk", shell.mInnerShell);
     //WKYLIB::Mesh::readPoints(g_outputPath + "/outer_shell.vtk", shell.mOuterShell);

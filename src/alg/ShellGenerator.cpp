@@ -474,7 +474,7 @@ namespace SBV
           return;
     }
 
-    void ShellGenerator::generate(double distance, double sampleRadius, Shell &shell)
+    void ShellGenerator::generate(double distance, double sampleRadius, Shell &shell, bool isVisualizeField)
     {
         mSampleRadius = sampleRadius;
         mDistance = distance;
@@ -494,9 +494,8 @@ namespace SBV
         logger.setFile(mOutputDirectory + "/log.txt");
         logger.log("Compute Field : " + std::to_string(timerComputeField.getTime()) + " ms.");
 
-        if(distance >= 10000)
+        if(isVisualizeField)
         {
-            // this is for convenience of test.
             mField.init(mSamples);
             visualizeField(shell, false);
             exit(0);

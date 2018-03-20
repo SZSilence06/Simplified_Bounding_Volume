@@ -25,7 +25,7 @@ namespace SBV
     public:
         ShellGenerator(const matrixr_t& vertices, const matrixs_t& triangles, const std::string& outputDirectory);
 
-        void generate(double distance, double sampleRadius, Shell& shell);
+        void generate(double distance, double sampleRadius, Shell& shell, bool isVisualizeField);
 
     private:
         //void makePCLCloud(const matrixr_t& points, const matrixr_t& normals, pcl::PCLPointCloud2& cloud);
