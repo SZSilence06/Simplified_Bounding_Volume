@@ -52,47 +52,17 @@ namespace SBV
 
         mTimerSimplify.end();
 
+        jtf::mesh::save_obj((mOutputDirectory + "/final_result.obj").c_str(), mTriangulation.getZeroSet().triangles,
+                                   mTriangulation.getZeroSet().vertices);
+
         if(mNeedGenTempResult)
             writeSummary();
-    }
-
-    void Simplifier::sample(const matrixr_t &vertices, const matrixs_t &triangles, matrixr_t &output_samples, matrixr_t& output_normals)
-    {
-        Sampler::poissonDisk(vertices, triangles, mSampleRadius, output_samples, output_normals);
-        /*output_samples.clear();
-        for(int i = 0; i < triangles.size(2); i++)
-        {
-            const matrixr_t& a = vertices(colon(), triangles(0, i));
-            const matrixr_t& b = vertices(colon(), triangles(1, i));
-            const matrixr_t& c = vertices(colon(), triangles(2, i));
-
-            matrixr_t ab = b - a;
-            matrixr_t ac = c - a;
-            double normAB = norm(ab);
-            double normAC = norm(ac);
-
-            ab /= normAB;
-            ac /= normAC;
-
-            double sample_count_ab = normAB / mSampleRadius;
-            double sample_count_ac = normAC / mSampleRadius;
-
-            for(int i = 1; i <= sample_count_ab; i++)
-            {
-                double baryAB = i / sample_count_ab;
-                int max_sample_ac = (1 - baryAB) * sample_count_ac;
-                for(int j = 1; j < max_sample_ac; j++)
-                {
-                    output_samples.push_back(a + mSampleRadius * i * ab + mSampleRadius * j * ac);
-                }
-            }
-        }*/
     }
 
     void Simplifier::refine()
     {
         mTimerRefine.start();
-        Refinement refinement(mShell, mTriangulation, mAlpha, mSampleRadius);
+        Refinement refinement(mShell, mTriangulation, mAlpha);
         refinement.refine();
         mTimerRefine.end();
 

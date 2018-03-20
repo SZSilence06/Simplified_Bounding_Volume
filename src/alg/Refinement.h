@@ -13,11 +13,26 @@ namespace SBV
 {
     class BaryComputer;
 
+    /**
+     * @brief The Refinement class
+     *
+     * This class is used to perform the refinement.
+     */
     class Refinement
     {      
     public:
-        Refinement(const Shell& shell, TriangulatedShell &output, double alpha, double sampleRadius);
+        /**
+         * @brief Refinement constructor
+         * @param shell : input samples
+         * @param output : output delaunay triangulation
+         * @param alpha : see the paper.
+         */
+        Refinement(const Shell& shell, TriangulatedShell &output, double alpha);
 
+        /**
+        * @brief perform the refinement.
+        * @return
+        */
         bool refine();
 
     private:
@@ -39,11 +54,11 @@ namespace SBV
         struct CellInfo
         {
             std::vector<PointInfo> points;   //points inside the cell.
-            PointInfo maxErrorPoint;
-            bool isNew = true;
-            bool isJudged = false;
-            bool isBad = false;
-            bool notResolvable = false;
+            PointInfo maxErrorPoint;         // point with maximum error inside the cell
+            bool isNew = true;               // whether the cell is newly created after inserting a sample point
+            bool isJudged = false;           // whether the cell has been checked for normal condition
+            bool isBad = false;              // whether the cell obeys the normal condition
+            bool notResolvable = false;      // whether the cell can be resolved if it is a bad cell
         };
 
         using K = CGAL::Exact_predicates_inexact_constructions_kernel;
@@ -79,7 +94,6 @@ namespace SBV
         const Shell& mShell;
         TriangulatedShell& mOutput;
         double mAlpha = 0.2;
-        double mSampleRadius;
 
         std::vector<double> mInnerError;    //error for samples on inner shell
         std::vector<double> mOuterError;    //error for samples on outer shell

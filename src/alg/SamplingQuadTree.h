@@ -7,6 +7,11 @@ namespace SBV
 {
     class KernelRegion;
 
+    /**
+     * @brief The class to sample a region and keep those inside a kernel region.
+     *
+     * This class is so far not used. It does not use a quad tree to sample. Just performs the simple uniform sample strategy so far.
+     */
     class SamplingQuadTree
     {
     public:

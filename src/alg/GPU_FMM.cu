@@ -34,8 +34,6 @@ namespace SBV
     void GPU_FMM::buildFromCPU(const FMM &fmm)
     {
         this->mMaxLevel = fmm.mMaxLevel;
-        this->mDownLevel = fmm.mDownLevel;
-        this->mOrder = fmm.mOrder;
         this->mXMax = fmm.mXMax;
         this->mXMin = fmm.mXMin;
         this->mYMax = fmm.mYMax;
@@ -110,7 +108,7 @@ namespace SBV
         if(cpu_cell->parent)
             gpu_cell->parent = mCells[cpu_cell->parent->level][cpu_cell->parent->xIndex][cpu_cell->parent->yIndex][cpu_cell->parent->zIndex];
 
-        for(int n = 0; n <= mOrder; n++) {
+        for(int n = 0; n <= MAX_ORDER; n++) {
             for(int m = -n; m <= n; m++) {
                 gpu_cell->multipoleExp.moment(n, m) = cpu_cell->multipoleExp.moment(n, m);
                 gpu_cell->localExp.moment(n, m) = cpu_cell->localExp.moment(n, m);
@@ -191,9 +189,9 @@ namespace SBV
 
     __host__ __device__ void GPU_FMM::GPU_M2L(const GPU_MultipoleExp &inputMoment, const Eigen::Vector3d &xc, const Eigen::Vector3d &x0, GPU_LocalExp &result)
     {
-        for(int n = 0; n <= mOrder; n++) {
+        for(int n = 0; n <= MAX_ORDER; n++) {
             for(int m = -n; m <= n; m++) {
-                for(int n2 = 0; n2 <= mOrder; n2++) {
+                for(int n2 = 0; n2 <= MAX_ORDER; n2++) {
                     for(int m2 = -n2; m2 <= n2; m2++) {
                         thrust::complex<double> temp = thrust::conj(GPU_S(x0 - xc, m + m2, n + n2)) * inputMoment.moment(n2, m2);
                         if(n % 2)
@@ -207,9 +205,9 @@ namespace SBV
 
     __host__ __device__ void GPU_FMM::GPU_L2L(const GPU_LocalExp &inputMoment, const Eigen::Vector3d &x0, const Eigen::Vector3d &x1, GPU_LocalExp &result)
     {
-        for(int n = 0; n <= mOrder; n++) {
+        for(int n = 0; n <= MAX_ORDER; n++) {
             for(int m = -n; m <= n; m++) {
-                for(int n2 = n; n2 <= mOrder; n2++) {
+                for(int n2 = n; n2 <= MAX_ORDER; n2++) {
                     for(int m2 = -n2; m2 <= n2; m2++) {
                         result.moment(n,m) += GPU_R(x1 - x0, m2 - m, n2 - n) * inputMoment.moment(n2, m2);
                     }
@@ -221,7 +219,7 @@ namespace SBV
     __host__ __device__ double GPU_FMM::getPotential(const Eigen::Vector3d& x)
     {
         size_t xIndex, yIndex, zIndex;
-        getCellIndex(x, xIndex, yIndex, zIndex, mDownLevel - 1);
+        getCellIndex(x, xIndex, yIndex, zIndex, mMaxLevel - 1);
         double result = 0;
 
         GPU_Cell* cell = mCells[mMaxLevel - 1][xIndex][yIndex][zIndex];
@@ -278,7 +276,7 @@ namespace SBV
     __host__ __device__ double GPU_FMM::localEvaluate(const GPU_LocalExp &mul, const Eigen::Vector3d &x, const Eigen::Vector3d &x0)
     {
         thrust::complex<double> sum;
-        for(int n = 0; n <= mOrder; n++) {
+        for(int n = 0; n <= MAX_ORDER; n++) {
             for(int m = -n; m <= n; m++) {
                 sum += GPU_R(x - x0, m, n) * mul.moment(n, m);
             }

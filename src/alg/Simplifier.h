@@ -9,40 +9,50 @@
 #include <wkylib/debug_util.h>
 
 namespace SBV {
+     /**
+     * @brief The Simplifier class
+     *
+     * This class is used to perform the reconstruction and simplification of the mesh from input sample points.
+     * The sample points are organized as an inner shell and an outer shell.
+     */
     class Simplifier{
     public:
         using DebugTimer = WKYLIB::DebugTimer;
 
+        /**
+         * @brief Simplifier constructor
+         * @param shell : the input sample points.
+         */
         Simplifier(Shell& shell);
 
+        /**
+         * @brief generate the result mesh.
+         */
         void simplify();
 
+        /**
+         * @brief set the output directory of the result.
+         * @param outputDir : output directory.
+         */
         void setOutputDirectory(const std::string& outputDir)
         {
             this->mOutputDirectory = outputDir;
             Logger::getInstance().setFile(outputDir + "/log.txt");
         }
 
-        void setMaxDistance(double maxDist)
-        {
-            this->mMaxDistance = maxDist;
-        }
-
-        void setSampleRadius(double sampleRadius)
-        {
-            this->mSampleRadius = sampleRadius;
-        }
-
-        void setSampleCount(int sampleCount)
-        {
-            this->mSampleCount = sampleCount;
-        }
-
+        /**
+         * @brief set the alpha parameter. For more information about this parameter, see the paper.
+         * @param alpha : the alpha parameter.
+         */
         void setAlpha(double alpha)
         {
             this->mAlpha = alpha;
         }
 
+        /**
+         * @brief set whether to output intermediate results.
+         * @param value : true to output, false otherwise.
+         */
         void setGenTempResult(bool value)
         {
             this->mNeedGenTempResult = value;
@@ -57,7 +67,6 @@ namespace SBV {
 
     private:
         void genDefaultParams();
-        void sample(const matrixr_t& vertices, const matrixs_t& triangles, matrixr_t& output_samples, matrixr_t& normals);
         void refine();
         void collapseBoundary();
         void mutualTessellate();
@@ -67,11 +76,8 @@ namespace SBV {
 
     private:
         std::string mOutputDirectory;
-        double mMaxDistance = -1;
-        double mSampleRadius = -1;
         double mAlpha = 0.2;
         bool mNeedGenTempResult = false;
-        int mSampleCount = -1;
 
         DebugTimer mTimerRefine = DebugTimer("refinement");
         DebugTimer mTimerBoundaryHalfEdge = DebugTimer("Boundary Collapse(Half Edge)");

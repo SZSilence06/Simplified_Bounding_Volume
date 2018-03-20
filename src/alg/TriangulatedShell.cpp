@@ -43,7 +43,6 @@ namespace SBV
 
     void TriangulatedShell::buildZeroSet()
     {
-        //find out the number of faces in the zero set
         if(hasZeroSet)
         {
            buildZeroSetExisting();
@@ -54,7 +53,6 @@ namespace SBV
 
         //build zero face connection
         std::vector<matrixs_t> triangleVector;
-        int test = 0;
         for(int i = 0; i < cells.size(2); i++)
         {
             size_t v0 = cells(0, i);
@@ -64,7 +62,7 @@ namespace SBV
 
             if(getSign(v0) == getSign(v1) && getSign(v0) == getSign(v2) && getSign(v0) == getSign(v3))
             {
-                //F value sign of the vertices are same, so no zero-set in this triangle
+                //F value sign of the vertices are same, so no zero-set in this cell
                 continue;
             }
 
@@ -102,11 +100,6 @@ namespace SBV
                 }
                 triangleVector.push_back(tri1);
                 triangleVector.push_back(tri2);
-                if(test == 529 || test == 530)
-                {
-                    std::cout << "cell id " << i << std::endl;
-                }
-                test += 2;
             }
             else
             {
@@ -124,11 +117,6 @@ namespace SBV
                     tri[2] = getZeroPointIndex(innerVerts[0], outerVerts[2]);
                 }
                 triangleVector.push_back(tri);
-                if(test == 529)
-                {
-                    std::cout << "cell id " << i << std::endl;
-                }
-                test++;
             }
         }
 
@@ -374,7 +362,10 @@ namespace SBV
             std::vector<size_t> innerVerts, outerVerts;
             for(int j = 0; j < 4; j++)
             {
-                getSign(cells(j, i)) < 0 ? innerVerts.push_back(cells(j, i)) : outerVerts.push_back(cells(j, i));
+                if(getSign(cells(j, i)) < 0)
+                    innerVerts.push_back(cells(j, i));
+                else if(getSign(cells(j, i)) > 0)
+                    outerVerts.push_back(cells(j, i));
             }
 
             if(innerVerts.size() == 3)

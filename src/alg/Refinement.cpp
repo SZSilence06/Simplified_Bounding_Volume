@@ -13,11 +13,10 @@ int bad_sample_index = -1;
 namespace SBV
 {
     Refinement::Refinement(const Shell& shell, TriangulatedShell &output,
-                           double alpha, double sampleRadius)
+                           double alpha)
         : mShell(shell),
           mOutput(output),
-          mAlpha(alpha),
-          mSampleRadius(sampleRadius)
+          mAlpha(alpha)
     {
         init();
     }

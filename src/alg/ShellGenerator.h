@@ -15,6 +15,11 @@ namespace SBV
     class Shell;
     class FieldComputer;
 
+    /**
+     * @brief The ShellGenerator class
+     *
+     * This class is used to generate the outer shell using Green's function.
+     */
     class ShellGenerator
     {
     public:

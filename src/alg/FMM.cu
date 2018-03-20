@@ -34,7 +34,7 @@ namespace SBV {
                             GPU_Cell* interCell = cell->interList[i];
                             GPU_LocalExp localExp;
                             fmm->GPU_M2L(interCell->multipoleExp, interCell->centroid, cell->centroid, localExp);
-                            for(int n = 0; n < fmm->mOrder; n++) {
+                            for(int n = 0; n < MAX_ORDER; n++) {
                                 for(int m = -n; m <= n; m++) {
                                     cell->localExp.moment(n, m) += localExp.moment(n, m);
                                 }
@@ -43,7 +43,7 @@ namespace SBV {
                         if(cell->parent) {
                             GPU_LocalExp localExp;
                             fmm->GPU_L2L(cell->parent->localExp, cell->parent->centroid, cell->centroid, localExp);
-                            for(int n = 0; n < fmm->mOrder; n++) {
+                            for(int n = 0; n < MAX_ORDER; n++) {
                                 for(int m = -n; m <= n; m++) {
                                     cell->localExp.moment(n, m) += localExp.moment(n, m);
                                 }
@@ -170,13 +170,13 @@ namespace SBV
     double FMM::getPotential(const vec3_t &x)
     {
         size_t xIndex, yIndex, zIndex;
-        getCellIndex(x, xIndex, yIndex, zIndex, mDownLevel - 1);
+        getCellIndex(x, xIndex, yIndex, zIndex, mMaxLevel - 1);
         double result = 0;
 
-        CellPtr cell = mCells[mDownLevel - 1][xIndex][yIndex][zIndex];
+        CellPtr cell = mCells[mMaxLevel - 1][xIndex][yIndex][zIndex];
         if(cell == nullptr) {
             std::cout << "[INFO] creating down cell for evaluation" << std::endl;
-            cell = createCell(mDownLevel - 1, xIndex, yIndex, zIndex, false);
+            cell = createCell(mMaxLevel - 1, xIndex, yIndex, zIndex, false);
         }
 
         // evaluate using multipole expansion
@@ -396,7 +396,7 @@ namespace SBV
                 for(auto& child : cell->children) {
                     MultipoleExp result;
                     M2M(child->multipoleExp, child->centroid, cell->centroid, result);
-                    for(int n = 0; n <= mOrder; n++) {
+                    for(int n = 0; n <= MAX_ORDER; n++) {
                         for(int m = -n; m <= n; m++) {
                             cell->multipoleExp.moment(n, m) += result.moment(n, m);
                         }
@@ -408,7 +408,7 @@ namespace SBV
 
     void FMM::downwardPass()
     {
-        for(int level = 0; level < mDownLevel; level++) {
+        for(int level = 0; level < mMaxLevel; level++) {
             int res = std::pow(2, level);
 
 #pragma omp parallel for
@@ -431,7 +431,7 @@ namespace SBV
         dim3 blocks(4, 4, 4);
         dim3 threads(4, 4, 4);
 
-        for(int level = 0; level < mDownLevel; level++) {
+        for(int level = 0; level < mMaxLevel; level++) {
             std::cout << "[INFO] computing level " << level << std::endl;
 
             CudaPointer<int> gpu_level(level);
@@ -445,7 +445,7 @@ namespace SBV
                     for(size_t z = 0; z < res; z++) {
                         GPU_Cell* gpu_cell = gpu_fmm->mCells[level][x][y][z];
                         CellPtr cell = mCells[level][x][y][z];
-                        for(int n = 0; n <= mOrder; n++) {
+                        for(int n = 0; n <= MAX_ORDER; n++) {
                             for(int m = -n; m <= n; m++) {
                                 cell->localExp.moment(n, m) = gpu_cell->localExp.moment(n, m);
                             }
@@ -454,52 +454,13 @@ namespace SBV
                 }
             }
         } 
-
-
-        /*
-        for(int level = 0; level < mDownLevel; level++) {
-            std::cout << "[INFO] computing level " << level << std::endl;
-            int res = std::pow(2, level);
-
-#pragma omp parallel for
-            for(size_t x = 0; x < res; x++) {
-                for(size_t y = 0; y < res; y++) {
-                    for(size_t z = 0; z < res; z++) {
-                        CellPtr cell = mCells[level][x][y][z];
-                        if(cell == nullptr) {
-                            cell = createCell(level, x, y, z, false);
-                        }
-
-                        for(auto interCell : cell->interList) {
-                            LocalExp localExp;
-                            M2L(interCell->multipoleExp, interCell->centroid, cell->centroid, localExp);
-                            for(int n = 0; n < mOrder; n++) {
-                                for(int m = -n; m <= n; m++) {
-                                    cell->localExp.moment(n, m) += localExp.moment(n, m);
-                                }
-                            }
-                        }
-                        if(cell->parent) {
-                            LocalExp localExp;
-                            L2L(cell->parent->localExp, cell->parent->centroid, cell->centroid, localExp);
-                            for(int n = 0; n < mOrder; n++) {
-                                for(int m = -n; m <= n; m++) {
-                                    cell->localExp.moment(n, m) += localExp.moment(n, m);
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-        }
-        */
     }
 
     void FMM::computeMultipoleForFinest()
     {
         auto& active_finest_cells = mActiveCells[mMaxLevel - 1];
         for(auto& cell : active_finest_cells) {
-            for(int n = 0; n <= mOrder; n++) {
+            for(int n = 0; n <= MAX_ORDER; n++) {
                 for(int m = -n; m <= n; m++) {
                     for(auto& face: cell->faces) {
                         std::complex<double> result;
@@ -540,7 +501,7 @@ namespace SBV
 
     void FMM::M2M(const MultipoleExp &inputMoment, const vec3_t &xc, const vec3_t &xc_2, MultipoleExp &result)
     {
-        for(int n = 0; n <= mOrder; n++) {
+        for(int n = 0; n <= MAX_ORDER; n++) {
             for(int m = -n; m <= n; m++) {
                 for(int n2 = 0; n2 <= n; n2++) {
                     for(int m2 = -n2; m2 <= n2; m2++) {
@@ -553,9 +514,9 @@ namespace SBV
 
     void FMM::M2L(const MultipoleExp &inputMoment, const vec3_t &xc, const vec3_t &x0, LocalExp &result)
     {
-        for(int n = 0; n <= mOrder; n++) {
+        for(int n = 0; n <= MAX_ORDER; n++) {
             for(int m = -n; m <= n; m++) {
-                for(int n2 = 0; n2 <= mOrder; n2++) {
+                for(int n2 = 0; n2 <= MAX_ORDER; n2++) {
                     for(int m2 = -n2; m2 <= n2; m2++) {
                         std::complex<double> temp = std::conj(S(x0 - xc, m + m2, n + n2)) * inputMoment.moment(n2, m2);
                         if(n % 2)
@@ -569,9 +530,9 @@ namespace SBV
 
     void FMM::L2L(const LocalExp &inputMoment, const vec3_t &x0, const vec3_t &x1, LocalExp &result)
     {
-        for(int n = 0; n <= mOrder; n++) {
+        for(int n = 0; n <= MAX_ORDER; n++) {
             for(int m = -n; m <= n; m++) {
-                for(int n2 = n; n2 <= mOrder; n2++) {
+                for(int n2 = n; n2 <= MAX_ORDER; n2++) {
                     for(int m2 = -n2; m2 <= n2; m2++) {
                         result.moment(n,m) += R(x1 - x0, m2 - m, n2 - n) * inputMoment.moment(n2, m2);
                     }
@@ -583,7 +544,7 @@ namespace SBV
     double FMM::multipoleEvaluate(const MultipoleExp &mul, const vec3_t &x, const vec3_t &xc)
     {
         std::complex<double> sum;
-        for(int n = 0; n <= mOrder; n++) {
+        for(int n = 0; n <= MAX_ORDER; n++) {
             for(int m = -n; m <= n; m++) {
                 sum += std::conj(S(x - xc, m, n)) * mul.moment(n, m);
             }
@@ -594,7 +555,7 @@ namespace SBV
     double FMM::localEvaluate(const LocalExp &mul, const vec3_t &x, const vec3_t &x0)
     {
         std::complex<double> sum;
-        for(int n = 0; n <= mOrder; n++) {
+        for(int n = 0; n <= MAX_ORDER; n++) {
             for(int m = -n; m <= n; m++) {
                 sum += R(x - x0, m, n) * mul.moment(n, m);
             }
@@ -635,7 +596,7 @@ namespace SBV
     }
 
     //closed-form calculation according to Graglia 1993.
-    double integrateOverTriangle(const vec3_t& x, const mat3x3_t &triangle)
+    static double integrateOverTriangle(const vec3_t& x, const mat3x3_t &triangle)
     {
         mat4x4_t triangle_4;
         triangle_4(colon(0, 2), colon(0, 2)) = triangle;
@@ -771,7 +732,7 @@ namespace SBV
         return integrateOverTriangle(x, face.triangle) * face.derivative;
     }
 
-    double FMM::testGPU(const vec3_t &x)
+    /*double FMM::testGPU(const vec3_t &x)
     {
         GPU_FMM gpu_fmm_tmp;
         CudaPointer<GPU_FMM> gpu_fmm(gpu_fmm_tmp);
@@ -779,5 +740,5 @@ namespace SBV
         xx[0] = x[0]; xx[1] = x[1]; xx[2] = x[2];
         gpu_fmm->buildFromCPU(*this);
         return gpu_fmm->getPotential(xx);
-    }
+    }*/
 }

@@ -5,7 +5,7 @@
  * Date : Feb 24, 2017
  * Usage : sbvgen -s source_mesh_path [-d [output_directory]] [-e [max_distance]] [-r [sample radius]] [-a alpha_param_value] [-options]
  * Possible options :
- *                     -t      Generate temp results.
+ *                     -t      Generate intermediate results.
  *                     -v      Display version information.
  */
 
@@ -28,7 +28,6 @@ double g_maxDistance = -1;
 double g_sampleRadius = -1;
 bool g_genTempResult = false;
 double g_alpha = std::numeric_limits<double>::max();
-int g_sampleCount = -1;
 
 using namespace WKYLIB;
 
@@ -71,7 +70,6 @@ void parseCmdLines(int argc, char**argv)
     cmdParser.addParamDef("-t", CmdLine::CmdParamType::BOOL);
     cmdParser.addParamDef("-h", CmdLine::CmdParamType::BOOL);
     cmdParser.addParamDef("-v", CmdLine::CmdParamType::BOOL);
-    cmdParser.addParamDef("-n", CmdLine::CmdParamType::INT);
 
     if(cmdParser.parse() == false)
     {
@@ -132,7 +130,6 @@ void parseCmdLines(int argc, char**argv)
     cmdParser.getDouble("-r", g_sampleRadius);
     cmdParser.getDouble("-a", g_alpha);
     cmdParser.getBool("-t", g_genTempResult);
-    cmdParser.getInt("-n", g_sampleCount);
 }
 
 void genDefaultParams()
@@ -209,11 +206,8 @@ int main(int argc, char**argv)
 
     SBV::Simplifier simplifier(shell);
     simplifier.setOutputDirectory(g_outputPath);
-    simplifier.setMaxDistance(g_maxDistance);
-    simplifier.setSampleRadius(g_sampleRadius);
     simplifier.setAlpha(g_alpha);
     simplifier.setGenTempResult(g_genTempResult);
-    simplifier.setSampleCount(g_sampleCount);
 
     simplifier.simplify();
 

@@ -214,6 +214,8 @@ namespace SBV
       return(str);
     }
 
+    //  this function is taken from the fastlap source code. I use it to test the fastlap.
+    // Don't ask me what this function did.
     void Dcentroid(int shape, double* pc, double* xcout)
     {
       double corner[4][3], X[3], Y[3], Z[3], vertex1[3], vertex3[3];
@@ -268,6 +270,8 @@ namespace SBV
       *(xcout+2) = corner[0][2] + xc * X[2] + yc * Y[2];
     }
 
+    // this function is taken from the fastlap example with some modification.
+    // Don't ask me about details. And don't waste much time reading this function
     void testFastlap()
     {
         const int VERTS = 4, DIMEN = 3;
@@ -481,7 +485,6 @@ namespace SBV
         //exit(0);
 
         generateSamples(shell, normals);
-        //computeDerivative();
 
         WKYLIB::DebugTimer timerComputeField("Computing Field");
         timerComputeField.start();
@@ -493,6 +496,7 @@ namespace SBV
 
         if(distance >= 10000)
         {
+            // this is for convenience of test.
             mField.init(mSamples);
             visualizeField(shell, false);
             exit(0);
@@ -510,6 +514,7 @@ namespace SBV
         shell.buildKdTree();
     }
 
+    // scale the AABB with center kept stable
     void scaleAABB(double& xmin, double& xmax, double& ymin, double& ymax, double& zmin, double& zmax, double scale)
     {
         double xCenter = (xmin + xmax) / 2;
@@ -564,6 +569,7 @@ namespace SBV
         os << zmin+i*dz << std::endl;
     }
 
+    // visualize the field around the input samples for test.
     void ShellGenerator::visualizeField(const Shell& shell, bool planar)
     {
         std::cout << "[INFO] Generating field..." << std::endl;
@@ -623,16 +629,8 @@ namespace SBV
     {
         std::cout << "[INFO] generating outer shell..." << std::endl;
 
-        /*shell.mOuterShell.resize(3, shell.mInnerShell.size(2));
-#pragma omp parallel for
-        for(int i = 0; i < shell.mInnerShell.size(2); i++)
-        {
-            const vec3_t x = shell.mInnerShell(colon(), i);
-            shell.mOuterShell(colon(), i) = trace(x, inner_shell_normals(colon(), i));
-        }*/
-
         // test FMM
-        FMM fmm;
+        /*FMM fmm;
         fmm.setMaxLevel(6);
         fmm.setDownLevel(6);
         std::vector<mat3x3_t> triangles;
@@ -666,7 +664,7 @@ namespace SBV
         std::cout << "by directly : " << testValue2 << std::endl;
         std::cout << "by FMM : " << testValue << std::endl;
         std::cout << "by FMM on GPU : " << testValue3 << std::endl;
-        exit(0);
+        exit(0);*/
 
         Tracer tracer(mSamples);
         tracer.tracePoints(shell.mInnerShell, inner_shell_normals, mDistance, shell.mOuterShell);
@@ -735,16 +733,6 @@ namespace SBV
             N(colon(), i) /= norm(N(colon(), i));
         WKYLIB::Mesh::writeMeshAndNormals((mOutputDirectory + "/mesh.obj"), mVertices, mTriangles, N);
 
-        //for test fastlap
-        std::ifstream in("value.dat");
-        std::vector<double> values;
-        for(int i = 0; i < mTriangles.size(2); i++) {
-            double read;
-            in >> read;
-            values.push_back(read);
-        }
-        in.close();
-
         for(int i = 0; i < mTriangles.size(2); i++)
         {
             const vec3_t a = mVertices(colon(), mTriangles(0, i));
@@ -790,9 +778,9 @@ namespace SBV
         }
     }
 
+    // Add boundary at infinity. Boundary is a scaled bounding sphere
     void ShellGenerator::addBoundary(const Shell& shell)
     {
-        //boundary is a scaled bounding sphere
         const double scale = 3;
         double xmax, xmin, ymax, ymin, zmax, zmin;
         buildAABB(shell, xmax, xmin, ymax, ymin, zmax, zmin);
@@ -813,7 +801,6 @@ namespace SBV
         matrixr_t bV(3, polydata->GetNumberOfPoints());
         matrixs_t bT(3, polydata->GetNumberOfCells());
 
-        // Write all of the coordinates of the points in the vtkPolyData to the console.
         for(vtkIdType i = 0; i < polydata->GetNumberOfPoints(); i++)
         {
             vec3_t p;
@@ -831,6 +818,7 @@ namespace SBV
                 bT(j, i) = ids->GetId(j);
         }
 
+        // compute averaged normal for each vertex
         matrixr_t normals(3, bV.size(2));
         for(int i = 0; i < bT.size(2); i++)
         {
@@ -867,68 +855,6 @@ namespace SBV
         }
 
         WKYLIB::Mesh::writeMeshAndNormals((mOutputDirectory + "/boundary.obj"), bV, bT, normals);
-
-        /*const double INF = 100000;
-        matrixr_t bV(3, 8);
-        bV(0, 0) = -INF; bV(1, 0) = -INF; bV(2, 0) = -INF;
-        bV(0, 1) = INF; bV(1, 1) = -INF; bV(2, 1) = -INF;
-        bV(0, 2) = -INF; bV(1, 2) = INF; bV(2, 2) = -INF;
-        bV(0, 3) = INF; bV(1, 3) = INF; bV(2, 3) = -INF;
-        bV(0, 4) = -INF; bV(1, 4) = -INF; bV(2, 4) = INF;
-        bV(0, 5) = INF; bV(1, 5) = -INF; bV(2, 5) = INF;
-        bV(0, 6) = -INF; bV(1, 6) = INF; bV(2, 6) = INF;
-        bV(0, 7) = INF; bV(1, 7) = INF; bV(2, 7) = INF;
-
-        matrixs_t bT(3, 12);
-        bT(0, 0) = 0; bT(1, 0) = 2; bT(2, 0) = 1;
-        bT(0, 1) = 1; bT(1, 1) = 2; bT(2, 1) = 3;
-        bT(0, 2) = 0; bT(1, 2) = 4; bT(2, 2) = 6;
-        bT(0, 3) = 0; bT(1, 3) = 6; bT(2, 3) = 2;
-        bT(0, 4) = 0; bT(1, 4) = 1; bT(2, 4) = 5;
-        bT(0, 5) = 0; bT(1, 5) = 5; bT(2, 5) = 4;
-        bT(0, 6) = 6; bT(1, 6) = 4; bT(2, 6) = 5;
-        bT(0, 7) = 6; bT(1, 7) = 5; bT(2, 7) = 7;
-        bT(0, 8) = 7; bT(1, 8) = 5; bT(2, 8) = 1;
-        bT(0, 9) = 7; bT(1, 9) = 1; bT(2, 9) = 3;
-        bT(0, 10) = 2; bT(1, 10) = 6; bT(2, 10) = 7;
-        bT(0, 11) = 2; bT(1, 11) = 7; bT(2, 11) = 3;
-
-        matrixr_t normals(3, bV.size(2));
-        for(int i = 0; i < bT.size(2); i++)
-        {
-            const vec3_t a = bV(colon(), bT(0, i));
-            const vec3_t b = bV(colon(), bT(1, i));
-            const vec3_t c = bV(colon(), bT(2, i));
-            vec3_t n = cross(b - a, c - a);
-            n /= norm(n);
-            normals(colon(), bT(0, i)) += n;
-            normals(colon(), bT(1, i)) += n;
-            normals(colon(), bT(2, i)) += n;
-        }
-        for(int i = 0; i < normals.size(2); i++)
-            normals(colon(), i) /= norm(normals(colon(), i));
-
-        for(int i = 0; i < bT.size(2); i++)
-        {
-            const vec3_t a = bV(colon(), bT(0, i));
-            const vec3_t b = bV(colon(), bT(1, i));
-            const vec3_t c = bV(colon(), bT(2, i));
-            vec3_t n = cross(b - a, c - a);
-            n /= norm(n);
-
-            SamplePoint sample;
-            sample.position = (a + b + c) / 3;
-            sample.normal = n;
-            sample.value = 0;
-            sample.size = WKYLIB::compute_area(a, b, c);
-            sample.tri = bV(colon(), bT(colon(), i));
-            localTransform(sample.tri(colon(), 0), sample.tri(colon(), 1), sample.tri(colon(), 2), sample.transform);
-            sample.invTransform = sample.transform;
-            inv(sample.invTransform);
-            mSamples.push_back(sample);
-        }
-
-        WKYLIB::Mesh::writeMeshAndNormals((mOutputDirectory + "/boundary.obj"), bV, bT, normals);*/
     }
 
     bool ShellGenerator::isOpposite(const SamplePoint &a, const SamplePoint &b)
@@ -936,6 +862,8 @@ namespace SBV
         return (norm(a.position - b.position) < 1e-6) && (norm(a.normal + b.normal) < 1e-6);
     }
 
+    // compute the charge density by solving the dense system directly.
+    // This function should be replaced with computeDerivative_fastlap().
     void ShellGenerator::computeDerivative()
     {
         const size_t N = mSamples.size();
@@ -977,8 +905,15 @@ namespace SBV
         }
     }
 
+    // uses fastlap to compute the charge density.
+    // fastlap has severe memory leak problem. So when the numLev is deep or the samples are large, the program may crash.
+    // If you don't want to fix the memory leak problem of fastlap, don't waste time reading this function.
+    // You just need to know that numLev is the depth of the octree. This parameter affects performance much.
+    // To get best performace, one should try to find out best numLev manually.
     void ShellGenerator::computeDerivative_fastlap()
     {
+        int numLev = 10, numMom = 4, maxit = 32;  // fastlap parameters.
+
         int size = mSamples.size();
         double* x = new double[12*size];
         for(int i = 0; i < mSamples.size(); i++)
@@ -1023,7 +958,6 @@ namespace SBV
 
         double* xnrm = new double[size * 3];
 
-        int numLev = 10, numMom = 4, maxit = 32;
         double tol = 1e-4;
         int fljob = INDIRECT;
 
@@ -1047,6 +981,7 @@ namespace SBV
         delete[] xnrm;
     }
 
+    // compute view matrix
     void ShellGenerator::viewTransform(const vec3_t &eye, vec3_t ux, vec3_t uz, mat4x4_t &output)
     {
         uz /= norm(uz);
@@ -1071,6 +1006,7 @@ namespace SBV
         output(3, 3) = 1;
     }
 
+    // compute local transform matrix
     void ShellGenerator::localTransform(const vec3_t &a, const vec3_t &b, const vec3_t &c, mat4x4_t &output)
     {
         vec3_t ux = b - a;

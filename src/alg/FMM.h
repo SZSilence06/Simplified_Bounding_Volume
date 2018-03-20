@@ -34,24 +34,35 @@ namespace SBV
     struct FMMFace
     {
         mat3x3_t triangle;
-        double derivative;
+        double derivative;       // charge density
     };
 
     struct FMMCell
     {
-        vec3_t centroid;
-        MultipoleExp multipoleExp;
-        LocalExp localExp;
-        std::vector<FMMFace> faces;
-        CellPtr parent = nullptr;
-        std::vector<CellPtr> children;
-        std::vector<CellPtr> interList;
-        std::vector<CellPtr> neighbours;
-        int xIndex, yIndex, zIndex;
-        int level;
-        bool hasFace;
+        vec3_t centroid;                  /// centroid of the cell
+        MultipoleExp multipoleExp;        /// multipole expansion of the cell
+        LocalExp localExp;                /// local expansion of the cell
+        std::vector<FMMFace> faces;       /// faces contained in the cell
+        CellPtr parent = nullptr;         /// parent cell
+        std::vector<CellPtr> children;    /// children cells
+        std::vector<CellPtr> interList;   /// interaction list
+        std::vector<CellPtr> neighbours;  /// neighbour cells
+        int xIndex, yIndex, zIndex;       /// index of the cell
+        int level;                        /// level of the cell
+        bool hasFace;                     /// indicating whether there is triangle in this cell
     };
 
+    /**
+     * @brief The FMM class
+     *
+     * This class is used to perform FMM field computation on CPU.
+     *
+     * Currently, the algorithm seems to have some bugs, causing it to produce low accuracy.
+     * One possible reason is that when building the octree, we assign triangles to cells according to the barycenter of the triangle.
+     * This may lead to wrong classification for large triangles that cross more than one cell.
+     *
+     * One possible fix is to slice those triangles that cross cells into small pieces, and make sure each piece is completely inside a cell.
+     */
     class FMM
     {
     public:
@@ -60,12 +71,10 @@ namespace SBV
         double getPotential(const vec3_t& x);
 
         void setMaxLevel(int maxLevel) { mMaxLevel = maxLevel; }
-        void setOrder(int order) { mOrder = order; }
-        void setDownLevel(int downLevel) { mDownLevel = downLevel; }
 
         void build(const std::vector<mat3x3_t>& triangles, const std::vector<double>& boundary_derivatives);
 
-        double testGPU(const vec3_t& x);
+        //double testGPU(const vec3_t& x);
 
     private:
         void allocateCells();
@@ -88,8 +97,6 @@ namespace SBV
 
     private:
         int mMaxLevel = 10;
-        int mOrder = 4;
-        int mDownLevel = 6;
 
         std::vector<double> mStep;
         double mXMax, mXMin, mYMax, mYMin, mZMax, mZMin;

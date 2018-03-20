@@ -55,6 +55,13 @@ namespace SBV
         bool hasFace;
     };
 
+    /**
+     * @brief The GPU_FMM class
+     *
+     *        This class is used to perform FMM field computation on GPU. And This class can only be used in cuda kernels.
+     *
+     *        To use this class, one should construct a @see FMM class first, and then construct a GPU_FMM class from it using @see buildFromCPU.
+     */
     class GPU_FMM {
     public:
         ~GPU_FMM();
@@ -79,8 +86,6 @@ namespace SBV
 
     private:
         int mMaxLevel = 0;
-        int mOrder;
-        int mDownLevel;
 
         WKYLIB::Cuda::CudaVector<double> mStep;
         double mXMax, mXMin, mYMax, mYMin, mZMax, mZMin;

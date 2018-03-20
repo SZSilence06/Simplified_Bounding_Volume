@@ -143,38 +143,6 @@ namespace SBV {
         for(int i = 0; i < 3; i++)
             I1 += t0[i]*f2[i];
         I1 -= fabs(w0) * betaSum;
-
-        // normals of the triangle edges, Fig. 1(b)
-        /*Eigen::Vector3d m[3];
-        m[0][0] = v3;
-        m[0][1] = l3 - u3;
-        m[0][2] = 0;
-        m[1][0] = -v3;
-        m[1][1] = u3;
-        m[1][2] = 0;
-        m[2][0] = 0;
-        m[2][1] = -l3;
-        m[2][2] = 0;
-        for(int i = 0; i < 3; i++)
-            m[i] /= m[i].norm();
-
-        // eq (34), integral of kernel grad(1/R)
-        Igrad = Eigen::Vector3d::Zero();
-        for(int i = 0; i < 3; i++)
-            Igrad -= m[i] * f2[i];
-        Eigen::Vector3d w = Eigen::Vector3d::Zero();
-        w[2] = 1;
-        if(w0 >= 0)
-            Igrad -= betaSum * w;
-        else if(w0 < 0)
-            Igrad += betaSum * w;
-
-        //transform back to world space
-        Eigen::Vector4d IgradTemp;
-        IgradTemp.block<3, 1>(0, 0) = Igrad;
-        IgradTemp[3] = 0;
-        Eigen::Vector4d IgradGlob = point.invTransform * IgradTemp;
-        Igrad = IgradGlob.block<3, 1>(0, 0);*/
     }
 
     __device__ static double kernel(const Eigen::Vector3d& x, const GPU_SamplePoint& sample)
@@ -219,8 +187,6 @@ namespace SBV {
         Eigen::Vector3d* gpu_x = nullptr;
         cudaMalloc(&gpu_x, sizeof(Eigen::Vector3d));
 
-        //double* gpu_result;
-        //cudaMalloc(&gpu_result, sizeof(double) * BLOCK_COUNT);
 
         cudaMemcpy(gpu_x, &x, sizeof(Eigen::Vector3d), cudaMemcpyHostToDevice);
 
@@ -229,7 +195,6 @@ namespace SBV {
         cudaMemcpy(cpu_result, gpu_result, sizeof(double) * BLOCK_COUNT, cudaMemcpyDeviceToHost);
 
         cudaFree(gpu_x);
-        //cudaFree(gpu_result);
 
         double result = 0;
         for(int i = 0; i < BLOCK_COUNT; i++)
