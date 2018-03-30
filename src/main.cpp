@@ -3,11 +3,29 @@
  * Tool for generating simplified bounding volumes.
  * Author : SZ_Silence06
  * Date : Feb 24, 2017
- * Usage : sbvgen -s source_mesh_path [-d [output_directory]] [-e [max_distance]] [-r [sample radius]] [-a alpha_param_value] [-options]
- * Possible options :
+ * Usage :
+ *     There are two categories of usages. One will generate shells, another build the simplified mesh with the generated shells.
+ *
+ *     (1) For generating shells, usage is:
+ *
+ *     sbvgen --shell -s source_mesh_path [-d output_directory] [-e max_distance] [-r sample_radius] [-options]
+ *
+ *     example : sbvgen --shell -s bunny_2.obj -e 0.05 -r 0.05
+ *
+ *     Posiible options:
+ *
+ *                     -f      Visualize field instead of simplifying the geometry.
+ *
+ *     (2) For simplification, usage is:
+ *
+ *     sbvgen --inner inner_shell_file_path --outer outer_shell_file_path [-a alpha_param_value] [-options]
+ *
+ *     example : sbvgen --inner inner_shell.vtk --outer outer_shell.vtk -t
+ *
+ *     Possible options :
  *                     -t      Generate intermediate results.
  *                     -v      Display version information.
- *                     -f      Visualize field instead of simplifying the geometry.
+ *
  */
 
 #include <iostream>
@@ -25,23 +43,44 @@
 
 std::string g_inputMeshPath = "";
 std::string g_outputPath = "";
+std::string g_innerSamplePath;
+std::string g_outerSamplePath;
 double g_maxDistance = -1;
 double g_sampleRadius = -1;
 bool g_genTempResult = false;
 bool g_visualizeField = false;
+bool g_genShell = false;
 double g_alpha = std::numeric_limits<double>::max();
 
 using namespace WKYLIB;
 
 void displayHelp()
 {
-    std::cout << "sbvgen tool for generating simplified bounding volumes." << std::endl
-              << "Usage : sbvgen -s source_mesh_path [-d [output_directory]] [-e [max_distance]] "
-                 "[-r [sample radius]] [-options]" << std::endl
-              << "Possible options :" << std::endl
-              << "                    -t      Generate temp results." << std::endl
-              << "                    -v      Display version information." <<std::endl
-              << "                    -f      Visualize field instead of simplifying the geometry." << std::endl;
+    std::cout << "Tool for generating simplified bounding volumes." << std::endl
+              << "Author : SZ_Silence06" << std::endl
+              << "Date : Feb 24, 2017" << std::endl
+              << "Usage :" << std::endl
+              << "     There are two categories of usages. One will generate shells, another build the simplified mesh with the generated shells." << std::endl
+              << std::endl
+              << "     (1) For generating shells, usage is:" << std::endl
+              << std::endl
+              << "     sbvgen --shell -s source_mesh_path [-d output_directory] [-e max_distance] [-r sample_radius] [-options]" << std::endl
+              << std::endl
+              << "     example : sbvgen --shell -s bunny_2.obj -e 0.05 -r 0.05" << std::endl
+              << std::endl
+              << "     Posiible options:" << std::endl
+              << std::endl
+              << "                     -f      Visualize field instead of simplifying the geometry." << std::endl
+              << std::endl
+              << "     (2) For simplification, usage is:" << std::endl
+              << std::endl
+              << "     sbvgen --inner inner_shell_file_path --outer outer_shell_file_path [-a alpha_param_value] [-options]" << std::endl
+              << std::endl
+              << "     example : sbvgen --inner inner_shell.vtk --outer outer_shell.vtk -t" << std::endl
+              << std::endl
+              << "     Possible options :" << std::endl
+              << "                     -t      Generate intermediate results." << std::endl
+              << "                     -v      Display version information." << std::endl;
 }
 
 void displayVersion()
@@ -74,6 +113,9 @@ void parseCmdLines(int argc, char**argv)
     cmdParser.addParamDef("-h", CmdLine::CmdParamType::BOOL);
     cmdParser.addParamDef("-v", CmdLine::CmdParamType::BOOL);
     cmdParser.addParamDef("-f", CmdLine::CmdParamType::BOOL);
+    cmdParser.addParamDef("--shell", CmdLine::CmdParamType::BOOL);
+    cmdParser.addParamDef("--inner", CmdLine::CmdParamType::STRING);
+    cmdParser.addParamDef("--outer", CmdLine::CmdParamType::STRING);
 
     if(cmdParser.parse() == false)
     {
@@ -121,20 +163,41 @@ void parseCmdLines(int argc, char**argv)
         exit(0);
     }
 
-    if(cmdParser.hasParam("-s") == false)
-    {
-        std::cout << "Cannot find '-s' parameter. Did you forget to type it before inputing the mesh file path?" << std::endl
-                  << "Type -h for help." << std::endl;
-        exit(0);
+    cmdParser.getBool("--shell", g_genShell);
+    if(g_genShell) {
+        if(cmdParser.hasParam("-s") == false)
+        {
+            std::cout << "Cannot find '-s' parameter. Did you forget to type it before inputing the mesh file path?" << std::endl
+                      << "Type -h for help." << std::endl;
+            exit(0);
+        }
+        cmdParser.getString("-s", g_inputMeshPath);
+        cmdParser.getDouble("-e", g_maxDistance);
+        cmdParser.getDouble("-r", g_sampleRadius);
+        cmdParser.getBool("-f", g_visualizeField);
+    }
+    else {
+        if(cmdParser.hasParam("--inner") == false)
+        {
+            std::cout << "Cannot find '--inner' parameter. Did you forget to type it before inputing the mesh file path?" << std::endl
+                      << "Type -h for help." << std::endl;
+            exit(0);
+        }
+        cmdParser.getString("--inner", g_innerSamplePath);
+
+        if(cmdParser.hasParam("--inner") == false)
+        {
+            std::cout << "Cannot find '--outer' parameter. Did you forget to type it before inputing the mesh file path?" << std::endl
+                      << "Type -h for help." << std::endl;
+            exit(0);
+        }
+        cmdParser.getString("--outer", g_outerSamplePath);
+
+        cmdParser.getDouble("-a", g_alpha);
+        cmdParser.getBool("-t", g_genTempResult);
     }
 
-    cmdParser.getString("-s", g_inputMeshPath);
-    cmdParser.getString("-d", g_outputPath);
-    cmdParser.getDouble("-e", g_maxDistance);
-    cmdParser.getDouble("-r", g_sampleRadius);
-    cmdParser.getDouble("-a", g_alpha);
-    cmdParser.getBool("-t", g_genTempResult);
-    cmdParser.getBool("-f", g_visualizeField);
+    cmdParser.getString("-d", g_outputPath);      
 }
 
 void genDefaultParams()
@@ -146,19 +209,24 @@ void genDefaultParams()
 
     if(g_outputPath == "")
     {
-        //no output directory, so we auto generate one.
-        size_t pos = g_inputMeshPath.find_last_of('.');
-        if(pos == std::string::npos)
-        {
-            g_outputPath = g_inputMeshPath;
+        if(g_genShell){
+            //no output directory, so we auto generate one.
+            size_t pos = g_inputMeshPath.find_last_of('.');
+            if(pos == std::string::npos)
+            {
+                g_outputPath = g_inputMeshPath;
+            }
+            else
+            {
+                g_outputPath = g_inputMeshPath.substr(0, pos);
+            }
+            std::stringstream ss;
+            ss << g_outputPath << "_-e_" << g_maxDistance << "_-r_" << g_sampleRadius;
+            g_outputPath = ss.str();
         }
-        else
-        {
-            g_outputPath = g_inputMeshPath.substr(0, pos);
+        else {
+            g_outputPath = ".";
         }
-        std::stringstream ss;
-        ss << g_outputPath << "_-e_ " << g_maxDistance << "_-r_" << g_sampleRadius << "_-a_" << g_alpha;
-        g_outputPath = ss.str();
     }
 
     if(boost::filesystem::exists(g_outputPath) == false
@@ -177,44 +245,49 @@ void generateShells(const SBV::Mesh& mesh, SBV::Shell& shell)
     SBV::ShellGenerator generator(mesh.vertices, mesh.triangles, g_outputPath);
     generator.generate(g_maxDistance, g_sampleRadius, shell, g_visualizeField);
 
-    //WKYLIB::Mesh::readPoints(g_outputPath + "/inner_shell.vtk", shell.mInnerShell);
-    //WKYLIB::Mesh::readPoints(g_outputPath + "/outer_shell.vtk", shell.mOuterShell);
-    //shell.buildKdTree();
-
-    if(g_genTempResult)
-    {
-        WKYLIB::Mesh::writePoints(g_outputPath + "/inner_shell.vtk", shell.mInnerShell);
-        WKYLIB::Mesh::writePoints(g_outputPath + "/outer_shell.vtk", shell.mOuterShell);
-    }
+    WKYLIB::Mesh::writePoints(g_outputPath + "/inner_shell.vtk", shell.mInnerShell);
+    WKYLIB::Mesh::writePoints(g_outputPath + "/outer_shell.vtk", shell.mOuterShell);
 
     timerGenerateShell.end();
     SBV::Logger& logger = SBV::Logger::getInstance();
-    logger.setFile(g_outputPath + "/log.txt");
     logger.log("Generate Shell : " + std::to_string(timerGenerateShell.getTime()) + " ms.");
+}
+
+void readShell(SBV::Shell& shell)
+{
+    WKYLIB::Mesh::readPoints(g_innerSamplePath, shell.mInnerShell);
+    WKYLIB::Mesh::readPoints(g_outerSamplePath, shell.mOuterShell);
+    shell.buildKdTree();
 }
 
 int main(int argc, char**argv)
 {
     parseCmdLines(argc, argv);
-
-    SBV::Mesh mesh;
-    if(jtf::mesh::load_obj(g_inputMeshPath.c_str(), mesh.triangles, mesh.vertices))
-    {
-        std::cout << "Fail to load mesh: " + g_inputMeshPath << std::endl;
-        return 0;
-    }
-
     genDefaultParams();
 
-    SBV::Shell shell;
-    generateShells(mesh, shell);
+    if(g_genShell) {
+        SBV::Mesh mesh;
+        if(jtf::mesh::load_obj(g_inputMeshPath.c_str(), mesh.triangles, mesh.vertices))
+        {
+            std::cout << "Fail to load mesh: " + g_inputMeshPath << std::endl;
+            return 0;
+        }
 
-    SBV::Simplifier simplifier(shell);
-    simplifier.setOutputDirectory(g_outputPath);
-    simplifier.setAlpha(g_alpha);
-    simplifier.setGenTempResult(g_genTempResult);
+        auto& logger = SBV::Logger::getInstance();
+        logger.setFile(g_outputPath + "/log_shell.txt");
 
-    simplifier.simplify();
+        SBV::Shell shell;
+        generateShells(mesh, shell);
+    }
+    else {
+        SBV::Shell shell;
+        readShell(shell);
+        SBV::Simplifier simplifier(shell);
+        simplifier.setOutputDirectory(g_outputPath);
+        simplifier.setAlpha(g_alpha);
+        simplifier.setGenTempResult(g_genTempResult);
+        simplifier.simplify();
+    }
 
     return 0;
 }

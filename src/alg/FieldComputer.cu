@@ -4,12 +4,13 @@
 #include <wkylib/Cuda/CudaVector.h>
 #include <eigen3/Eigen/Dense>
 #include <iostream>
+#include <fstream>
 
 using namespace zjucad::matrix;
 using namespace WKYLIB::Cuda;
 
 namespace SBV {
-    struct GPU_SamplePoint
+    struct GPU_Triangle
     {
         Eigen::Vector3d position;
         Eigen::Vector3d normal;
@@ -29,7 +30,8 @@ namespace SBV {
         return a < b ? a : b;
     }
 
-    __device__ static void integrateOverTriangle(const Eigen::Vector3d& x, const GPU_SamplePoint &point, double& I1, Eigen::Vector3d& Igrad)
+    // closed-form calculation according to Graglia 1993.
+    __device__ static double integrateOverTriangle(const Eigen::Vector3d& x, const GPU_Triangle &point)
     {
         Eigen::Matrix4d triangle;
         triangle.block<3, 3>(0, 0) = point.tri;
@@ -139,23 +141,25 @@ namespace SBV {
 
 
         // eq (19), integral of kernel 1/R
-        I1 = 0;
+        double I1 = 0;
         for(int i = 0; i < 3; i++)
             I1 += t0[i]*f2[i];
         I1 -= fabs(w0) * betaSum;
+        return I1;
     }
 
-    __device__ static double kernel(const Eigen::Vector3d& x, const GPU_SamplePoint& sample)
+    // the integrated function
+    __device__ static double kernel(const Eigen::Vector3d& x, const GPU_Triangle& sample)
     {
-        double I1;
         Eigen::Vector3d Igrad;
-        integrateOverTriangle(x, sample, I1, Igrad);
+        double I1 = integrateOverTriangle(x, sample);
         //double result = (sample.value * dot(Igrad, sample.normal) - sample.derivative * I1) / (-4 * PI);
         double result = I1 * sample.derivative;
         return result;
     }
 
-    __global__ static void kernel_integrate(const GPU_SamplePoint* samples, int* sampleCount, Eigen::Vector3d* x,
+    // cuda kernel
+    __global__ static void kernel_integrate(const GPU_Triangle* samples, int* sampleCount, Eigen::Vector3d* x,
                                             double* result)
     {
         __shared__ double cache[THREADS_PER_BLOCK];
@@ -169,6 +173,7 @@ namespace SBV {
         cache[cacheIndex] = temp;
         __syncthreads();
 
+        // sum up results
         int i = blockDim.x / 2;
         while(i > 0) {
             if(cacheIndex < i)
@@ -180,13 +185,13 @@ namespace SBV {
             result[blockIdx.x] = cache[0];
     }
 
-    static double CPU_getFieldValue(const GPU_SamplePoint* samples, int* sampleCount,
+    // fucntion called on CPU. This function launches the cuda kernel to get the field value.
+    static double CPU_getFieldValue(const GPU_Triangle* samples, int* sampleCount,
                                     double* gpu_result, const Eigen::Vector3d& x) {
         double cpu_result[BLOCK_COUNT];
 
         Eigen::Vector3d* gpu_x = nullptr;
         cudaMalloc(&gpu_x, sizeof(Eigen::Vector3d));
-
 
         cudaMemcpy(gpu_x, &x, sizeof(Eigen::Vector3d), cudaMemcpyHostToDevice);
 
@@ -210,13 +215,14 @@ namespace SBV {
                 out(i, j) = zjumat(i, j);
     }
 
-    static void buildGPUSamples(const std::vector<SamplePoint>& samples, CudaVector<GPU_SamplePoint>& out)
+    // transfer information of the triangles to GPU
+    static void buildGPUTriangles(const std::vector<Triangle>& samples, CudaVector<GPU_Triangle>& out)
     {
-        std::vector<GPU_SamplePoint> vec;
+        std::vector<GPU_Triangle> vec;
         vec.reserve(samples.size());
         for(int i = 0; i < samples.size(); i++)
         {
-            GPU_SamplePoint g;
+            GPU_Triangle g;
             g.derivative = samples[i].derivative;
             toEigen(samples[i].invTransform, g.invTransform);
             toEigen(samples[i].normal, g.normal);
@@ -227,16 +233,16 @@ namespace SBV {
             g.value = samples[i].value;
             vec.push_back(g);
         }
-        out = CudaVector<GPU_SamplePoint>(vec);
+        out = CudaVector<GPU_Triangle>(vec);
     }
 
    class FieldComputerImpl
    {
    public:
-       FieldComputerImpl(const std::vector<SamplePoint>& samples)
+       FieldComputerImpl(const std::vector<Triangle>& samples)
        {
            this->gpu_sampleCount = CudaPointer<int>(samples.size());
-           buildGPUSamples(samples, this->gpu_samples);
+           buildGPUTriangles(samples, this->gpu_samples);
 
            cudaMalloc(&this->gpu_integrate_result, sizeof(double) * BLOCK_COUNT);
        }
@@ -259,13 +265,13 @@ namespace SBV {
        }
 
    private:
-       CudaPointer<int> gpu_sampleCount;
-       CudaVector<GPU_SamplePoint> gpu_samples;
+       CudaPointer<int> gpu_sampleCount;  // triangle count (the name "sampleCount" is due to historical reason)
+       CudaVector<GPU_Triangle> gpu_samples; // triangles
        double* gpu_integrate_result;
    };
 
 
-    void FieldComputer::init(const std::vector<SamplePoint> &samples)
+    void FieldComputer::init(const std::vector<Triangle> &samples)
     {
         this->impl = new FieldComputerImpl(samples);
     }

@@ -173,6 +173,9 @@ namespace SBV
         }
     }*/
 
+    // Functions and variables before testFastlap() are used to make testFastlap() compile.
+    // They are taken from the source code of fastlap, and are not used in the simplification
+    // So don't waste time reading these codes
     const double ONE3  = 0.3333333333333;
 
     inline double Dot_Product(double* V1, double* V2)
@@ -214,8 +217,6 @@ namespace SBV
       return(str);
     }
 
-    //  this function is taken from the fastlap source code. I use it to test the fastlap.
-    // Don't ask me what this function did.
     void Dcentroid(int shape, double* pc, double* xcout)
     {
       double corner[4][3], X[3], Y[3], Z[3], vertex1[3], vertex3[3];
@@ -271,7 +272,7 @@ namespace SBV
     }
 
     // this function is taken from the fastlap example with some modification.
-    // Don't ask me about details. And don't waste much time reading this function
+    // Don't ask me about details. And don't waste much time reading this function. This function is not used in the shell generation.
     void testFastlap()
     {
         const int VERTS = 4, DIMEN = 3;
@@ -474,6 +475,7 @@ namespace SBV
           return;
     }
 
+    // Now is the code you should take time to read.
     void ShellGenerator::generate(double distance, double sampleRadius, Shell &shell, bool isVisualizeField)
     {
         mSampleRadius = sampleRadius;
@@ -491,7 +493,6 @@ namespace SBV
         computeDerivative_fastlap();
         timerComputeField.end();
         SBV::Logger& logger = SBV::Logger::getInstance();
-        logger.setFile(mOutputDirectory + "/log.txt");
         logger.log("Compute Field : " + std::to_string(timerComputeField.getTime()) + " ms.");
 
         if(isVisualizeField)
@@ -715,7 +716,7 @@ namespace SBV
 
         WKYLIB::Mesh::writePointsAndNormals(mOutputDirectory + "/inner_shell_normal.vtk", shell.mInnerShell, normals);
 
-        //output mesh normals for test
+        //output mesh with its normals for test
         matrixr_t N(3, mVertices.size(2));
         for(int i = 0; i < mTriangles.size(2); i++)
         {
@@ -732,6 +733,7 @@ namespace SBV
             N(colon(), i) /= norm(N(colon(), i));
         WKYLIB::Mesh::writeMeshAndNormals((mOutputDirectory + "/mesh.obj"), mVertices, mTriangles, N);
 
+        // build information of triangles for green function integration
         for(int i = 0; i < mTriangles.size(2); i++)
         {
             const vec3_t a = mVertices(colon(), mTriangles(0, i));
@@ -740,7 +742,7 @@ namespace SBV
             vec3_t n = cross(b - a, c - a);
             n /= norm(n);
 
-            SamplePoint sample;
+            Triangle sample;
             sample.position = (a + b + c) / 3;
             sample.normal = -n;
             sample.value = 1;
@@ -833,6 +835,7 @@ namespace SBV
         for(int i = 0; i < normals.size(2); i++)
             normals(colon(), i) /= norm(normals(colon(), i));
 
+        // build triangle information for integration
         for(int i = 0; i < bT.size(2); i++)
         {
             const vec3_t a = bV(colon(), bT(0, i));
@@ -841,7 +844,7 @@ namespace SBV
             vec3_t n = cross(b - a, c - a);
             n /= norm(n);
 
-            SamplePoint sample;
+            Triangle sample;
             sample.position = (a + b + c) / 3;
             sample.normal = n;
             sample.value = 0;
@@ -854,11 +857,6 @@ namespace SBV
         }
 
         WKYLIB::Mesh::writeMeshAndNormals((mOutputDirectory + "/boundary.obj"), bV, bT, normals);
-    }
-
-    bool ShellGenerator::isOpposite(const SamplePoint &a, const SamplePoint &b)
-    {
-        return (norm(a.position - b.position) < 1e-6) && (norm(a.normal + b.normal) < 1e-6);
     }
 
     // compute the charge density by solving the dense system directly.
@@ -911,7 +909,7 @@ namespace SBV
     // To get best performace, one should try to find out best numLev manually.
     void ShellGenerator::computeDerivative_fastlap()
     {
-        int numLev = 10, numMom = 4, maxit = 32;  // fastlap parameters.
+        int numLev = 8, numMom = 4, maxit = 32;  // fastlap parameters.
 
         int size = mSamples.size();
         double* x = new double[12*size];
@@ -1015,7 +1013,7 @@ namespace SBV
     }
 
     //closed-form calculation according to Graglia 1993.
-    double ShellGenerator::integrateOverTriangle(const vec3_t& x, const SamplePoint &point, double& I1, vec3_t& Igrad)
+    void ShellGenerator::integrateOverTriangle(const vec3_t& x, const Triangle &point, double& I1, vec3_t& Igrad)
     {
         mat4x4_t triangle;
         triangle(colon(0, 2), colon(0, 2)) = point.tri;
@@ -1175,7 +1173,7 @@ namespace SBV
         Igrad = IgradGlob(colon(0, 2), 0);
     }
 
-    double ShellGenerator::kernel(const vec3_t &x, const SamplePoint &sample)
+    double ShellGenerator::kernel(const vec3_t &x, const Triangle &sample)
     {
         double I1;
         vec3_t Igrad;

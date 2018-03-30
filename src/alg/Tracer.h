@@ -18,7 +18,7 @@ namespace SBV
      */
     class Tracer{
     public:
-        Tracer(const std::vector<SamplePoint>& samples) : mSamples(samples) {
+        Tracer(const std::vector<Triangle>& samples) : mSamples(samples) {
             mField = std::unique_ptr<FieldComputer>(new FieldComputer());
             mField->init(samples);
         }
@@ -26,7 +26,7 @@ namespace SBV
         void tracePoints(const matrixr_t& points, const matrixr_t& normals, double length, matrixr_t& traceResult);
 
     private:
-        const std::vector<SamplePoint>& mSamples;
+        const std::vector<Triangle>& mSamples;
 
         std::unique_ptr<FieldComputer> mField;
     };

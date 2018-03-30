@@ -153,6 +153,9 @@ namespace SBV
 
     void Simplifier::writeSummary()
     {
+        SBV::Logger& logger = SBV::Logger::getInstance();
+        logger.setFile(mOutputDirectory + "/log_simplify.txt");
+
         logTimer("Refinement : ", mTimerRefine);
         logTimer("Boundary Collapse(Half Edge) : ", mTimerBoundaryHalfEdge);
         logTimer("Boundary Collapse(General) : ", mTimerBoundaryGeneral);
